@@ -1,6 +1,6 @@
 import enum
 from abc import abstractmethod
-from typing import List, Type
+from typing import List, Type, Optional
 
 from sflkit.model.scope import Scope
 
@@ -54,10 +54,19 @@ class AnalysisObject(object):
         AnalysisObject.branch_finder = branch_finder
 
     # noinspection PyUnusedLocal
-    def __init__(self, event):
+    def __init__(self):
         self.suspiciousness: float = 0
         self.last_evaluation: EvaluationResult = EvaluationResult.UNOBSERVED
         self.hits = dict()
+
+    @abstractmethod
+    def serialize(self) -> dict:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        pass
 
     def get_last_evaluation(self, id_: int) -> EvaluationResult:
         return self.last_evaluation
@@ -136,3 +145,21 @@ class AnalysisObject(object):
             return self.suspiciousness <= other
         else:
             raise TypeError(f"<= supported between {type(self)} and {type(other)}")
+
+
+class MetaEvent:
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        function: Optional[str] = None,
+        var: Optional[str] = None,
+        then_id: Optional[int] = None,
+        else_id: Optional[int] = None,
+    ):
+        self.file = file
+        self.line = line
+        self.function = function
+        self.var = var
+        self.then_id = then_id
+        self.else_id = else_id

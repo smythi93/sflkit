@@ -15,7 +15,12 @@ from sflkitlib.events.event import (
     LenEvent,
 )
 
-from sflkit.analysis.analysis_type import AnalysisObject, AnalysisType, EvaluationResult
+from sflkit.analysis.analysis_type import (
+    AnalysisObject,
+    AnalysisType,
+    EvaluationResult,
+    MetaEvent,
+)
 from sflkit.analysis.suggestion import Suggestion, Location
 from sflkit.model.scope import Scope
 
@@ -30,7 +35,7 @@ class Spectrum(AnalysisObject, ABC):
         failed_observed: int = 0,
         failed_not_observed: int = 0,
     ):
-        super().__init__(None)
+        super().__init__()
         self.file = file
         self.line = line
         self.passed = passed_observed + passed_not_observed
@@ -41,8 +46,41 @@ class Spectrum(AnalysisObject, ABC):
         self.failed_not_observed = failed_not_observed
         self.last_evaluation: EvaluationResult = EvaluationResult.FALSE
 
+    def __hash__(self):
+        return hash((self.file, self.line, self.analysis_type()))
+
+    def __eq__(self, other):
+        if not isinstance(other, Spectrum):
+            return False
+        return (
+            self.file == other.file
+            and self.line == other.line
+            and self.analysis_type() == other.analysis_type()
+        )
+
     def __str__(self):
         return f"{self.analysis_type()}:{self.file}:{self.line}"
+
+    def serialize(self):
+        return {
+            "file": self.file,
+            "line": self.line,
+            "passed": self.passed,
+            "passed_observed": self.passed_observed,
+            "passed_not_observed": self.passed_not_observed,
+            "failed": self.failed,
+            "failed_observed": self.failed_observed,
+            "failed_not_observed": self.failed_not_observed,
+            "type": self.analysis_type().value,
+        }
+
+    def _deserialize(self, s: dict):
+        self.passed = s["passed"]
+        self.passed_observed = s["passed_observed"]
+        self.passed_not_observed = s["passed_not_observed"]
+        self.failed = s["failed"]
+        self.failed_observed = s["failed_observed"]
+        self.failed_not_observed = s["failed_not_observed"]
 
     @staticmethod
     def default_evaluation() -> EvaluationResult:
@@ -466,8 +504,29 @@ class Spectrum(AnalysisObject, ABC):
 
 
 class Line(Spectrum):
-    def __init__(self, event: LineEvent):
+    def __init__(self, event: LineEvent | MetaEvent):
         super().__init__(event.file, event.line)
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+            ]
+        )
+        assert s["type"] == AnalysisType.LINE.value
+        analysis_object = Line(MetaEvent(s["file"], s["line"]))
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def analysis_type():
@@ -479,9 +538,50 @@ class Line(Spectrum):
 
 
 class Function(Spectrum):
-    def __init__(self, event: FunctionEnterEvent):
+    def __init__(self, event: FunctionEnterEvent | MetaEvent):
         super().__init__(event.file, event.line)
         self.function = event.function
+
+    def __hash__(self):
+        return hash((self.file, self.line, self.function, self.analysis_type()))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, Function)
+            and self.file == other.file
+            and self.line == other.line
+            and self.function == other.function
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["function"] = self.function
+        return default
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "function",
+            ]
+        )
+        assert s["type"] == AnalysisType.FUNCTION.value
+        analysis_object = Function(
+            MetaEvent(s["file"], s["line"], function=s["function"])
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def analysis_type():
@@ -503,11 +603,70 @@ class Function(Spectrum):
 
 
 class DefUse(Spectrum):
-    def __init__(self, def_event: DefEvent, use_event: UseEvent):
+    def __init__(
+        self, def_event: DefEvent | MetaEvent, use_event: UseEvent | MetaEvent
+    ):
         super().__init__(def_event.file, def_event.line)
         self.use_file = use_event.file
         self.use_line = use_event.line
         self.var = def_event.var
+
+    def __hash__(self):
+        return hash(
+            (
+                self.file,
+                self.line,
+                self.use_file,
+                self.use_line,
+                self.var,
+                self.analysis_type(),
+            )
+        )
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, DefUse)
+            and self.file == other.file
+            and self.line == other.line
+            and self.use_file == other.use_file
+            and self.use_line == other.use_line
+            and self.var == other.var
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["use_file"] = self.use_file
+        default["use_line"] = self.use_line
+        default["var"] = self.var
+        return default
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "use_file",
+                "use_line",
+                "var",
+            ]
+        )
+        assert s["type"] == AnalysisType.DEF_USE.value
+        analysis_object = DefUse(
+            MetaEvent(s["file"], s["line"], var=s["var"]),
+            MetaEvent(s["use_file"], s["use_line"]),
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def analysis_type():
@@ -542,12 +701,55 @@ class ModifiableSpectrum(Spectrum, ABC):
 class Loop(ModifiableSpectrum):
     def __init__(
         self,
-        event: LoopBeginEvent | LoopHitEvent | LoopEndEvent,
+        event: LoopBeginEvent | LoopHitEvent | LoopEndEvent | MetaEvent,
         evaluate_hit: Optional[Callable] = None,
     ):
         super().__init__(event.file, event.line)
         self.loop_stack = list()
         self.evaluate_hit = evaluate_hit if evaluate_hit else self.evaluate_hit_0
+
+    def __hash__(self):
+        return hash(
+            (self.file, self.line, self.evaluate_hit.__name__, self.analysis_type())
+        )
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, Loop)
+            and self.file == other.file
+            and self.line == other.line
+            and self.evaluate_hit == other.evaluate_hit
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["evaluate_hit"] = self.evaluate_hit.__name__
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "evaluate_hit",
+            ]
+        )
+        assert s["type"] == AnalysisType.LOOP.value
+        analysis_object = Loop(
+            MetaEvent(s["file"], s["line"]), getattr(Loop, s["evaluate_hit"])
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def evaluate_hit_0(x):
@@ -605,6 +807,59 @@ class Length(ModifiableSpectrum):
         super().__init__(event.file, event.line)
         self.var = event.var
         self.evaluate_length = evaluate_hit if evaluate_hit else self.evaluate_length_0
+
+    def __hash__(self):
+        return hash(
+            (
+                self.file,
+                self.line,
+                self.var,
+                self.evaluate_length.__name__,
+                self.analysis_type(),
+            )
+        )
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, Length)
+            and self.file == other.file
+            and self.line == other.line
+            and self.var == other.var
+            and self.evaluate_length == other.evaluate_length
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["var"] = self.var
+        default["evaluate_length"] = self.evaluate_length.__name__
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "var",
+                "evaluate_length",
+            ]
+        )
+        assert s["type"] == AnalysisType.LENGTH.value
+        analysis_object = Length(
+            MetaEvent(s["file"], s["line"], var=s["var"]),
+            getattr(Length, s["evaluate_length"]),
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def evaluate_length_0(x):

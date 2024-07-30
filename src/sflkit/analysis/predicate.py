@@ -11,7 +11,12 @@ from sflkitlib.events.event import (
     ConditionEvent,
 )
 
-from sflkit.analysis.analysis_type import AnalysisType, EvaluationResult
+from sflkit.analysis.analysis_type import (
+    AnalysisType,
+    EvaluationResult,
+    MetaEvent,
+    AnalysisObject,
+)
 from sflkit.analysis.spectra import Spectrum
 from sflkit.analysis.suggestion import Suggestion, Location
 from sflkit.model import scope
@@ -31,6 +36,31 @@ class Predicate(Spectrum, ABC):
         self.increase_false = 0
         self.total_hits = dict()
         self.last_evaluation = EvaluationResult.UNOBSERVED
+
+    def serialize(self):
+        default = super().serialize()
+        default["true_relevant"] = self.true_relevant
+        default["false_relevant"] = self.false_relevant
+        default["true_irrelevant"] = self.true_irrelevant
+        default["false_irrelevant"] = self.false_irrelevant
+        default["fail_true"] = self.fail_true
+        default["fail_false"] = self.fail_false
+        default["context"] = self.context
+        default["increase_true"] = self.increase_true
+        default["increase_false"] = self.increase_false
+        return default
+
+    def _deserialize(self, s: dict):
+        super()._deserialize(s)
+        self.true_relevant = s["true_relevant"]
+        self.false_relevant = s["false_relevant"]
+        self.true_irrelevant = s["true_irrelevant"]
+        self.false_irrelevant = s["false_irrelevant"]
+        self.fail_true = s["fail_true"]
+        self.fail_false = s["fail_false"]
+        self.context = s["context"]
+        self.increase_true = s["increase_true"]
+        self.increase_false = s["increase_false"]
 
     @staticmethod
     def default_evaluation() -> EvaluationResult:
@@ -139,6 +169,67 @@ class Branch(Predicate):
         self.then_id = event.then_id if then else event.else_id
         self.then = then
 
+    def __hash__(self):
+        return hash(
+            (self.file, self.line, self.then_id, self.then, self.analysis_type())
+        )
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, Branch)
+            and self.file == other.file
+            and self.line == other.line
+            and self.then_id == other.then_id
+            and self.then == other.then
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["then_id"] = self.then_id
+        default["then"] = self.then
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "then_id",
+                "then",
+            ]
+        )
+        assert s["type"] == AnalysisType.BRANCH.value
+        analysis_object = Branch(
+            MetaEvent(
+                s["file"],
+                s["line"],
+                then_id=s["then_id"] if s["then"] else None,
+                else_id=s["then_id"] if not s["then"] else None,
+            ),
+            then=s["then"],
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
+
     @staticmethod
     def analysis_type() -> AnalysisType:
         return AnalysisType.BRANCH
@@ -174,12 +265,12 @@ class Branch(Predicate):
 
 
 class Comp(enum.Enum):
-    LT = 0
-    LE = 1
-    EQ = 2
-    GE = 3
-    GT = 4
-    NE = 5
+    LT = "<"
+    LE = "<="
+    EQ = "=="
+    GE = ">="
+    GT = ">"
+    NE = "!="
 
     def evaluate(self, x, y):
         if self == Comp.LT:
@@ -206,6 +297,11 @@ class Comparison(Predicate, ABC):
     def __init__(self, file, line, op: Comp):
         super().__init__(file, line)
         self.op = op
+
+    def serialize(self):
+        default = super().serialize()
+        default["op"] = self.op.value
+        return default
 
     @staticmethod
     def events():
@@ -235,6 +331,65 @@ class ScalarPair(Comparison):
         self.var1 = event.var
         self.var2 = var
 
+    def __hash__(self):
+        return hash(
+            (self.file, self.line, self.var1, self.var2, self.op, self.analysis_type())
+        )
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, ScalarPair)
+            and self.file == other.file
+            and self.line == other.line
+            and self.var1 == other.var1
+            and self.var2 == other.var2
+            and self.op == other.op
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["var1"] = self.var1
+        default["var2"] = self.var2
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "var1",
+                "var2",
+                "op",
+            ]
+        )
+        assert s["type"] == AnalysisType.SCALAR_PAIR.value
+        analysis_object = ScalarPair(
+            MetaEvent(s["file"], s["line"], var=s["var1"]),
+            Comp(s["op"]),
+            s["var2"],
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
+
     @staticmethod
     def analysis_type():
         return AnalysisType.SCALAR_PAIR
@@ -253,6 +408,59 @@ class VariablePredicate(Comparison):
     def __init__(self, event: DefEvent, op: Comp):
         super().__init__(event.file, event.line, op)
         self.var = event.var
+
+    def __hash__(self):
+        return hash((self.file, self.line, self.var, self.op, self.analysis_type()))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, VariablePredicate)
+            and self.file == other.file
+            and self.line == other.line
+            and self.var == other.var
+            and self.op == other.op
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["var"] = self.var
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "var",
+                "op",
+            ]
+        )
+        assert s["type"] == AnalysisType.VARIABLE.value
+        analysis_object = VariablePredicate(
+            MetaEvent(s["file"], s["line"], var=s["var"]),
+            Comp(s["op"]),
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def analysis_type():
@@ -275,6 +483,55 @@ class NonePredicate(Comparison):
     def __init__(self, event: DefEvent):
         super().__init__(event.file, event.line, Comp.EQ)
         self.var = event.var
+
+    def __hash__(self):
+        return hash((self.file, self.line, self.var, self.analysis_type()))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, NonePredicate)
+            and self.file == other.file
+            and self.line == other.line
+            and self.var == other.var
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["var"] = self.var
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "var",
+                "op",
+            ]
+        )
+        assert s["type"] == AnalysisType.NONE.value
+        analysis_object = NonePredicate(MetaEvent(s["file"], s["line"], var=s["var"]))
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def analysis_type():
@@ -301,6 +558,72 @@ class ReturnPredicate(Comparison):
         super().__init__(event.file, event.line, op)
         self.function = event.function
         self.value = value
+
+    def __hash__(self):
+        return hash(
+            (
+                self.file,
+                self.line,
+                self.function,
+                self.value,
+                self.op,
+                self.analysis_type(),
+            )
+        )
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, ReturnPredicate)
+            and self.file == other.file
+            and self.line == other.line
+            and self.function == other.function
+            and self.value == other.value
+            and self.op == other.op
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["function"] = self.function
+        default["value"] = self.value
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "function",
+                "value",
+                "op",
+            ]
+        )
+        assert s["type"] == AnalysisType.RETURN.value
+        analysis_object = ReturnPredicate(
+            MetaEvent(s["file"], s["line"], function=s["function"]),
+            Comp(s["op"]),
+            s["value"],
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def analysis_type():
@@ -329,6 +652,57 @@ class EmptyStringPredicate(Comparison):
         super().__init__(event.file, event.line, Comp.EQ)
         self.var = event.var
 
+    def __hash__(self):
+        return hash((self.file, self.line, self.var, self.analysis_type()))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, EmptyStringPredicate)
+            and self.file == other.file
+            and self.line == other.line
+            and self.var == other.var
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["var"] = self.var
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "var",
+                "op",
+            ]
+        )
+        assert s["type"] == AnalysisType.EMPTY_STRING.value
+        analysis_object = EmptyStringPredicate(
+            MetaEvent(s["file"], s["line"], var=s["var"])
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
+
     @staticmethod
     def analysis_type():
         return AnalysisType.EMPTY_STRING
@@ -353,6 +727,57 @@ class EmptyBytesPredicate(Comparison):
     def __init__(self, event: DefEvent):
         super().__init__(event.file, event.line, Comp.EQ)
         self.var = event.var
+
+    def __hash__(self):
+        return hash((self.file, self.line, self.var, self.analysis_type()))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, EmptyBytesPredicate)
+            and self.file == other.file
+            and self.line == other.line
+            and self.var == other.var
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["var"] = self.var
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "var",
+                "op",
+            ]
+        )
+        assert s["type"] == AnalysisType.EMPTY_BYTES.value
+        analysis_object = EmptyBytesPredicate(
+            MetaEvent(s["file"], s["line"], var=s["var"])
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def analysis_type():
@@ -380,6 +805,11 @@ class FunctionPredicate(Predicate, ABC):
         self.var = var
         self.predicate = predicate
 
+    def serialize(self):
+        default = super().serialize()
+        default["var"] = self.var
+        return default
+
     @staticmethod
     def events():
         return [
@@ -395,6 +825,51 @@ class IsAsciiPredicate(FunctionPredicate):
     def __init__(self, event: DefEvent):
         super().__init__(event.file, event.line, event.var, str.isascii)
 
+    def __hash__(self):
+        return hash((self.file, self.line, self.var, self.analysis_type()))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, IsAsciiPredicate)
+            and self.file == other.file
+            and self.line == other.line
+            and self.var == other.var
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "var",
+            ]
+        )
+        assert s["type"] == AnalysisType.ASCII_STRING.value
+        analysis_object = IsAsciiPredicate(
+            MetaEvent(s["file"], s["line"], var=s["var"])
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
+
     @staticmethod
     def analysis_type():
         return AnalysisType.ASCII_STRING
@@ -406,6 +881,51 @@ class IsAsciiPredicate(FunctionPredicate):
 class ContainsDigitPredicate(FunctionPredicate):
     def __init__(self, event: DefEvent):
         super().__init__(event.file, event.line, event.var, self._contains_digit)
+
+    def __hash__(self):
+        return hash((self.file, self.line, self.var, self.analysis_type()))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, ContainsDigitPredicate)
+            and self.file == other.file
+            and self.line == other.line
+            and self.var == other.var
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "var",
+            ]
+        )
+        assert s["type"] == AnalysisType.DIGIT_STRING.value
+        analysis_object = ContainsDigitPredicate(
+            MetaEvent(s["file"], s["line"], var=s["var"])
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def _contains_digit(s):
@@ -422,6 +942,51 @@ class ContainsDigitPredicate(FunctionPredicate):
 class ContainsSpecialPredicate(FunctionPredicate):
     def __init__(self, event: DefEvent):
         super().__init__(event.file, event.line, event.var, self._contain_special)
+
+    def __hash__(self):
+        return hash((self.file, self.line, self.var, self.analysis_type()))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, ContainsSpecialPredicate)
+            and self.file == other.file
+            and self.line == other.line
+            and self.var == other.var
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "var",
+            ]
+        )
+        assert s["type"] == AnalysisType.SPECIAL_STRING.value
+        analysis_object = ContainsSpecialPredicate(
+            MetaEvent(s["file"], s["line"], var=s["var"])
+        )
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def _contain_special(s):
@@ -440,6 +1005,59 @@ class Condition(Predicate):
         super().__init__(file, line)
         self.condition = condition
         self.negate = negate
+
+    def __hash__(self):
+        return hash(
+            (self.file, self.line, self.condition, self.negate, self.analysis_type())
+        )
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, Condition)
+            and self.file == other.file
+            and self.line == other.line
+            and self.condition == other.condition
+            and self.negate == other.negate
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["condition"] = self.condition
+        default["negate"] = self.negate
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "condition",
+                "negate",
+            ]
+        )
+        assert s["type"] == AnalysisType.CONDITION.value
+        analysis_object = Condition(s["file"], s["line"], s["condition"], s["negate"])
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def analysis_type():
@@ -469,6 +1087,54 @@ class FunctionErrorPredicate(Predicate):
     def __init__(self, file, line, function):
         super().__init__(file, line)
         self.function = function
+
+    def __hash__(self):
+        return hash((self.file, self.line, self.function, self.analysis_type()))
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, FunctionErrorPredicate)
+            and self.file == other.file
+            and self.line == other.line
+            and self.function == other.function
+            and self.analysis_type() == other.analysis_type()
+        )
+
+    def serialize(self):
+        default = super().serialize()
+        default["function"] = self.function
+        return default
+
+    @staticmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        assert all(
+            p in s
+            for p in [
+                "file",
+                "line",
+                "passed",
+                "passed_observed",
+                "passed_not_observed",
+                "failed",
+                "failed_observed",
+                "failed_not_observed",
+                "type",
+                "true_relevant",
+                "false_relevant",
+                "true_irrelevant",
+                "false_irrelevant",
+                "fail_true",
+                "fail_false",
+                "context",
+                "increase_true",
+                "increase_false",
+                "function",
+            ]
+        )
+        assert s["type"] == AnalysisType.FUNCTION_ERROR.value
+        analysis_object = FunctionErrorPredicate(s["file"], s["line"], s["function"])
+        analysis_object._deserialize(s)
+        return analysis_object
 
     @staticmethod
     def analysis_type() -> AnalysisType:

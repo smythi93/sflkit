@@ -3,6 +3,16 @@ from typing import Set
 from sflkit.model.scope import Scope
 
 
+class MetaModel(object):
+    # noinspection PyUnresolvedReferences
+    def __init__(self, analysis_objects: Set["AnalysisObject"] = None):
+        self.analysis_objects = analysis_objects or set()
+
+    # noinspection PyUnresolvedReferences
+    def get_analysis(self) -> Set["AnalysisObject"]:
+        return self.analysis_objects
+
+
 class Model(object):
     def __init__(self, factory):
         self.factory = factory
