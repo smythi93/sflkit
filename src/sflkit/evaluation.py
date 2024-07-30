@@ -31,11 +31,31 @@ class Rank:
     ):
         self.suggestions = sorted(suggestions, reverse=True)
         self.suspiciousness: Dict[Location, float] = dict()
+        for i, suggestion in enumerate(self.suggestions):
+            lines = suggestion.lines
+            for line in lines:
+                self.suspiciousness[line] = metric(
+                    suggestion.suspiciousness,
+                    self.suspiciousness.get(line, default_suspiciousness),
+                )
+        suggestions = dict()
+        for suggestion in self.suspiciousness:
+            if self.suspiciousness[suggestion] not in suggestions:
+                suggestions[self.suspiciousness[suggestion]] = set()
+            suggestions[self.suspiciousness[suggestion]].add(suggestion)
+        self.suggestions_normalized = sorted(
+            [
+                Suggestion(list(lines), suspiciousness)
+                for suspiciousness, lines in suggestions.items()
+            ],
+            reverse=True,
+        )
+
         self.ranks: Dict[float, List[Location]] = dict()
         self.locations: Dict[Location, float] = dict()
         self.effort: Dict[Location, int] = dict()
         current_rank = 1
-        for i, suggestion in enumerate(self.suggestions):
+        for suggestion in self.suggestions_normalized:
             lines = suggestion.lines
             if len(lines) == 0:
                 continue
@@ -53,6 +73,7 @@ class Rank:
                 )
                 self.locations[line] = rank
                 self.effort[line] = current_rank - 1
+
         self.number_of_locations = total_number_of_locations or len(self.locations)
         self.default_rank = (total_number_of_locations - len(self.locations)) / 2 + (
             current_rank - 1
