@@ -17,7 +17,6 @@ from sflkit.analysis.predicate import (
     ContainsSpecialPredicate,
     Condition,
     FunctionErrorPredicate,
-    Comparison,
 )
 from sflkit.analysis.spectra import Line, Function, DefUse, Loop, Length
 from sflkit.analysis.suggestion import Suggestion
