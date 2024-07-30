@@ -44,7 +44,7 @@ class EventMapping:
                 f"Cannot find information about instrumentation of {path or file}"
             )
 
-    def write(self, config):
+    def write(self, config, indent: Optional[int] = None):
         if not hasattr(config, "identifier"):
             raise InstrumentationError(f"Argument does not have an identifier")
         if self.path:
@@ -53,7 +53,7 @@ class EventMapping:
             SFLKIT_PATH.mkdir(parents=True, exist_ok=True)
             file = self.get_path(config.identifier())
         with file.open("w") as fp:
-            json.dump(list(self.mapping.values()), fp, cls=EventEncoder)
+            json.dump(list(self.mapping.values()), fp, cls=EventEncoder, indent=indent)
 
     def __len__(self):
         return len(self.mapping)

@@ -83,19 +83,19 @@ class Analyzer(object):
             self._analyze(event_file)
         self._finalize()
 
-    def dump(self, path):
+    def dump(self, path: os.PathLike, indent: Optional[int] = None):
         with open(path, "w") as f:
-            json.dump(self.get_analysis(), f, cls=AnalysisEncoder)
+            json.dump(self.get_analysis(), f, cls=AnalysisEncoder, indent=indent)
 
-    def dumps(self):
-        return json.dumps(self.get_analysis(), cls=AnalysisEncoder)
+    def dumps(self, indent: Optional[int] = None):
+        return json.dumps(self.get_analysis(), cls=AnalysisEncoder, indent=indent)
 
     @staticmethod
-    def load(path):
+    def load(path: os.PathLike):
         return Analyzer(meta_model=MetaModel(load_analysis_json(path)))
 
     @staticmethod
-    def loads(data):
+    def loads(data: str):
         return Analyzer(meta_model=MetaModel(set(map(deserialize, json.loads(data)))))
 
     def get_analysis(self) -> Set[AnalysisObject]:
