@@ -130,10 +130,13 @@ class Analyzer(object):
             else:
                 suggestions[suggestion.suspiciousness] |= set(suggestion.lines)
 
-        self.max_suspiciousness = max(suspiciousness)
-        self.min_suspiciousness = min(suspiciousness)
-        self.mean_suspiciousness = sum(suspiciousness) / len(suspiciousness)
-        self.median_suspiciousness = sorted(suspiciousness)[len(suspiciousness) // 2]
+        if suspiciousness:
+            self.max_suspiciousness = max(suspiciousness)
+            self.min_suspiciousness = min(suspiciousness)
+            self.mean_suspiciousness = sum(suspiciousness) / len(suspiciousness)
+            self.median_suspiciousness = sorted(suspiciousness)[
+                len(suspiciousness) // 2
+            ]
 
         return sorted(
             [
