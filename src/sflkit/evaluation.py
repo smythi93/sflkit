@@ -33,6 +33,7 @@ class Rank:
         self.suspiciousness: Dict[Location, float] = dict()
         self.ranks: Dict[float, List[Location]] = dict()
         self.locations: Dict[Location, float] = dict()
+        self.effort: Dict[Location, int] = dict()
         current_rank = 1
         for i, suggestion in enumerate(self.suggestions):
             lines = suggestion.lines
@@ -51,6 +52,7 @@ class Rank:
                     self.suspiciousness.get(line, default_suspiciousness),
                 )
                 self.locations[line] = rank
+                self.effort[line] = current_rank - 1
         self.number_of_locations = total_number_of_locations or len(self.locations)
         self.default_rank = (total_number_of_locations - len(self.locations)) / 2 + (
             current_rank - 1
@@ -122,5 +124,28 @@ class Rank:
 
     def wasted_effort(
         self, faulty: Set[Location], scenario: Optional[Scenario] = None
-    ) -> float:
-        return self.get_rank(faulty, scenario)
+    ) -> int:
+        if scenario == Scenario.BEST_CASE:
+            return min(
+                self.effort.get(location, self.number_of_locations)
+                for location in faulty
+            )
+        elif scenario == Scenario.WORST_CASE:
+            return max(
+                self.effort.get(location, self.number_of_locations)
+                for location in faulty
+            )
+        elif scenario == Scenario.AVG_CASE:
+            return sorted(
+                [
+                    self.effort.get(location, self.number_of_locations)
+                    for location in faulty
+                ]
+            )[max(len(faulty) // 2 - 1, 0)]
+        else:
+            return sum(
+                [
+                    self.effort.get(location, self.number_of_locations)
+                    for location in faulty
+                ]
+            ) / len(faulty)

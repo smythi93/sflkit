@@ -99,6 +99,8 @@ class Spectrum(AnalysisObject, ABC):
             m = metric(self)
             if m == math.nan:
                 m = 0
+            elif m == numpy.nan:
+                m = 0
             return m
         except ZeroDivisionError:
             return 0
