@@ -27,6 +27,7 @@ class Rank:
         suggestions: List[Suggestion],
         metric: Callable[[float, float], float] = max,
         default_suspiciousness: float = float("-inf"),
+        total_number_of_locations: Optional[int] = None,
     ):
         self.suggestions = sorted(suggestions, reverse=True)
         self.suspiciousness: Dict[Location, float] = dict()
@@ -50,7 +51,10 @@ class Rank:
                     self.locations.get(line, default_suspiciousness),
                 )
                 self.locations[line] = rank
-        self.number_of_locations = len(self.locations)
+        self.number_of_locations = total_number_of_locations or len(self.locations)
+        self.default_rank = (total_number_of_locations - len(self.locations)) / 2 + (
+            current_rank - 1
+        )
 
     def top_n(
         self,
@@ -97,19 +101,19 @@ class Rank:
     ) -> float:
         if scenario == Scenario.BEST_CASE:
             rank = min(
-                self.locations.get(location, float("inf")) for location in faulty
+                self.locations.get(location, self.default_rank) for location in faulty
             )
         elif scenario == Scenario.WORST_CASE:
             rank = max(
-                self.locations.get(location, float("inf")) for location in faulty
+                self.locations.get(location, self.default_rank) for location in faulty
             )
         elif scenario == Scenario.AVG_CASE:
             rank = sorted(
-                [self.locations.get(location, float("inf")) for location in faulty]
+                [self.locations.get(location, self.default_rank) for location in faulty]
             )[max(len(faulty) // 2 - 1, 0)]
         else:
             rank = sum(
-                [self.locations.get(location, float("inf"))] for location in faulty
+                [self.locations.get(location, self.default_rank)] for location in faulty
             ) / len(faulty)
         return rank
 
