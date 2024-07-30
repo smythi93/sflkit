@@ -48,7 +48,7 @@ class Rank:
             for line in lines:
                 self.suspiciousness[line] = metric(
                     suggestion.suspiciousness,
-                    self.locations.get(line, default_suspiciousness),
+                    self.suspiciousness.get(line, default_suspiciousness),
                 )
                 self.locations[line] = rank
         self.number_of_locations = total_number_of_locations or len(self.locations)
