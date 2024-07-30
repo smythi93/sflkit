@@ -97,9 +97,7 @@ class Spectrum(AnalysisObject, ABC):
             metric = Spectrum.Ochiai
         try:
             m = metric(self)
-            if m == math.nan:
-                m = 0
-            elif m == numpy.nan:
+            if numpy.isnan(m):
                 m = 0
             return m
         except ZeroDivisionError:
