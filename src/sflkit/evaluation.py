@@ -96,15 +96,21 @@ class Rank:
         self, faulty: Set[Location], scenario: Optional[Scenario] = None
     ) -> float:
         if scenario == Scenario.BEST_CASE:
-            rank = min(self.locations.get(location, float("inf")) for location in faulty)
+            rank = min(
+                self.locations.get(location, float("inf")) for location in faulty
+            )
         elif scenario == Scenario.WORST_CASE:
-            rank = max(self.locations.get(location, float("inf")) for location in faulty)
+            rank = max(
+                self.locations.get(location, float("inf")) for location in faulty
+            )
         elif scenario == Scenario.AVG_CASE:
-            rank = sorted([self.locations.get(location, float("inf")) for location in faulty])[
-                max(len(faulty) // 2 - 1, 0)
-            ]
+            rank = sorted(
+                [self.locations.get(location, float("inf")) for location in faulty]
+            )[max(len(faulty) // 2 - 1, 0)]
         else:
-            rank = sum([self.locations.get(location, float("inf"))] for location in faulty) / len(faulty)
+            rank = sum(
+                [self.locations.get(location, float("inf"))] for location in faulty
+            ) / len(faulty)
         return rank
 
     def exam(self, faulty: Set[Location], scenario: Optional[Scenario] = None) -> float:
