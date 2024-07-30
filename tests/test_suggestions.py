@@ -304,7 +304,7 @@ class SuggestionsFromConditionsLoopTest(BaseTest):
             type_=AnalysisType.CONDITION,
             metric=Spectrum.Tarantula,
         )
-        self.assertAlmostEqual(0.5, suggestions[0].suspiciousness, delta=self.DELTA)
+        self.assertAlmostEqual(1, suggestions[0].suspiciousness, delta=self.DELTA)
         self.assertEqual(1, len(suggestions[0].lines))
         self.assertIn(Location("main.py", 7), suggestions[0].lines)
 

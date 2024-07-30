@@ -29,7 +29,7 @@ class Predicate(Spectrum, ABC):
         self.context = 1
         self.increase_true = 0
         self.increase_false = 0
-        self.true_hits = dict()
+        self.total_hits = dict()
         self.last_evaluation = EvaluationResult.UNOBSERVED
 
     @staticmethod
@@ -37,7 +37,7 @@ class Predicate(Spectrum, ABC):
         return EvaluationResult.UNOBSERVED
 
     def get_last_evaluation(self, id_: int) -> EvaluationResult:
-        if id_ not in self.true_hits:
+        if id_ not in self.hits:
             return self.default_evaluation()
         else:
             return self.last_evaluation
@@ -45,25 +45,25 @@ class Predicate(Spectrum, ABC):
     def finalize(self, passed: list, failed: list):
         super().finalize(passed, failed)
         for p in passed:
-            if p in self.true_hits:
-                if self.true_hits[p] > 0:
+            if p in self.hits:
+                if self.hits[p] > 0:
                     self.true_irrelevant_observed()
                 else:
                     self.false_irrelevant_observed()
         for f in failed:
-            if f in self.true_hits:
-                if self.true_hits[f] > 0:
+            if f in self.hits:
+                if self.hits[f] > 0:
                     self.true_relevant_observed()
                 else:
                     self.false_relevant_observed()
 
     def hit(self, id_, event: Event, scope_: scope.Scope = None):
-        if id_ not in self.true_hits:
-            self.true_hits[id_] = 0
+        if id_ not in self.total_hits:
+            self.total_hits[id_] = 0
         if id_ not in self.hits:
             self.hits[id_] = 0
+        self.total_hits[id_] += 1
         if self._evaluate_predicate(event, scope_):
-            self.true_hits[id_] += 1
             self.hits[id_] += 1
             self.last_evaluation = EvaluationResult.TRUE
         else:
@@ -148,11 +148,13 @@ class Branch(Predicate):
         return [EventType.BRANCH]
 
     def hit(self, id_, event: BranchEvent, scope_: scope.Scope = None):
-        if id_ not in self.true_hits:
-            self.true_hits[id_] = 0
+        if id_ not in self.total_hits:
+            self.total_hits[id_] = 0
+        if id_ not in self.hits:
+            self.hits[id_] = 0
         if event.then_id == self.then_id:
-            super(Predicate, self).hit(id_, event, scope_)
-            self.true_hits[id_] += 1
+            self.total_hits[id_] += 1
+            self.hits[id_] += 1
             self.last_evaluation = EvaluationResult.TRUE
         else:
             self.last_evaluation = EvaluationResult.FALSE
@@ -447,11 +449,13 @@ class Condition(Predicate):
         return [EventType.CONDITION]
 
     def hit(self, id_, event: ConditionEvent, scope_: scope.Scope = None):
-        super(Predicate, self).hit(id_, event, scope_)
-        if id_ not in self.true_hits:
-            self.true_hits[id_] = 0
+        if id_ not in self.hits:
+            self.hits[id_] = 0
+        if id_ not in self.total_hits:
+            self.total_hits[id_] = 0
+        self.total_hits[id_] += 1
         if event.value:
-            self.true_hits[id_] += 1
+            self.hits[id_] += 1
             self.last_evaluation = EvaluationResult.TRUE
         else:
             self.last_evaluation = EvaluationResult.FALSE

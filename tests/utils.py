@@ -13,10 +13,11 @@ from sflkit.model import EventFile
 
 class BaseTest(unittest.TestCase):
     TEST_RESOURCES = os.path.abspath(os.path.join("resources", "subjects", "tests"))
+    TEST_MAPPING = "mapping.json"
     TEST_DIR = "test_dir"
     TEST_EVENTS = "test_events.json"
     TEST_PATH = "EVENTS_PATH"
-    PYTHON = "python3.10"
+    PYTHON = "python3"
     ACCESS = "main.py"
     TEST_ERROR = "test_error"
     TEST_LINES = "test_lines"
@@ -57,9 +58,19 @@ class BaseTest(unittest.TestCase):
         event.LenEvent("main.py", 1, 23, "x", 0, 5),
     ]
 
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.TEST_DIR, ignore_errors=True)
+        if os.path.exists(cls.TEST_EVENTS):
+            os.remove(cls.TEST_EVENTS)
+        if os.path.exists(cls.TEST_MAPPING):
+            os.remove(cls.TEST_MAPPING)
+        if os.path.exists(cls.TEST_PATH):
+            os.remove(cls.TEST_PATH)
+
     @staticmethod
     def execute_subject(test: List[str], count: int):
-        subprocess.run([BaseTest.PYTHON, BaseTest.ACCESS] + test, cwd=BaseTest.TEST_DIR)
+        subprocess.run([BaseTest.PYTHON, BaseTest.ACCESS] + test, cwd=BaseTest.TEST_DIR, env=os.environ)
         path = os.path.join(BaseTest.TEST_DIR, BaseTest.TEST_PATH + f"_{count}")
         shutil.move(os.path.join(BaseTest.TEST_DIR, BaseTest.TEST_PATH), path)
         return path
