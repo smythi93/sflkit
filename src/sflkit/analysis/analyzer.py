@@ -60,7 +60,8 @@ class Analyzer(object):
         self.paths: Dict[int, os.PathLike] = dict()
         self.max_suspiciousness = 0
         self.min_suspiciousness = 0
-        self.avg_suspiciousness = 0
+        self.mean_suspiciousness = 0
+        self.median_suspiciousness = 0
 
     def _analyze(self, event_file):
         if self.meta:
@@ -119,23 +120,20 @@ class Analyzer(object):
         self, base_dir, analysis: Set[AnalysisObject], metric: Callable = None
     ) -> List[Suggestion]:
         suggestions = dict()
-        max_suspiciousness = float("-inf")
-        min_suspiciousness = float("inf")
-        avg_suspiciousness = 0
+        suspiciousness = list()
         for suggestion in map(
             lambda p: p.get_suggestion(metric=metric, base_dir=base_dir), analysis
         ):
-            max_suspiciousness = max(max_suspiciousness, suggestion.suspiciousness)
-            min_suspiciousness = min(min_suspiciousness, suggestion.suspiciousness)
-            avg_suspiciousness += suggestion.suspiciousness
+            suspiciousness.append(suggestion.suspiciousness)
             if suggestion.suspiciousness not in suggestions:
                 suggestions[suggestion.suspiciousness] = set(suggestion.lines)
             else:
                 suggestions[suggestion.suspiciousness] |= set(suggestion.lines)
 
-        self.max_suspiciousness = max_suspiciousness
-        self.min_suspiciousness = min_suspiciousness
-        self.avg_suspiciousness = avg_suspiciousness / len(analysis)
+        self.max_suspiciousness = max(suspiciousness)
+        self.min_suspiciousness = min(suspiciousness)
+        self.mean_suspiciousness = sum(suspiciousness) / len(suspiciousness)
+        self.median_suspiciousness = sorted(suspiciousness)[len(suspiciousness) // 2]
 
         return sorted(
             [
