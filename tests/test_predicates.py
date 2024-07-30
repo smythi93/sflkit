@@ -36,7 +36,7 @@ class EventTests(BaseTest):
                 self.assertEqual(1, p.get_metric(Spectrum.qe), f"qe is wrong for {p}")
                 line = True
             elif isinstance(p, Condition):
-                if p.condition == "False":
+                if (p.condition == "False" and not p.negate) or (p.condition == "True" and p.negate):
                     self.assertEqual(0, p.get_metric(Spectrum.qe), f"qe is wrong for {p}")
                 else:
                     self.assertEqual(1, p.get_metric(Spectrum.qe), f"qe is wrong for {p}")

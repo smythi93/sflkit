@@ -436,9 +436,10 @@ class ContainsSpecialPredicate(FunctionPredicate):
 
 
 class Condition(Predicate):
-    def __init__(self, file: str, line: int, condition: str):
+    def __init__(self, file: str, line: int, condition: str, negate: bool = False):
         super().__init__(file, line)
         self.condition = condition
+        self.negate = negate
 
     @staticmethod
     def analysis_type():
@@ -454,7 +455,7 @@ class Condition(Predicate):
         if id_ not in self.total_hits:
             self.total_hits[id_] = 0
         self.total_hits[id_] += 1
-        if event.value:
+        if (self.negate and not event.value) or (not self.negate and event.value):
             self.hits[id_] += 1
             self.last_evaluation = EvaluationResult.TRUE
         else:

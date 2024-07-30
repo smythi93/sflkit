@@ -171,11 +171,14 @@ class DefUseFactory(AnalysisFactory):
 
 class ConditionFactory(AnalysisFactory):
     def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+        objects = list()
         if event.event_type == EventType.CONDITION:
-            key = (Condition.analysis_type(), event.file, event.line, event.condition)
-            if key not in self.objects:
-                self.objects[key] = Condition(event.file, event.line, event.condition)
-            return [self.objects[key]]
+            for negate in (True, False):
+                key = (Condition.analysis_type(), event.file, event.line, event.condition, negate)
+                if key not in self.objects:
+                    self.objects[key] = Condition(event.file, event.line, event.condition, negate=negate)
+                objects.append(self.objects[key])
+        return objects
 
 
 class ComparisonFactory(AnalysisFactory, abc.ABC):
