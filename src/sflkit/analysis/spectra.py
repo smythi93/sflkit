@@ -775,7 +775,10 @@ class Loop(ModifiableSpectrum):
         self.loop_stack.append(0)
 
     def hit_loop(self):
-        self.loop_stack[-1] += 1
+        if self.loop_stack:
+            self.loop_stack[-1] += 1
+        else:
+            self.loop_stack.append(1)
 
     def hit(self, id_, event, scope_: Scope = None):
         hits = self.loop_stack.pop()
