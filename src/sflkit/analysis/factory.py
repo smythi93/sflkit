@@ -174,9 +174,17 @@ class ConditionFactory(AnalysisFactory):
         objects = list()
         if event.event_type == EventType.CONDITION:
             for negate in (True, False):
-                key = (Condition.analysis_type(), event.file, event.line, event.condition, negate)
+                key = (
+                    Condition.analysis_type(),
+                    event.file,
+                    event.line,
+                    event.condition,
+                    negate,
+                )
                 if key not in self.objects:
-                    self.objects[key] = Condition(event.file, event.line, event.condition, negate=negate)
+                    self.objects[key] = Condition(
+                        event.file, event.line, event.condition, negate=negate
+                    )
                 objects.append(self.objects[key])
         return objects
 
@@ -442,7 +450,7 @@ class FunctionErrorFactory(AnalysisFactory):
         if event.event_type == EventType.FUNCTION_ENTER:
             self.function_mapping[event.function_id] = event.line
         if event.event_type in (EventType.FUNCTION_ERROR, EventType.FUNCTION_EXIT):
-            line = self.function_mapping[event.function_id]
+            line = self.function_mapping.get(event.function_id, event.line)
             key = (
                 FunctionErrorPredicate.analysis_type(),
                 event.file,
