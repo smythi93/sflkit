@@ -75,7 +75,7 @@ class Rank:
                 self.effort[line] = current_rank - 1
 
         self.number_of_locations = total_number_of_locations or len(self.locations)
-        self.default_rank = (total_number_of_locations - len(self.locations)) / 2 + (
+        self.default_rank = (self.number_of_locations - len(self.locations)) / 2 + (
             current_rank - 1
         )
 
@@ -136,7 +136,7 @@ class Rank:
             )[max(len(faulty) // 2 - 1, 0)]
         else:
             rank = sum(
-                [self.locations.get(location, self.default_rank)] for location in faulty
+                self.locations.get(location, self.default_rank) for location in faulty
             ) / len(faulty)
         return rank
 

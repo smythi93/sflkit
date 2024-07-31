@@ -18,18 +18,33 @@ class EventMapping:
         mapping: Dict[int, Event] = None,
         path: Optional[os.PathLike] = None,
         translation: Dict[int, int] = None,
+        alternative_mapping: Dict[int, Event] = None,
     ):
-        mapping = mapping or dict()
+        self.original_mapping = mapping or dict()
         self.path = path
-        self.translation = translation or {id_: id_ for id_ in mapping}
+        self.translation = translation or {id_: id_ for id_ in self.original_mapping}
+        self.valid = set(self.translation.values())
+        self.alternative_mapping = alternative_mapping or dict()
         self.mapping = dict()
-        for id_ in self.translation:
-            translated_id = self.translation[id_]
-            if translated_id in mapping:
-                self.mapping[id_] = mapping[translated_id]
+        self.build_translation()
 
     def get(self, event_id) -> Optional[Event]:
         return self.mapping.get(event_id, None)
+
+    def build_translation(self):
+        if not self.translation:
+            self.translation = {
+                event_id: event_id for event_id in self.original_mapping
+            }
+            self.valid = set(self.translation.values())
+        self.mapping = dict()
+        for id_ in self.translation:
+            translated_id = self.translation[id_]
+            if translated_id in self.original_mapping:
+                self.mapping[id_] = self.original_mapping[translated_id]
+        for id_ in self.alternative_mapping:
+            if id_ not in self.original_mapping:
+                self.mapping[id_] = self.alternative_mapping[id_]
 
     @staticmethod
     def get_path(identifier: str) -> Path:
@@ -78,3 +93,6 @@ class EventMapping:
 
     def __iter__(self):
         return iter(self.mapping)
+
+    def is_valid(self, event: Event):
+        return event.event_id in self.valid
