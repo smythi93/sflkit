@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Set
 
 from sflkit.features.value import Feature, FeatureValue
 from sflkit.runners.run import TestResult
@@ -13,6 +13,9 @@ class FeatureVector:
         self.run_id = run_id
         self.result = result
         self.features: Dict[Feature, FeatureValue] = dict()
+
+    def get_features(self) -> Set[Feature]:
+        return set(self.features.keys())
 
     def get_feature_value(self, feature: Feature) -> FeatureValue:
         if feature in self.features:
