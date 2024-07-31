@@ -40,5 +40,5 @@ class EventFile(object):
                 e = event.load_next_event(self._file_pointer, self.mapping.mapping)
                 if self.mapping.is_valid(e):
                     yield e
-            except (IndexError, ValueError, PickleError):
+            except (IndexError, ValueError, PickleError, KeyError):
                 break
