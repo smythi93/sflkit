@@ -246,8 +246,8 @@ class Spectrum(AnalysisObject, ABC):
         return 2 * self.failed_observed / (self.failed + self.passed_observed)
 
     def DStar(self, n=2):
-        return (
-            self.failed_observed * n / (self.failed_not_observed + self.passed_observed)
+        return self.failed_observed**n / (
+            self.failed_not_observed + self.passed_observed
         )
 
     def Euclid(self):
