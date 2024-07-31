@@ -27,8 +27,7 @@ from sflkit.model.model import Model, MetaModel
 class AnalysisEncoder(json.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, AnalysisObject):
-            s = o.serialize()
-            return s
+            return o.serialize()
         else:
             super().default(o)
 

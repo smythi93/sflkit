@@ -585,7 +585,12 @@ class ReturnPredicate(Comparison):
     def serialize(self):
         default = super().serialize()
         default["function"] = self.function
-        default["value"] = self.value
+        if isinstance(self.value, bytes):
+            default["value"] = self.value.decode("utf-8")
+            default["bytes"] = True
+        else:
+            default["value"] = self.value
+            default["bytes"] = False
         return default
 
     @staticmethod
@@ -614,13 +619,14 @@ class ReturnPredicate(Comparison):
                 "function",
                 "value",
                 "op",
+                "bytes",
             ]
         )
         assert s["type"] == AnalysisType.RETURN.value
         analysis_object = ReturnPredicate(
             MetaEvent(s["file"], s["line"], function=s["function"]),
             Comp(s["op"]),
-            s["value"],
+            s["value"].encode("utf-8") if s["bytes"] else s["value"],
         )
         analysis_object._deserialize(s)
         return analysis_object
