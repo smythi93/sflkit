@@ -14,7 +14,7 @@ class FeatureVector:
         self.result = result
         self.features: Dict[Feature, FeatureValue] = dict()
 
-    def get_features(self) -> Set[Feature]:
+    def get_features_set(self) -> Set[Feature]:
         return set(self.features.keys())
 
     def get_feature_value(self, feature: Feature) -> FeatureValue:
