@@ -14,10 +14,19 @@ class InstrumentationError(RuntimeError):
 
 class EventMapping:
     def __init__(
-        self, mapping: Dict[int, Event] = None, path: Optional[os.PathLike] = None
+        self,
+        mapping: Dict[int, Event] = None,
+        path: Optional[os.PathLike] = None,
+        translation: Dict[int, int] = None,
     ):
-        self.mapping = mapping or dict()
+        mapping = mapping or dict()
         self.path = path
+        self.translation = translation or {id_: id_ for id_ in mapping}
+        self.mapping = dict()
+        for id_ in self.translation:
+            translated_id = self.translation[id_]
+            if translated_id in mapping:
+                self.mapping[id_] = mapping[translated_id]
 
     def get(self, event_id) -> Optional[Event]:
         return self.mapping.get(event_id, None)

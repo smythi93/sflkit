@@ -8,9 +8,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sflkit"
 version = "0.2.22"
-authors = [
-    { name = "Marius Smytzek", email = "marius.smytzek@cispa.de" },
-]
 description = "SFLKit: : A Workbench for Statistical Fault Localization"
 readme = "README.md"
 license = { file = "COPYING" }
@@ -29,10 +26,6 @@ dependencies = [
     "pandas>=2.2.2",
     "sortedcollections>=2.1.0"
 ]
-
-[project.urls]
-"Homepage" = "https://github.com/uds-se/sflkit/"
-"Bug Tracker" = "https://github.com/uds-se/sflkit/issues"
 
 [project.scripts]
 sflkit = "sflkit.cli:main"
