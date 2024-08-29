@@ -1,6 +1,6 @@
 import math
 from abc import ABC
-from typing import Callable, Optional
+from typing import Callable, Optional, List
 
 import numpy
 from sflkitlib.events import EventType
@@ -45,6 +45,8 @@ class Spectrum(AnalysisObject, ABC):
         self.failed_observed = failed_observed
         self.failed_not_observed = failed_not_observed
         self.last_evaluation: EvaluationResult = EvaluationResult.FALSE
+        self.weights: List[float] = list()
+        self.weight: float = 1
 
     def __hash__(self):
         return hash((self.file, self.line, self.analysis_type()))
@@ -131,6 +133,9 @@ class Spectrum(AnalysisObject, ABC):
         self.failed = failed
         self.failed_not_observed = failed - self.failed_observed
 
+    def set_weight(self):
+        self.weight = sum(self.weights) / len(self.weights) if self.weights else 1
+
     def finalize(self, passed: list, failed: list):
         for event_file in failed:
             if event_file in self.hits and self.hits[event_file] > 0:
@@ -140,6 +145,7 @@ class Spectrum(AnalysisObject, ABC):
                 self.pass_observed()
         self.set_passed(len(passed))
         self.set_failed(len(failed))
+        self.set_weight()
 
     def AMPLE(self):
         return abs(

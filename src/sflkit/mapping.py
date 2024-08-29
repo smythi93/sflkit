@@ -96,3 +96,18 @@ class EventMapping:
 
     def is_valid(self, event: Event):
         return event.event_id in self.valid
+
+    def __add__(self, other):
+        if not isinstance(other, EventMapping):
+            raise TypeError(f"Cannot add EventMapping with {type(other)}")
+        if self.path != other.path:
+            raise ValueError(f"Cannot add EventMapping with different paths")
+        return EventMapping(
+            mapping={**self.original_mapping, **other.original_mapping},
+            path=self.path,
+            translation={**self.translation, **other.translation},
+            alternative_mapping={
+                **self.alternative_mapping,
+                **other.alternative_mapping,
+            },
+        )

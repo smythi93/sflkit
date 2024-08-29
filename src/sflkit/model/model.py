@@ -3,7 +3,7 @@ from typing import Set
 from sflkit.model.scope import Scope
 
 
-class MetaModel(object):
+class MetaModel:
     # noinspection PyUnresolvedReferences
     def __init__(self, analysis_objects: Set["AnalysisObject"] = None):
         self.analysis_objects = analysis_objects or set()
@@ -13,7 +13,7 @@ class MetaModel(object):
         return self.analysis_objects
 
 
-class Model(object):
+class Model:
     def __init__(self, factory):
         self.factory = factory
         self.variables = Scope()
@@ -71,6 +71,18 @@ class Model(object):
 
     def handle_len_event(self, event):
         self.handle_event(event)
+
+    def handle_test_line_event(self, event):
+        pass
+
+    def handle_test_def_event(self, event):
+        pass
+
+    def handle_test_use_event(self, event):
+        pass
+
+    def handle_test_assert_event(self, event):
+        pass
 
     def enter_scope(self):
         self.variables = self.variables.enter()

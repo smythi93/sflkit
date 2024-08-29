@@ -8,13 +8,16 @@ from sflkit.instrumentation.dir_instrumentation import DirInstrumentation
 
 
 def instrument_config(conf: Config):
-    instrumentation = DirInstrumentation(conf.visitor, conf.mapping.path)
+    instrumentation = DirInstrumentation(
+        conf.visitor, conf.mapping.path, test_visitor=conf.test_visitor
+    )
     instrumentation.instrument(
         conf.target_path,
         conf.instrument_working,
         suffixes=conf.language.suffixes,
         includes=conf.instrument_include,
         excludes=conf.instrument_exclude,
+        tests=conf.instrument_test,
     )
     instrumentation.dump_events(conf)
 

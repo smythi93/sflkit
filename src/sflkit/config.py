@@ -4,7 +4,7 @@ import hashlib
 import os.path
 import queue
 from pathlib import Path
-from typing import List, Callable, Union
+from typing import List, Callable, Union, Optional
 
 from sflkitlib.events import EventType
 
@@ -66,18 +66,25 @@ class Config:
         self.language = None
         self.predicates = list()
         self.factory = None
+        self.test_factory = None
         self.events = list()
+        self.test_events = list()
         self.metrics = list()
         self.meta_visitor = None
+        self.meta_test_visitor = None
         self.visitor = None
+        self.test_visitor = None
         self.passing = list()
         self.failing = list()
         self.instrument_include = list()
         self.instrument_exclude = list()
+        self.instrument_test = list()
         self.instrument_working = None
         self.runner = None
         self.mapping = None
         self.mapping_path = None
+        self.events_id_generator = IDGenerator()
+        self.functions_id_generator = IDGenerator()
         if path:
             if isinstance(path, configparser.ConfigParser):
                 config = path
@@ -124,14 +131,34 @@ class Config:
                         )
                     )
 
+                if "test" in events:
+                    self.test_factory = CombinationFactory(list())
+                    # get the events
+                    self.test_events = list(
+                        map(
+                            lambda e: EventType[e.upper()],
+                            list(csv.reader([events["test"]]))[0],
+                        )
+                    )
+
                 self.meta_visitor = CombinationVisitor(
                     self.language,
-                    IDGenerator(),
-                    IDGenerator(),
+                    self.events_id_generator,
+                    self.functions_id_generator,
                     TmpGenerator(),
                     [self.language.meta_visitors[e] for e in self.events],
                 )
                 self.visitor = self.language.visitor(self.meta_visitor)
+
+                if self.test_events:
+                    self.meta_test_visitor = CombinationVisitor(
+                        self.language,
+                        self.events_id_generator,
+                        self.functions_id_generator,
+                        TmpGenerator(),
+                        [self.language.meta_visitors[e] for e in self.test_events],
+                    )
+                    self.test_visitor = self.language.visitor(self.meta_test_visitor)
 
                 if "metrics" in events:
                     self.metrics = list(
@@ -178,6 +205,10 @@ class Config:
                     ]
                     while "" in self.instrument_exclude:
                         self.instrument_exclude.remove("")
+                if "test" in instrument:
+                    self.instrument_test = list(csv.reader([instrument["test"]]))[0]
+                    while "" in self.instrument_test:
+                        self.instrument_test.remove("")
                 self.instrument_working = Path(instrument["path"])
 
                 # test section
@@ -191,37 +222,43 @@ class Config:
 
     @staticmethod
     def create_from_values(
-        target_path: str = None,
-        language: Language = None,
-        predicates: List[AnalysisType] = None,
-        factory: AnalysisFactory = None,
-        events: List[EventType] = None,
-        metrics: List[Callable] = None,
-        meta_visitor: MetaVisitor = None,
-        visitor: ASTVisitor = None,
-        passing: List[EventFile] = None,
-        failing: List[EventFile] = None,
-        mapping: EventMapping = None,
-        instrument_include: List[str] = None,
-        instrument_exclude: List[str] = None,
-        instrument_working: str = None,
-        runner: RunnerType = None,
+        target_path: Optional[str] = None,
+        language: Optional[Language] = None,
+        predicates: Optional[List[AnalysisType]] = None,
+        factory: Optional[AnalysisFactory] = None,
+        test_factory: Optional[AnalysisFactory] = None,
+        events: Optional[List[EventType]] = None,
+        test_events: Optional[List[EventType]] = None,
+        metrics: Optional[List[Callable]] = None,
+        meta_visitor: Optional[MetaVisitor] = None,
+        visitor: Optional[ASTVisitor] = None,
+        passing: Optional[List[EventFile]] = None,
+        failing: Optional[List[EventFile]] = None,
+        mapping: Optional[EventMapping] = None,
+        instrument_include: Optional[List[str]] = None,
+        instrument_exclude: Optional[List[str]] = None,
+        instrument_test: Optional[List[str]] = None,
+        instrument_working: Optional[str] = None,
+        runner: Optional[RunnerType] = None,
     ):
         conf = Config()
         conf.target_path = target_path
         conf.language = language
         if language:
             conf.language.setup()
-        conf.predicates = predicates if predicates else list()
+        conf.predicates = predicates or list()
         conf.factory = factory
-        conf.events = events if events else list()
-        conf.metrics = metrics if metrics else list()
+        conf.test_factory = test_factory
+        conf.events = events or list()
+        conf.test_events = test_events or list()
+        conf.metrics = metrics or list()
         conf.meta_visitor = meta_visitor
         conf.visitor = visitor
-        conf.passing = passing if passing else list()
-        conf.failing = failing if failing else list()
-        conf.instrument_include = instrument_include if instrument_include else list()
-        conf.instrument_exclude = instrument_exclude if instrument_exclude else list()
+        conf.passing = passing or list()
+        conf.failing = failing or list()
+        conf.instrument_include = instrument_include or list()
+        conf.instrument_exclude = instrument_exclude or list()
+        conf.instrument_test = instrument_test or list()
         conf.instrument_working = instrument_working
         conf.runner = runner
         if mapping:
@@ -267,6 +304,7 @@ class Config:
         path=None,
         language=None,
         events=None,
+        test_events=None,
         predicates=None,
         metrics=None,
         passing=None,
@@ -275,6 +313,7 @@ class Config:
         working=None,
         include=None,
         exclude=None,
+        tests=None,
         runner=None,
     ):
         conf = configparser.ConfigParser()
@@ -291,6 +330,8 @@ class Config:
             conf["events"]["events"] = events
         if predicates:
             conf["events"]["predicates"] = predicates
+        if test_events:
+            conf["events"]["test"] = test_events
         if metrics:
             conf["events"]["metrics"] = metrics
         if passing:
@@ -305,6 +346,8 @@ class Config:
             conf["instrumentation"]["include"] = include
         if exclude:
             conf["instrumentation"]["exclude"] = exclude
+        if tests:
+            conf["instrumentation"]["test"] = tests
         if runner:
             conf["test"]["runner"] = runner
 
@@ -323,6 +366,8 @@ class Config:
             conf["target"]["language"] = self.language.name
         if self.events:
             conf["events"]["events"] = ",".join(e.name for e in self.events)
+        if self.events:
+            conf["events"]["test"] = ",".join(e.name for e in self.test_events)
         if self.predicates:
             conf["events"]["predicates"] = ",".join(p.name for p in self.predicates)
         if self.metrics:
@@ -336,9 +381,17 @@ class Config:
         if self.instrument_working:
             conf["instrumentation"]["path"] = str(self.instrument_working)
         if self.instrument_include:
-            conf["instrumentation"]["include"] = ",".join(self.instrument_include)
+            conf["instrumentation"]["include"] = (
+                '"' + '","'.join(self.instrument_include) + '"'
+            )
         if self.instrument_exclude:
-            conf["instrumentation"]["exclude"] = ",".join(self.instrument_exclude)
+            conf["instrumentation"]["exclude"] = (
+                '"' + '","'.join(self.instrument_exclude) + '"'
+            )
+        if self.instrument_test:
+            conf["instrumentation"]["test"] = (
+                '"' + '","'.join(self.instrument_test) + '"'
+            )
         if self.runner:
             conf["test"]["runner"] = self.runner.name
 

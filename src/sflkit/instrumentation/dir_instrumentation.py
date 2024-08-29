@@ -12,13 +12,31 @@ from sflkit.logger import LOGGER
 
 
 class DirInstrumentation(Instrumentation):
-    def __init__(self, visitor: ASTVisitor, mapping_path: Optional[Path] = None):
+    def __init__(
+        self,
+        visitor: ASTVisitor,
+        mapping_path: Optional[Path] = None,
+        test_visitor: ASTVisitor = None,
+    ):
         super().__init__(visitor, mapping_path)
         self.file_instrumentation = FileInstrumentation(visitor, mapping_path)
+        if test_visitor:
+            self.test_file_instrumentation = FileInstrumentation(
+                test_visitor, mapping_path
+            )
+        else:
+            self.test_file_instrumentation = None
 
     @staticmethod
     def check_included(element: str, includes: Optional[Iterable[str]]):
         return not includes or any(re.match(include, element) for include in includes)
+
+    def check_tests(self, element: str, tests: Optional[Iterable[str]]):
+        return (
+            tests
+            and self.test_file_instrumentation
+            and any(re.match(test, element) for test in tests)
+        )
 
     def handle_element(
         self,
@@ -33,7 +51,7 @@ class DirInstrumentation(Instrumentation):
             LOGGER.debug(f"I found a subdir at {element}.")
             os.makedirs(os.path.join(dst, element), exist_ok=True)
             for f in os.listdir(os.path.join(src, element)):
-                file_queue.put((os.path.join(element, f), check))
+                file_queue.put((os.path.join(element, f), check, False))
         elif (
             not check
             and any(element.endswith(f".{suffix}") for suffix in suffixes)
@@ -53,6 +71,39 @@ class DirInstrumentation(Instrumentation):
                 follow_symlinks=False,
             )
 
+    def handle_test_element(
+        self,
+        element: str,
+        file_queue: queue.Queue[Tuple[str, bool, bool]],
+        src: os.PathLike,
+        dst: os.PathLike,
+        suffixes: List[str],
+        check: bool,
+    ):
+        if os.path.isdir(os.path.join(src, element)):
+            LOGGER.debug(f"I found a test subdir at {element}.")
+            os.makedirs(os.path.join(dst, element), exist_ok=True)
+            for f in os.listdir(os.path.join(src, element)):
+                file_queue.put((os.path.join(element, f), check, True))
+        elif (
+            not check
+            and any(element.endswith(f".{suffix}") for suffix in suffixes)
+            and not os.path.islink(os.path.join(src, element))
+        ):
+            LOGGER.debug(f"I found a test file I can instrument at {element}.")
+            self.test_file_instrumentation.instrument(
+                os.path.join(src, element),
+                os.path.join(dst, element),
+                file=element,
+            )
+        else:
+            LOGGER.debug(f"I found a test file I will not instrument at {element}.")
+            shutil.copy(
+                os.path.join(src, element),
+                os.path.join(dst, element),
+                follow_symlinks=False,
+            )
+
     def instrument(
         self,
         src: os.PathLike,
@@ -61,6 +112,7 @@ class DirInstrumentation(Instrumentation):
         file: str = "",
         includes: Optional[Iterable[str]] = None,
         excludes: Optional[Iterable[str]] = None,
+        tests: Optional[Iterable[str]] = None,
     ):
         if suffixes is None:
             raise ValueError("DirInstrumentation requires suffixes")
@@ -81,11 +133,15 @@ class DirInstrumentation(Instrumentation):
         else:
             os.makedirs(dst, exist_ok=True)
             file_queue = queue.Queue()
-            file_queue.put(("", True))
+            file_queue.put(("", True, False))
             while not file_queue.empty():
-                element, check = file_queue.get()
+                element, check, test = file_queue.get()
                 if check and self.check_included(element, includes):
                     self.handle_element(element, file_queue, src, dst, suffixes, False)
+                elif test or self.check_tests(element, tests):
+                    self.handle_test_element(
+                        element, file_queue, src, dst, suffixes, False
+                    )
                 elif element != "" and any(
                     re.match(exclude, element) for exclude in excludes
                 ):
@@ -105,4 +161,6 @@ class DirInstrumentation(Instrumentation):
                 else:
                     self.handle_element(element, file_queue, src, dst, suffixes, check)
         self.events = self.file_instrumentation.events
+        if self.test_file_instrumentation:
+            self.events += self.test_file_instrumentation.events
         LOGGER.info(f"I found {len(self.events)} events in {src}.")

@@ -175,6 +175,51 @@ class TestInstrumentation(BaseTest):
             c_src_content = fp.read()
         self.assertEqual(c_src_content, c_content)
 
+    def test_instrument_with_tests(self):
+        src = Path(BaseTest.TEST_RESOURCES, "test_runner")
+        dst = Path(BaseTest.TEST_DIR)
+        instrument_config(
+            Config.create(
+                path=str(src),
+                language="python",
+                events="line",
+                predicates="line",
+                test_events="test_line",
+                working=BaseTest.TEST_DIR,
+                tests="tests",
+            )
+        )
+        tests = dst / "tests"
+        middle_py = dst / "middle.py"
+        test_middle_py = tests / "test_middle.py"
+
+        tests_src = src / "tests"
+        middle_py_src = src / "middle.py"
+        test_middle_py_src = tests_src / "test_middle.py"
+
+        self.assertTrue(tests.exists())
+        self.assertTrue(tests.is_dir())
+        self.assertTrue(middle_py.exists())
+        self.assertTrue(middle_py.is_file())
+        self.assertTrue(test_middle_py.exists())
+        self.assertTrue(test_middle_py.is_file())
+
+        with open(middle_py, "r") as fp:
+            middle_content = fp.read()
+        with open(middle_py_src, "r") as fp:
+            middle_src_content = fp.read()
+        self.assertNotEqual(middle_src_content, middle_content)
+        self.assertIn("add_line_event", middle_content)
+        self.assertNotIn("add_test_line_event", middle_content)
+
+        with open(test_middle_py, "r") as fp:
+            test_middle_content = fp.read()
+        with open(test_middle_py_src, "r") as fp:
+            test_middle_src_content = fp.read()
+        self.assertNotEqual(test_middle_src_content, test_middle_content)
+        self.assertIn("add_test_line_event", test_middle_content)
+        self.assertNotIn("add_line_event", test_middle_content)
+
 
 class TestLib(BaseTest):
     @classmethod

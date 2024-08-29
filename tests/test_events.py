@@ -1,5 +1,6 @@
 import os
 import subprocess
+from pathlib import Path
 
 from parameterized import parameterized
 from sflkitlib.events import event
@@ -365,6 +366,56 @@ class EventTests(BaseTest):
             self.assertEqual(i, e.line, f"{e} has not correct line")
             self.assertEqual(a, e.var, f"{e} has not correct var")
             self.assertEqual(l, e.length, f"{e} has not correct length")
+
+    def test_lines_with_tests(self):
+        config = Config.create(
+            path=os.path.join(self.TEST_RESOURCES, self.TEST_RUNNER),
+            language="python",
+            events="line",
+            test_events="test_line",
+            working=BaseTest.TEST_DIR,
+            tests="tests",
+        )
+        instrument_config(config)
+        subprocess.run(
+            [
+                "python3",
+                "-m",
+                "pytest",
+                os.path.join("tests", "test_middle.py::MiddleTests::test_213"),
+            ],
+            env=os.environ,
+            cwd=os.path.join(BaseTest.TEST_DIR),
+        )
+
+        events = event.load(
+            os.path.join(self.TEST_DIR, self.TEST_PATH),
+            EventMapping.load(config).mapping,
+        )
+
+        expected = [
+            (event.EventType.TEST_LINE, 1, os.path.join("tests", "test_middle.py")),
+            (event.EventType.TEST_LINE, 2, os.path.join("tests", "test_middle.py")),
+            (event.EventType.TEST_LINE, 7, os.path.join("tests", "test_middle.py")),
+            (event.EventType.LINE, 2, "middle.py"),
+            (event.EventType.LINE, 3, "middle.py"),
+            (event.EventType.LINE, 4, "middle.py"),
+            (event.EventType.LINE, 6, "middle.py"),
+            (event.EventType.LINE, 7, "middle.py"),
+            (event.EventType.LINE, 13, "middle.py"),
+        ]
+
+        self.assertEqual(len(expected), len(events))
+        for e, (type_, line, file) in zip(events, expected):
+            if type_ == event.EventType.TEST_LINE:
+                self.assertIsInstance(
+                    e, event.TestLineEvent, f"{e} is not a test line event"
+                )
+            else:
+                self.assertIsInstance(e, event.LineEvent, f"{e} is not a line event")
+            self.assertEqual(type_, e.event_type, f"{e} is not of type {type_}")
+            self.assertEqual(file, e.file, f"{e} has not correct file")
+            self.assertEqual(line, e.line, f"{e} has not correct line")
 
 
 class SerializeEventsTest(BaseTest):

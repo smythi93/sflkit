@@ -16,6 +16,10 @@ from sflkitlib.events.event import (
     UseEvent,
     ConditionEvent,
     LenEvent,
+    TestLineEvent,
+    TestDefEvent,
+    TestUseEvent,
+    TestAssertEvent,
 )
 
 from sflkit.language.meta import MetaVisitor, Injection, IDGenerator, TmpGenerator
@@ -707,15 +711,16 @@ class UseEventFactory(PythonEventFactory):
     def get_event_call(self, event: UseEvent):
         return self._get_try_wrapper(event)
 
+    def get_event(self, node: AST, use: str) -> UseEvent:
+        return UseEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id(), use
+        )
+
     def visit_use(self, node: AST):
         uses = self.use_extract.visit(node)
         use_events = list()
         for use in uses:
-            use_events.append(
-                UseEvent(
-                    self.file, node.lineno, self.event_id_generator.get_next_id(), use
-                )
-            )
+            use_events.append(self.get_event(node, use))
         return Injection(
             pre=[self.get_event_call(e) for e in use_events], events=use_events
         )
@@ -881,3 +886,79 @@ class LenEventFactory(DefEventFactory):
         return LenEvent(
             self.file, node.lineno, self.event_id_generator.get_next_id(), var
         )
+
+
+class TestLineEventFactory(LineEventFactory):
+    def get_function(self):
+        return "add_test_line_event"
+
+    def visit_line(self, node: AST) -> Injection:
+        line_event = TestLineEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id()
+        )
+        return Injection(pre=[self.get_event_call(line_event)], events=[line_event])
+
+
+class TestDefEventFactory(DefEventFactory):
+    def get_function(self):
+        return "add_test_def_event"
+
+    def get_event(self, node: typing.Union[Assign, AnnAssign, AugAssign], var: str):
+        return TestDefEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id(), var
+        )
+
+    def get_event_call(self, event: TestDefEvent):
+        call = get_call(self.get_function(), event.event_id)
+        assert isinstance(call.value, Call)
+        call.value.args.append(
+            Call(
+                func=Attribute(
+                    value=Name(
+                        id=python_lib,  # enter lib
+                    ),
+                    attr="get_id",  # enter lib function
+                ),
+                args=[Name(id=event.var)],
+                keywords=[],
+            )
+        )
+        return call
+
+
+class TestUseEventFactory(UseEventFactory):
+    def get_function(self):
+        return "add_test_use_event"
+
+    def get_event(self, node: AST, use: str) -> TestUseEvent:
+        return TestUseEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id(), use
+        )
+
+
+class TestAssertEventFactory(PythonEventFactory):
+    def get_function(self):
+        return "add_test_assert_event"
+
+    def get_event_call(self, event: Event):
+        return get_call(self.get_function(), event.event_id)
+
+    def visit_Assert(self, node: Assert) -> Injection:
+        assert_event = TestAssertEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id()
+        )
+        return Injection(pre=[self.get_event_call(assert_event)], events=[assert_event])
+
+    def visit_Expr(self, node: Expr):
+        return self.visit(node.value)
+
+    def visit_Call(self, node: Call) -> Injection:
+        func = ast.unparse(node.func)
+        if "assert" in func:
+            assert_event = TestAssertEvent(
+                self.file, node.lineno, self.event_id_generator.get_next_id()
+            )
+            return Injection(
+                pre=[self.get_event_call(assert_event)], events=[assert_event]
+            )
+        return Injection()
