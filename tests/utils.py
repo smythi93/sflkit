@@ -30,6 +30,7 @@ class BaseTest(unittest.TestCase):
     TEST_SPECIAL_VALUES = "test_special_values"
     TEST_RUNNER = "test_runner"
     TEST_XXX_LINES = "test_xxx_lines"
+    TEST_XXX_DEF_USE = "test_xxx_def_use"
     DELTA = 0.0000001
 
     EVENTS = [

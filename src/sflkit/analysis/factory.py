@@ -153,19 +153,21 @@ class DefUseFactory(AnalysisFactory):
 
     def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
         if event.event_type == EventType.DEF:
-            self.id_to_def[event.var_id] = event
+            self.id_to_def[(event.var, event.var_id)] = event
         elif event.event_type == EventType.USE:
-            if event.var_id in self.id_to_def:
+            if (event.var, event.var_id) in self.id_to_def:
                 key = (
                     DefUse.analysis_type(),
-                    self.id_to_def[event.var_id].file,
-                    self.id_to_def[event.var_id].line,
+                    self.id_to_def[(event.var, event.var_id)].file,
+                    self.id_to_def[(event.var, event.var_id)].line,
                     event.file,
                     event.line,
                     event.var,
                 )
                 if key not in self.objects:
-                    self.objects[key] = DefUse(self.id_to_def[event.var_id], event)
+                    self.objects[key] = DefUse(
+                        self.id_to_def[(event.var, event.var_id)], event
+                    )
                 return [self.objects[key]]
 
 
