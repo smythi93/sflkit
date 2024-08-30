@@ -1009,16 +1009,14 @@ class TestAssertEventFactory(PythonEventFactory):
         )
         return Injection(pre=[self.get_event_call(assert_event)], events=[assert_event])
 
-    def visit_Expr(self, node: Expr):
-        return self.visit(node.value)
-
-    def visit_Call(self, node: Call) -> Injection:
-        func = ast.unparse(node.func)
-        if "assert" in func:
-            assert_event = TestAssertEvent(
-                self.file, node.lineno, self.event_id_generator.get_next_id()
-            )
-            return Injection(
-                pre=[self.get_event_call(assert_event)], events=[assert_event]
-            )
+    def visit_Expr(self, node: Expr) -> Injection:
+        if isinstance(node.value, Call):
+            func = ast.unparse(node.value.func)
+            if "assert" in func:
+                assert_event = TestAssertEvent(
+                    self.file, node.lineno, self.event_id_generator.get_next_id()
+                )
+                return Injection(
+                    pre=[self.get_event_call(assert_event)], events=[assert_event]
+                )
         return Injection()

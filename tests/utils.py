@@ -32,6 +32,7 @@ class BaseTest(unittest.TestCase):
     TEST_XXX_SETUP = "test_xxx_setup"
     TEST_XXX_LINES = "test_xxx_lines"
     TEST_XXX_DEF_USE = "test_xxx_def_use"
+    TEST_XXX_DEF_USES = "test_xxx_def_uses"
     DELTA = 0.0000001
 
     EVENTS = [
