@@ -30,6 +30,8 @@ _PYTHON_FACTORIES = {
     EventType.FUNCTION_ERROR: python_factory.FunctionErrorEventFactory,
     EventType.CONDITION: python_factory.ConditionEventFactory,
     EventType.LEN: python_factory.LenEventFactory,
+    EventType.TEST_START: python_factory.TestStartEventFactory,
+    EventType.TEST_END: python_factory.TestEndEventFactory,
     EventType.TEST_LINE: python_factory.TestLineEventFactory,
     EventType.TEST_DEF: python_factory.TestDefEventFactory,
     EventType.TEST_USE: python_factory.TestUseEventFactory,

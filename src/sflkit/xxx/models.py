@@ -78,7 +78,56 @@ class TestSliceModel(Model):
             self.add(event)
 
 
-class TestLineModel(TestSliceModel):
+class TestFunctionModel(TestSliceModel):
+    def __init__(self, factory):
+        super().__init__(factory)
+        self.test_start_capture = False
+        self.test_end_capture = False
+        self.before_slices: Set[WeightedAnalysis] = set()
+        self.actual_slices: Set[WeightedAnalysis] = set()
+
+    def prepare(self, run_id):
+        super().prepare(run_id)
+        self.before_slices = set()
+        self.actual_slices = set()
+
+    def handle_test_start_event(self, event):
+        if self.current_test_failing:
+            self.add(event)
+            if not self.test_start_capture:
+                self.before_slices = set(self.slices)
+                self.test_start_capture = True
+
+    def handle_test_end_event(self, event):
+        if self.current_test_failing:
+            self.add(event)
+            self.actual_slices = set(self.slices) - self.before_slices
+            self.test_end_capture = True
+
+    def adjust_weights_for_tests(self, run_id):
+        if run_id.failing:
+            if self.test_end_capture:
+                for slice_ in self.slices:
+                    if slice_ in self.actual_slices:
+                        slice_.weight = 1
+                    else:
+                        slice_.weight = 0.5
+            else:
+                for slice_ in self.slices:
+                    if slice_ in self.before_slices:
+                        slice_.weight = 0.5
+                    else:
+                        slice_.weight = 1
+
+    def follow_up(self, run_id):
+        super().follow_up(run_id)
+        if run_id.failing:
+            self.adjust_weights_for_tests(run_id)
+            for slice_ in self.slices:
+                slice_.set_weight(run_id)
+
+
+class TestLineModel(TestFunctionModel):
     def __init__(self, factory):
         super().__init__(factory)
         self.lines = 0
@@ -88,10 +137,11 @@ class TestLineModel(TestSliceModel):
         self.lines = 0
 
     def follow_up(self, run_id):
-        super().follow_up(run_id)
+        TestSliceModel.follow_up(self, run_id)
+        self.adjust_weights_for_tests(run_id)
         if run_id.failing:
             for line, slice_ in enumerate(self.slices, start=1):
-                slice_.weight = line / max(self.lines, 1)
+                slice_.weight *= line / max(self.lines, 1)
                 slice_.set_weight(run_id)
 
     def handle_test_line_event(self, event):
@@ -100,7 +150,7 @@ class TestLineModel(TestSliceModel):
             self.lines += 1
 
 
-class TestDefUseModel(TestSliceModel):
+class TestDefUseModel(TestFunctionModel):
     def __init__(self, factory):
         super().__init__(factory)
         self.current_defs = list()
@@ -140,7 +190,8 @@ class TestDefUseModel(TestSliceModel):
             self.current_uses.append(event)
 
     def follow_up(self, run_id):
-        super().follow_up(run_id)
+        TestSliceModel.follow_up(self, run_id)
+        self.adjust_weights_for_tests(run_id)
         if run_id.failing:
             distances: Dict[WeightedAnalysis, int] = dict()
             for distance, slice_ in enumerate(reversed(self.slices)):
@@ -155,7 +206,7 @@ class TestDefUseModel(TestSliceModel):
                             )
             max_distance = max(max(distances.values()), 1) + 1
             for slice_ in distances:
-                slice_.weight = 1 - distances[slice_] / max_distance
+                slice_.weight *= 1 - distances[slice_] / max_distance
                 slice_.set_weight(run_id)
 
 

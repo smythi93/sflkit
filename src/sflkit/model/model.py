@@ -77,6 +77,12 @@ class Model:
     def handle_len_event(self, event):
         self.handle_event(event)
 
+    def handle_test_start_event(self, event):
+        pass
+
+    def handle_test_end_event(self, event):
+        pass
+
     def handle_test_line_event(self, event):
         pass
 

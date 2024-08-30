@@ -16,6 +16,8 @@ from sflkitlib.events.event import (
     UseEvent,
     ConditionEvent,
     LenEvent,
+    TestStartEvent,
+    TestEndEvent,
     TestLineEvent,
     TestDefEvent,
     TestUseEvent,
@@ -52,11 +54,11 @@ class PythonEventFactory(MetaVisitor, NodeVisitor):
         self,
         language,
         event_id_generator: IDGenerator,
-        funtion_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
     ):
         super().__init__(
-            language, event_id_generator, funtion_id_generator, tmp_generator
+            language, event_id_generator, function_id_generator, tmp_generator
         )
 
     def visit_start(self, *args) -> Injection:
@@ -154,11 +156,11 @@ class BranchEventFactory(PythonEventFactory):
         self,
         language,
         event_id_generator: IDGenerator,
-        funtion_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
     ):
         super().__init__(
-            language, event_id_generator, funtion_id_generator, tmp_generator
+            language, event_id_generator, function_id_generator, tmp_generator
         )
         self.branch_id = 0
 
@@ -363,11 +365,11 @@ class FunctionEventFactory(PythonEventFactory):
         self,
         language,
         event_id_generator: IDGenerator,
-        funtion_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
     ):
         super().__init__(
-            language, event_id_generator, funtion_id_generator, tmp_generator
+            language, event_id_generator, function_id_generator, tmp_generator
         )
         self.function_stack = list()
 
@@ -886,6 +888,64 @@ class LenEventFactory(DefEventFactory):
         return LenEvent(
             self.file, node.lineno, self.event_id_generator.get_next_id(), var
         )
+
+
+class TestStartEventFactory(FunctionEventFactory):
+    def get_function(self):
+        return "add_test_start_event"
+
+    def visit_function(
+        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
+    ) -> Injection:
+        if node.name.lower().startswith("test"):
+            test_start_event = TestStartEvent(
+                self.file,
+                node.lineno,
+                self.event_id_generator.get_next_id(),
+                node.name,
+                self.get_function_id(node),
+            )
+            return Injection(
+                body=[
+                    self.get_event_call(test_start_event),
+                ],
+                events=[test_start_event],
+            )
+        return Injection()
+
+    def visit_FunctionDef(self, node: FunctionDef) -> Injection:
+        return self.visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node: AsyncFunctionDef) -> Injection:
+        return self.visit_function(node)
+
+
+class TestEndEventFactory(FunctionEventFactory):
+    def get_function(self):
+        return "add_test_end_event"
+
+    def visit_function(
+        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
+    ) -> Injection:
+        if node.name.lower().startswith("test"):
+            test_end_event = TestEndEvent(
+                self.file,
+                node.lineno,
+                self.event_id_generator.get_next_id(),
+                node.name,
+                self.get_function_id(node),
+            )
+            return Injection(
+                finalbody=[self.get_event_call(test_end_event)],
+                events=[test_end_event],
+            )
+        return Injection()
+
+    def visit_FunctionDef(self, node: FunctionDef) -> Injection:
+        return self.visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node: AsyncFunctionDef) -> Injection:
+        return self.visit_function(node)
 
 
 class TestLineEventFactory(LineEventFactory):
