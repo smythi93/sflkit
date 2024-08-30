@@ -29,6 +29,7 @@ class BaseTest(unittest.TestCase):
     TEST_PROPERTIES = "test_properties"
     TEST_SPECIAL_VALUES = "test_special_values"
     TEST_RUNNER = "test_runner"
+    TEST_XXX_LINES = "test_xxx_lines"
     DELTA = 0.0000001
 
     EVENTS = [
@@ -70,7 +71,11 @@ class BaseTest(unittest.TestCase):
 
     @staticmethod
     def execute_subject(test: List[str], count: int):
-        subprocess.run([BaseTest.PYTHON, BaseTest.ACCESS] + test, cwd=BaseTest.TEST_DIR, env=os.environ)
+        subprocess.run(
+            [BaseTest.PYTHON, BaseTest.ACCESS] + test,
+            cwd=BaseTest.TEST_DIR,
+            env=os.environ,
+        )
         path = os.path.join(BaseTest.TEST_DIR, BaseTest.TEST_PATH + f"_{count}")
         shutil.move(os.path.join(BaseTest.TEST_DIR, BaseTest.TEST_PATH), path)
         return path

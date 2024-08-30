@@ -1,6 +1,6 @@
 import json
 import os
-from typing import List, Callable, Set, Dict, Optional, Any
+from typing import List, Callable, Set, Dict, Optional, Any, Type
 
 from sflkit.analysis.analysis_type import AnalysisType, AnalysisObject
 from sflkit.analysis.factory import AnalysisFactory
@@ -32,13 +32,14 @@ class AnalysisEncoder(json.JSONEncoder):
             super().default(o)
 
 
-class Analyzer(object):
+class Analyzer:
     def __init__(
         self,
         relevant_event_files: Optional[List[EventFile]] = None,
         irrelevant_event_files: Optional[List[EventFile]] = None,
         factory: Optional[AnalysisFactory] = None,
         meta_model: Optional[MetaModel] = None,
+        model_class: Type[Model] = Model,
     ):
         if (
             relevant_event_files is None
@@ -55,7 +56,7 @@ class Analyzer(object):
         if self.meta:
             self.model = meta_model
         else:
-            self.model = Model(factory)
+            self.model = model_class(factory)
         self.paths: Dict[int, os.PathLike] = dict()
         self.max_suspiciousness = 0
         self.min_suspiciousness = 0
@@ -69,6 +70,7 @@ class Analyzer(object):
         with event_file:
             for event in event_file.load():
                 event.handle(self.model)
+        self.model.follow_up(event_file)
 
     def _finalize(self):
         if self.meta:
@@ -107,21 +109,34 @@ class Analyzer(object):
         )
 
     def get_sorted_suggestions(
-        self, base_dir, metric: Callable = None, type_: AnalysisType = None
+        self,
+        base_dir,
+        metric: Callable = None,
+        type_: AnalysisType = None,
+        use_weight: bool = False,
     ) -> List[Suggestion]:
         if type_:
             objects = self.get_analysis_by_type(type_)
         else:
             objects = self.get_analysis()
-        return self.get_sorted_suggestions_from_analysis(base_dir, objects, metric)
+        return self.get_sorted_suggestions_from_analysis(
+            base_dir, objects, metric, use_weight=use_weight
+        )
 
     def get_sorted_suggestions_from_analysis(
-        self, base_dir, analysis: Set[AnalysisObject], metric: Callable = None
+        self,
+        base_dir,
+        analysis: Set[AnalysisObject],
+        metric: Callable = None,
+        use_weight: bool = False,
     ) -> List[Suggestion]:
         suggestions = dict()
         suspiciousness = list()
         for suggestion in map(
-            lambda p: p.get_suggestion(metric=metric, base_dir=base_dir), analysis
+            lambda p: p.get_suggestion(
+                metric=metric, base_dir=base_dir, use_weight=use_weight
+            ),
+            analysis,
         ):
             suspiciousness.append(suggestion.suspiciousness)
             if suggestion.suspiciousness not in suggestions:

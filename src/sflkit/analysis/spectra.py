@@ -1,8 +1,16 @@
-import math
 from abc import ABC
-from typing import Callable, Optional, List
+from typing import Callable, Optional, Dict
 
 import numpy
+
+from sflkit.analysis.analysis_type import (
+    AnalysisObject,
+    AnalysisType,
+    EvaluationResult,
+    MetaEvent,
+)
+from sflkit.analysis.suggestion import Suggestion, Location
+from sflkit.model.scope import Scope
 from sflkitlib.events import EventType
 from sflkitlib.events.event import (
     LineEvent,
@@ -14,15 +22,6 @@ from sflkitlib.events.event import (
     UseEvent,
     LenEvent,
 )
-
-from sflkit.analysis.analysis_type import (
-    AnalysisObject,
-    AnalysisType,
-    EvaluationResult,
-    MetaEvent,
-)
-from sflkit.analysis.suggestion import Suggestion, Location
-from sflkit.model.scope import Scope
 
 
 class Spectrum(AnalysisObject, ABC):
@@ -45,7 +44,7 @@ class Spectrum(AnalysisObject, ABC):
         self.failed_observed = failed_observed
         self.failed_not_observed = failed_not_observed
         self.last_evaluation: EvaluationResult = EvaluationResult.FALSE
-        self.weights: List[float] = list()
+        self.weights: Dict[int, float] = dict()
         self.weight: float = 1
 
     def __hash__(self):
@@ -94,23 +93,27 @@ class Spectrum(AnalysisObject, ABC):
         else:
             return self.last_evaluation
 
-    def get_metric(self, metric: Callable = None):
+    def get_metric(self, metric: Callable = None, use_weight: bool = False):
         if metric is None:
             metric = Spectrum.Ochiai
         try:
             m = metric(self)
             if numpy.isnan(m):
                 m = 0
+            if use_weight:
+                m *= self.weight
             return m
         except ZeroDivisionError:
             return 0
 
-    def get_suggestion(self, metric: Callable = None, base_dir: str = ""):
-        self.assign_suspiciousness(metric)
+    def get_suggestion(
+        self, metric: Callable = None, base_dir: str = "", use_weight: bool = False
+    ):
+        self.assign_suspiciousness(metric, use_weight=use_weight)
         return Suggestion([Location(self.file, self.line)], self.suspiciousness)
 
-    def assign_suspiciousness(self, metric: Callable = None):
-        self.suspiciousness = self.get_metric(metric)
+    def assign_suspiciousness(self, metric: Callable = None, use_weight: bool = False):
+        self.suspiciousness = self.get_metric(metric, use_weight=use_weight)
 
     def hit(self, id_, event, scope_: Scope = None):
         self.last_evaluation = EvaluationResult.TRUE
@@ -133,8 +136,16 @@ class Spectrum(AnalysisObject, ABC):
         self.failed = failed
         self.failed_not_observed = failed - self.failed_observed
 
+    def adjust_weight(self, run_id: int, weight: float):
+        if run_id not in self.weights:
+            self.weights[run_id] = weight
+        else:
+            self.weights[run_id] = max(self.weights[run_id], weight)
+
     def set_weight(self):
-        self.weight = sum(self.weights) / len(self.weights) if self.weights else 1
+        self.weight = (
+            sum(self.weights.values()) / len(self.weights) if self.weights else 0
+        )
 
     def finalize(self, passed: list, failed: list):
         for event_file in failed:
@@ -597,11 +608,13 @@ class Function(Spectrum):
     def events():
         return [EventType.FUNCTION_ENTER]
 
-    def get_suggestion(self, metric: Callable = None, base_dir: str = ""):
+    def get_suggestion(
+        self, metric: Callable = None, base_dir: str = "", use_weight: bool = False
+    ):
         finder = self.function_finder(self.file, self.line, self.function)
         return Suggestion(
             [Location(self.file, line) for line in finder.get_locations(base_dir)],
-            self.get_metric(metric),
+            self.get_metric(metric, use_weight=use_weight),
         )
 
     def __str__(self):
@@ -682,10 +695,12 @@ class DefUse(Spectrum):
     def events():
         return [EventType.DEF, EventType.USE]
 
-    def get_suggestion(self, metric: Callable = None, base_dir: str = ""):
+    def get_suggestion(
+        self, metric: Callable = None, base_dir: str = "", use_weight: bool = False
+    ):
         return Suggestion(
             [Location(self.file, self.line), Location(self.use_file, self.use_line)],
-            self.get_metric(metric),
+            self.get_metric(metric, use_weight=use_weight),
         )
 
     def __str__(self):
@@ -799,11 +814,13 @@ class Loop(ModifiableSpectrum):
     def finalize(self, passed: list, failed: list):
         self.finalize_evaluation(self.evaluate_hit, passed, failed)
 
-    def get_suggestion(self, metric: Callable = None, base_dir: str = ""):
+    def get_suggestion(
+        self, metric: Callable = None, base_dir: str = "", use_weight: bool = False
+    ):
         finder = self.loop_finder(self.file, self.line)
         return Suggestion(
             [Location(self.file, line) for line in finder.get_locations(base_dir)],
-            self.get_metric(metric),
+            self.get_metric(metric, use_weight=use_weight),
         )
 
     def __str__(self):

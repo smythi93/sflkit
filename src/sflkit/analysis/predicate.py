@@ -99,10 +99,10 @@ class Predicate(Spectrum, ABC):
         else:
             self.last_evaluation = EvaluationResult.FALSE
 
-    def get_metric(self, metric: Callable = None):
+    def get_metric(self, metric: Callable = None, use_weight: bool = False):
         if metric is None:
             metric = Predicate.IncreaseTrue
-        return super().get_metric(metric)
+        return super().get_metric(metric, use_weight=use_weight)
 
     def _evaluate_predicate(self, event: Event, scope_: scope.Scope):
         return False
@@ -250,14 +250,16 @@ class Branch(Predicate):
         else:
             self.last_evaluation = EvaluationResult.FALSE
 
-    def get_suggestion(self, metric: Callable = None, base_dir: str = ""):
+    def get_suggestion(
+        self, metric: Callable = None, base_dir: str = "", use_weight: bool = False
+    ):
         if metric == Predicate.IncreaseFalse:
             finder = self.branch_finder(self.file, self.line, not self.then)
         else:
             finder = self.branch_finder(self.file, self.line, self.then)
         return Suggestion(
             [Location(self.file, line) for line in finder.get_locations(base_dir)],
-            self.get_metric(metric),
+            self.get_metric(metric, use_weight=use_weight),
         )
 
     def __str__(self):
@@ -1157,11 +1159,13 @@ class FunctionErrorPredicate(Predicate):
     def _evaluate_predicate(self, event: Event, scope_: scope.Scope):
         return event.event_type == EventType.FUNCTION_ERROR
 
-    def get_suggestion(self, metric: Callable = None, base_dir: str = ""):
+    def get_suggestion(
+        self, metric: Callable = None, base_dir: str = "", use_weight: bool = False
+    ):
         finder = self.function_finder(self.file, self.line, self.function)
         return Suggestion(
             [Location(self.file, line) for line in finder.get_locations(base_dir)],
-            self.get_metric(metric),
+            self.get_metric(metric, use_weight=use_weight),
         )
 
     def __str__(self):

@@ -26,10 +26,15 @@ class Model:
         self.returns = Scope()
         self.current_run_id = run_id
 
-    def handle_event(self, event, scope: Scope = None):
+    def follow_up(self, run_id):
+        pass
+
+    # noinspection PyUnresolvedReferences
+    def handle_event(self, event, scope: Scope = None) -> Set["AnalysisObject"]:
         analysis = self.factory.handle(event, scope=scope)
         for a in analysis:
             a.hit(self.current_run_id, event, scope)
+        return set(analysis)
 
     def handle_line_event(self, event):
         self.handle_event(event)

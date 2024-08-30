@@ -42,7 +42,7 @@ If you want to add new spectra or predicates, please register them here and in s
 """
 
 
-class AnalysisObject(object):
+class AnalysisObject:
     function_finder = None
     loop_finder = None
     branch_finder = None
