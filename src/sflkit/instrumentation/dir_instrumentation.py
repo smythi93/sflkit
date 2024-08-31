@@ -163,7 +163,9 @@ class DirInstrumentation(Instrumentation):
                     self.handle_element(element, file_queue, src, dst, suffixes, check)
             if test_files and self.test_file_instrumentation:
                 for test_file in test_files:
-                    if os.path.exists(os.path.join(src, test_file)):
+                    if os.path.exists(os.path.join(src, test_file)) and os.path.isfile(
+                        os.path.join(src, test_file)
+                    ):
                         self.test_file_instrumentation.instrument(
                             os.path.join(src, test_file),
                             os.path.join(dst, test_file),
