@@ -16,10 +16,10 @@ class SliceAnalyzer(Analyzer):
     def __init__(
         self,
         model_class: Type[TestSliceModel],
-        meta_model: MetaModel = None,
         relevant_event_files: Optional[List[EventFile]] = None,
         irrelevant_event_files: Optional[List[EventFile]] = None,
         factory: Optional[AnalysisFactory] = None,
+        meta_model: MetaModel = None,
     ):
         super().__init__(
             relevant_event_files=relevant_event_files,

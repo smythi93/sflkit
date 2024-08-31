@@ -965,34 +965,27 @@ class TestLineEventFactory(LineEventFactory):
             language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.ignore_inner = ignore_inner
-        self.in_function = False
-        self.in_class = False
+        self.functions = 0
+        self.classes = 0
+        self.classes_in_functions = 0
 
-    def visit_ClassDef(self, node):
-        if self.ignore_inner and (self.in_class or self.in_function):
-            return Injection()
+    def enter_function(self, function):
+        self.functions += 1
+
+    def exit_function(self, function):
+        self.functions -= 1
+
+    def enter_class(self, class_):
+        if self.functions > 0:
+            self.classes_in_functions += 1
         else:
-            self.in_class = True
-            injection = super().visit_ClassDef(node)
-            self.in_class = False
-            return injection
+            self.classes += 1
 
-    def visit_function(
-        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
-    ) -> Injection:
-        if self.ignore_inner and self.in_function:
-            return Injection()
+    def exit_class(self, class_):
+        if self.functions > 0:
+            self.classes_in_functions -= 1
         else:
-            self.in_function = True
-            injection = super().visit_FunctionDef(node)
-            self.in_function = False
-            return injection
-
-    def visit_FunctionDef(self, node):
-        return self.visit_function(node)
-
-    def visit_AsyncFunctionDef(self, node):
-        return self.visit_function(node)
+            self.classes -= 1
 
     def get_function(self):
         return "add_test_line_event"
@@ -1002,6 +995,13 @@ class TestLineEventFactory(LineEventFactory):
             self.file, node.lineno, self.event_id_generator.get_next_id()
         )
         return Injection(pre=[self.get_event_call(line_event)], events=[line_event])
+
+    def visit(self, node):
+        if self.ignore_inner and (
+            self.functions > 1 or self.classes_in_functions > 0 or self.classes > 1
+        ):
+            return Injection()
+        return super().visit(node)
 
 
 class TestDefEventFactory(DefEventFactory):
@@ -1018,34 +1018,27 @@ class TestDefEventFactory(DefEventFactory):
             language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.ignore_inner = ignore_inner
-        self.in_function = False
-        self.in_class = False
+        self.functions = 0
+        self.classes = 0
+        self.classes_in_functions = 0
 
-    def visit_ClassDef(self, node):
-        if self.ignore_inner and (self.in_class or self.in_function):
-            return Injection()
+    def enter_function(self, function):
+        self.functions += 1
+
+    def exit_function(self, function):
+        self.functions -= 1
+
+    def enter_class(self, class_):
+        if self.functions > 0:
+            self.classes_in_functions += 1
         else:
-            self.in_class = True
-            injection = super().visit_ClassDef(node)
-            self.in_class = False
-            return injection
+            self.classes += 1
 
-    def visit_function(
-        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
-    ) -> Injection:
-        if self.ignore_inner and self.in_function:
-            return Injection()
+    def exit_class(self, class_):
+        if self.functions > 0:
+            self.classes_in_functions -= 1
         else:
-            self.in_function = True
-            injection = super().visit_FunctionDef(node)
-            self.in_function = False
-            return injection
-
-    def visit_FunctionDef(self, node):
-        return self.visit_function(node)
-
-    def visit_AsyncFunctionDef(self, node):
-        return self.visit_function(node)
+            self.classes -= 1
 
     def get_function(self):
         return "add_test_def_event"
@@ -1072,6 +1065,13 @@ class TestDefEventFactory(DefEventFactory):
         )
         return call
 
+    def visit(self, node):
+        if self.ignore_inner and (
+            self.functions > 1 or self.classes_in_functions > 0 or self.classes > 1
+        ):
+            return Injection()
+        return super().visit(node)
+
 
 class TestUseEventFactory(UseEventFactory):
     def __init__(
@@ -1087,34 +1087,27 @@ class TestUseEventFactory(UseEventFactory):
             language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.ignore_inner = ignore_inner
-        self.in_function = False
-        self.in_class = False
+        self.functions = 0
+        self.classes = 0
+        self.classes_in_functions = 0
 
-    def visit_ClassDef(self, node):
-        if self.ignore_inner and (self.in_class or self.in_function):
-            return Injection()
+    def enter_function(self, function):
+        self.functions += 1
+
+    def exit_function(self, function):
+        self.functions -= 1
+
+    def enter_class(self, class_):
+        if self.functions > 0:
+            self.classes_in_functions += 1
         else:
-            self.in_class = True
-            injection = super().visit_ClassDef(node)
-            self.in_class = False
-            return injection
+            self.classes += 1
 
-    def visit_function(
-        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
-    ) -> Injection:
-        if self.ignore_inner and self.in_function:
-            return Injection()
+    def exit_class(self, class_):
+        if self.functions > 0:
+            self.classes_in_functions -= 1
         else:
-            self.in_function = True
-            injection = super().visit_FunctionDef(node)
-            self.in_function = False
-            return injection
-
-    def visit_FunctionDef(self, node):
-        return self.visit_function(node)
-
-    def visit_AsyncFunctionDef(self, node):
-        return self.visit_function(node)
+            self.classes -= 1
 
     def get_function(self):
         return "add_test_use_event"
@@ -1123,6 +1116,13 @@ class TestUseEventFactory(UseEventFactory):
         return TestUseEvent(
             self.file, node.lineno, self.event_id_generator.get_next_id(), use
         )
+
+    def visit(self, node):
+        if self.ignore_inner and (
+            self.functions > 1 or self.classes_in_functions > 0 or self.classes > 1
+        ):
+            return Injection()
+        return super().visit(node)
 
 
 class TestAssertEventFactory(PythonEventFactory):
@@ -1139,34 +1139,27 @@ class TestAssertEventFactory(PythonEventFactory):
             language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.ignore_inner = ignore_inner
-        self.in_function = False
-        self.in_class = False
+        self.functions = 0
+        self.classes = 0
+        self.classes_in_functions = 0
 
-    def visit_ClassDef(self, node):
-        if self.ignore_inner and (self.in_class or self.in_function):
-            return Injection()
+    def enter_function(self, function):
+        self.functions += 1
+
+    def exit_function(self, function):
+        self.functions -= 1
+
+    def enter_class(self, class_):
+        if self.functions > 0:
+            self.classes_in_functions += 1
         else:
-            self.in_class = True
-            injection = super().visit_ClassDef(node)
-            self.in_class = False
-            return injection
+            self.classes += 1
 
-    def visit_function(
-        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
-    ) -> Injection:
-        if self.ignore_inner and self.in_function:
-            return Injection()
+    def exit_class(self, class_):
+        if self.functions > 0:
+            self.classes_in_functions -= 1
         else:
-            self.in_function = True
-            injection = super().visit_FunctionDef(node)
-            self.in_function = False
-            return injection
-
-    def visit_FunctionDef(self, node):
-        return self.visit_function(node)
-
-    def visit_AsyncFunctionDef(self, node):
-        return self.visit_function(node)
+            self.classes -= 1
 
     def get_function(self):
         return "add_test_assert_event"
@@ -1191,3 +1184,10 @@ class TestAssertEventFactory(PythonEventFactory):
                     pre=[self.get_event_call(assert_event)], events=[assert_event]
                 )
         return Injection()
+
+    def visit(self, node):
+        if self.ignore_inner and (
+            self.functions > 1 or self.classes_in_functions > 0 or self.classes > 1
+        ):
+            return Injection()
+        return super().visit(node)
