@@ -73,6 +73,7 @@ class Spectrum(AnalysisObject, ABC):
             "failed_observed": self.failed_observed,
             "failed_not_observed": self.failed_not_observed,
             "type": self.analysis_type().value,
+            "weight": self.weight,
         }
 
     def _deserialize(self, s: dict):
@@ -82,6 +83,7 @@ class Spectrum(AnalysisObject, ABC):
         self.failed = s["failed"]
         self.failed_observed = s["failed_observed"]
         self.failed_not_observed = s["failed_not_observed"]
+        self.weight = s["weight"] if "weight" in s else 1
 
     @staticmethod
     def default_evaluation() -> EvaluationResult:
