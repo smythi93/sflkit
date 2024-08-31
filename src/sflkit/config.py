@@ -156,8 +156,6 @@ class Config:
                     self.functions_id_generator,
                     TmpGenerator(),
                     [self.language.meta_visitors[e] for e in self.events],
-                    test=True,
-                    ignore_inner=self.ignore_inner,
                 )
                 self.visitor = self.language.visitor(self.meta_visitor)
 
@@ -168,6 +166,8 @@ class Config:
                         self.functions_id_generator,
                         TmpGenerator(),
                         [self.language.meta_visitors[e] for e in self.test_events],
+                        test=True,
+                        ignore_inner=self.ignore_inner,
                     )
                     self.test_visitor = self.language.visitor(self.meta_test_visitor)
 
