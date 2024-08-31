@@ -29,10 +29,10 @@ class BaseTest(unittest.TestCase):
     TEST_PROPERTIES = "test_properties"
     TEST_SPECIAL_VALUES = "test_special_values"
     TEST_RUNNER = "test_runner"
-    TEST_XXX_SETUP = "test_xxx_setup"
-    TEST_XXX_LINES = "test_xxx_lines"
-    TEST_XXX_DEF_USE = "test_xxx_def_use"
-    TEST_XXX_DEF_USES = "test_xxx_def_uses"
+    TEST_XXX_SETUP = "test_fendr_setup"
+    TEST_XXX_LINES = "test_fendr_lines"
+    TEST_XXX_DEF_USE = "test_fendr_def_use"
+    TEST_XXX_DEF_USES = "test_fendr_def_uses"
     DELTA = 0.0000001
 
     EVENTS = [

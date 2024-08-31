@@ -7,8 +7,8 @@ from sflkit.analysis.suggestion import Location
 from sflkit.mapping import EventMapping
 from sflkit.model import EventFile
 from sflkit.runners import PytestRunner
-from sflkit.xxx.analyzer import SliceAnalyzer
-from sflkit.xxx.models import (
+from sflkit.fendr.analyzer import SliceAnalyzer
+from sflkit.fendr.models import (
     TestLineModel,
     TestDefUseModel,
     TestFunctionModel,

@@ -5,7 +5,7 @@ from sflkit.analysis.analysis_type import AnalysisType, AnalysisObject
 from sflkit.analysis.factory import AnalysisFactory
 from sflkit.analysis.suggestion import Suggestion
 from sflkit.model import EventFile
-from sflkit.xxx.models import TestSliceModel
+from sflkit.fendr.models import TestSliceModel
 
 
 class SliceAnalyzer(Analyzer):
