@@ -3,6 +3,7 @@ import csv
 import hashlib
 import os.path
 import queue
+from codecs import ignore_errors
 from pathlib import Path
 from typing import List, Callable, Union, Optional
 
@@ -69,6 +70,7 @@ class Config:
         self.test_factory = None
         self.events = list()
         self.test_events = list()
+        self.ignore_inner = False
         self.metrics = list()
         self.meta_visitor = None
         self.meta_test_visitor = None
@@ -141,6 +143,14 @@ class Config:
                             list(csv.reader([events["test"]]))[0],
                         )
                     )
+                if "ignore_inner" in events:
+                    self.ignore_inner = events["ignore_inner"].lower() in [
+                        "true",
+                        "1",
+                        "t",
+                        "y",
+                        "yes",
+                    ]
 
                 self.meta_visitor = CombinationVisitor(
                     self.language,
@@ -148,6 +158,8 @@ class Config:
                     self.functions_id_generator,
                     TmpGenerator(),
                     [self.language.meta_visitors[e] for e in self.events],
+                    test=True,
+                    ignore_inner=self.ignore_inner,
                 )
                 self.visitor = self.language.visitor(self.meta_visitor)
 
@@ -236,6 +248,7 @@ class Config:
         test_factory: Optional[AnalysisFactory] = None,
         events: Optional[List[EventType]] = None,
         test_events: Optional[List[EventType]] = None,
+        ignore_inner: Optional[bool] = False,
         metrics: Optional[List[Callable]] = None,
         meta_visitor: Optional[MetaVisitor] = None,
         visitor: Optional[ASTVisitor] = None,
@@ -258,6 +271,7 @@ class Config:
         conf.test_factory = test_factory
         conf.events = events or list()
         conf.test_events = test_events or list()
+        conf.ignore_inner = ignore_inner or False
         conf.metrics = metrics or list()
         conf.meta_visitor = meta_visitor
         conf.visitor = visitor
@@ -312,6 +326,7 @@ class Config:
         language=None,
         events=None,
         test_events=None,
+        ignore_inner=None,
         predicates=None,
         metrics=None,
         passing=None,
@@ -340,6 +355,8 @@ class Config:
             conf["events"]["predicates"] = predicates
         if test_events:
             conf["events"]["test"] = test_events
+        if ignore_inner:
+            conf["events"]["ignore_inner"] = ignore_inner
         if metrics:
             conf["events"]["metrics"] = metrics
         if passing:
@@ -376,8 +393,10 @@ class Config:
             conf["target"]["language"] = self.language.name
         if self.events:
             conf["events"]["events"] = ",".join(e.name for e in self.events)
-        if self.events:
+        if self.test_events:
             conf["events"]["test"] = ",".join(e.name for e in self.test_events)
+        if self.ignore_inner:
+            conf["events"]["ignore_inner"] = str(self.ignore_inner)
         if self.predicates:
             conf["events"]["predicates"] = ",".join(p.name for p in self.predicates)
         if self.metrics:

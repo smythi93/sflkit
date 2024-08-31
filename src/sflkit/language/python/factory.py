@@ -949,6 +949,47 @@ class TestEndEventFactory(FunctionEventFactory):
 
 
 class TestLineEventFactory(LineEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        ignore_inner: bool = False,
+    ):
+        super().__init__(
+            language, event_id_generator, function_id_generator, tmp_generator
+        )
+        self.ignore_inner = ignore_inner
+        self.in_function = False
+        self.in_class = False
+
+    def visit_ClassDef(self, node):
+        if self.ignore_inner and (self.in_class or self.in_function):
+            return Injection()
+        else:
+            self.in_class = True
+            injection = super().visit_ClassDef(node)
+            self.in_class = False
+            return injection
+
+    def visit_function(
+        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
+    ) -> Injection:
+        if self.ignore_inner and self.in_function:
+            return Injection()
+        else:
+            self.in_function = True
+            injection = super().visit_FunctionDef(node)
+            self.in_function = False
+            return injection
+
+    def visit_FunctionDef(self, node):
+        return self.visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node):
+        return self.visit_function(node)
+
     def get_function(self):
         return "add_test_line_event"
 
@@ -960,6 +1001,47 @@ class TestLineEventFactory(LineEventFactory):
 
 
 class TestDefEventFactory(DefEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        ignore_inner: bool = False,
+    ):
+        super().__init__(
+            language, event_id_generator, function_id_generator, tmp_generator
+        )
+        self.ignore_inner = ignore_inner
+        self.in_function = False
+        self.in_class = False
+
+    def visit_ClassDef(self, node):
+        if self.ignore_inner and (self.in_class or self.in_function):
+            return Injection()
+        else:
+            self.in_class = True
+            injection = super().visit_ClassDef(node)
+            self.in_class = False
+            return injection
+
+    def visit_function(
+        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
+    ) -> Injection:
+        if self.ignore_inner and self.in_function:
+            return Injection()
+        else:
+            self.in_function = True
+            injection = super().visit_FunctionDef(node)
+            self.in_function = False
+            return injection
+
+    def visit_FunctionDef(self, node):
+        return self.visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node):
+        return self.visit_function(node)
+
     def get_function(self):
         return "add_test_def_event"
 
@@ -987,6 +1069,47 @@ class TestDefEventFactory(DefEventFactory):
 
 
 class TestUseEventFactory(UseEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        ignore_inner: bool = False,
+    ):
+        super().__init__(
+            language, event_id_generator, function_id_generator, tmp_generator
+        )
+        self.ignore_inner = ignore_inner
+        self.in_function = False
+        self.in_class = False
+
+    def visit_ClassDef(self, node):
+        if self.ignore_inner and (self.in_class or self.in_function):
+            return Injection()
+        else:
+            self.in_class = True
+            injection = super().visit_ClassDef(node)
+            self.in_class = False
+            return injection
+
+    def visit_function(
+        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
+    ) -> Injection:
+        if self.ignore_inner and self.in_function:
+            return Injection()
+        else:
+            self.in_function = True
+            injection = super().visit_FunctionDef(node)
+            self.in_function = False
+            return injection
+
+    def visit_FunctionDef(self, node):
+        return self.visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node):
+        return self.visit_function(node)
+
     def get_function(self):
         return "add_test_use_event"
 
@@ -997,6 +1120,47 @@ class TestUseEventFactory(UseEventFactory):
 
 
 class TestAssertEventFactory(PythonEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        ignore_inner: bool = False,
+    ):
+        super().__init__(
+            language, event_id_generator, function_id_generator, tmp_generator
+        )
+        self.ignore_inner = ignore_inner
+        self.in_function = False
+        self.in_class = False
+
+    def visit_ClassDef(self, node):
+        if self.ignore_inner and (self.in_class or self.in_function):
+            return Injection()
+        else:
+            self.in_class = True
+            injection = super().visit_ClassDef(node)
+            self.in_class = False
+            return injection
+
+    def visit_function(
+        self, node: typing.Union[FunctionDef, AsyncFunctionDef]
+    ) -> Injection:
+        if self.ignore_inner and self.in_function:
+            return Injection()
+        else:
+            self.in_function = True
+            injection = super().visit_FunctionDef(node)
+            self.in_function = False
+            return injection
+
+    def visit_FunctionDef(self, node):
+        return self.visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node):
+        return self.visit_function(node)
+
     def get_function(self):
         return "add_test_assert_event"
 

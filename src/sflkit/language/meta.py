@@ -71,11 +71,12 @@ class MetaVisitor(ABC):
         self,
         language,
         event_id_generator: IDGenerator,
-        funtion_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
+        **kwargs,
     ):
         self.event_id_generator = event_id_generator
-        self.function_id_generator = funtion_id_generator
+        self.function_id_generator = function_id_generator
         self.tmp_generator = tmp_generator
         self.variable_extract = language.var_extract
         self.use_extract = language.use_extract
@@ -113,25 +114,39 @@ class CombinationVisitor(MetaVisitor):
         self,
         language,
         event_id_generator: IDGenerator,
-        funtion_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
         visitors: List[Type[MetaVisitor]],
+        test: bool = False,
+        ignore_inner: bool = False,
     ):
         super().__init__(
             language,
             event_id_generator,
-            funtion_id_generator,
+            function_id_generator,
             tmp_generator,
         )
-        self.visitors = [
-            visitor(
-                language,
-                event_id_generator,
-                funtion_id_generator,
-                tmp_generator,
-            )
-            for visitor in visitors
-        ]
+        if test:
+            self.visitors = [
+                visitor(
+                    language,
+                    event_id_generator,
+                    function_id_generator,
+                    tmp_generator,
+                    ignore_inner=ignore_inner,
+                )
+                for visitor in visitors
+            ]
+        else:
+            self.visitors = [
+                visitor(
+                    language,
+                    event_id_generator,
+                    function_id_generator,
+                    tmp_generator,
+                )
+                for visitor in visitors
+            ]
 
     def visit_start(self, *args) -> Injection:
         injections = Injection()
