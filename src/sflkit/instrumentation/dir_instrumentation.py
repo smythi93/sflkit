@@ -113,6 +113,7 @@ class DirInstrumentation(Instrumentation):
         includes: Optional[Iterable[str]] = None,
         excludes: Optional[Iterable[str]] = None,
         tests: Optional[Iterable[str]] = None,
+        test_files: Optional[Iterable[str]] = None,
     ):
         if suffixes is None:
             raise ValueError("DirInstrumentation requires suffixes")
@@ -160,6 +161,14 @@ class DirInstrumentation(Instrumentation):
                     continue
                 else:
                     self.handle_element(element, file_queue, src, dst, suffixes, check)
+            if test_files and self.test_file_instrumentation:
+                for test_file in test_files:
+                    if os.path.exists(os.path.join(src, test_file)):
+                        self.test_file_instrumentation.instrument(
+                            os.path.join(src, test_file),
+                            os.path.join(dst, test_file),
+                            file=test_file,
+                        )
         self.events = self.file_instrumentation.events
         if self.test_file_instrumentation:
             self.events += self.test_file_instrumentation.events

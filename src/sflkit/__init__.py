@@ -18,6 +18,7 @@ def instrument_config(conf: Config):
         includes=conf.instrument_include,
         excludes=conf.instrument_exclude,
         tests=conf.instrument_test,
+        test_files=conf.instrument_test_files,
     )
     instrumentation.dump_events(conf)
 

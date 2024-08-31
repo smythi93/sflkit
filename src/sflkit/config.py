@@ -79,6 +79,7 @@ class Config:
         self.instrument_include = list()
         self.instrument_exclude = list()
         self.instrument_test = list()
+        self.instrument_test_files = list()
         self.instrument_working = None
         self.runner = None
         self.mapping = None
@@ -209,6 +210,12 @@ class Config:
                     self.instrument_test = list(csv.reader([instrument["test"]]))[0]
                     while "" in self.instrument_test:
                         self.instrument_test.remove("")
+                if "test_files" in instrument:
+                    self.instrument_test_files = list(
+                        csv.reader([instrument["test_files"]])
+                    )[0]
+                    while "" in self.instrument_test:
+                        self.instrument_test_files.remove("")
                 self.instrument_working = Path(instrument["path"])
 
                 # test section
@@ -314,6 +321,7 @@ class Config:
         include=None,
         exclude=None,
         tests=None,
+        test_files=None,
         runner=None,
     ):
         conf = configparser.ConfigParser()
@@ -348,6 +356,8 @@ class Config:
             conf["instrumentation"]["exclude"] = exclude
         if tests:
             conf["instrumentation"]["test"] = tests
+        if test_files:
+            conf["instrumentation"]["test_files"] = test_files
         if runner:
             conf["test"]["runner"] = runner
 
@@ -391,6 +401,10 @@ class Config:
         if self.instrument_test:
             conf["instrumentation"]["test"] = (
                 '"' + '","'.join(self.instrument_test) + '"'
+            )
+        if self.instrument_test_files:
+            conf["instrumentation"]["test_files"] = (
+                '"' + '","'.join(self.instrument_test_files) + '"'
             )
         if self.runner:
             conf["test"]["runner"] = self.runner.name

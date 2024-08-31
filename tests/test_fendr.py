@@ -19,9 +19,9 @@ from sflkit.fendr.models import (
 from utils import BaseTest
 
 
-class TestXXX(BaseTest):
-    def test_xxx_function(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_XXX_SETUP)
+class TestFendr(BaseTest):
+    def test_fendr_function(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_SETUP)
         config = Config.create(
             path=str(src),
             language="python",
@@ -29,7 +29,8 @@ class TestXXX(BaseTest):
             predicates="line",
             test_events="test_line,test_start,test_end",
             working=BaseTest.TEST_DIR,
-            tests=r"test\.py",
+            exclude="test.py",
+            test_files="test.py",
             mapping_path=self.TEST_MAPPING,
         )
         instrument_config(config)
@@ -62,8 +63,8 @@ class TestXXX(BaseTest):
         self.assertIn(Location("main.py", 6), suggestions[1].lines)
         self.assertIn(Location("main.py", 2), suggestions[1].lines)
 
-    def test_xxx_line(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_XXX_LINES)
+    def test_fendr_line(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_LINES)
         config = Config.create(
             path=str(src),
             language="python",
@@ -71,7 +72,8 @@ class TestXXX(BaseTest):
             predicates="line",
             test_events="test_line",
             working=BaseTest.TEST_DIR,
-            tests=r"test\.py",
+            exclude="test.py",
+            test_files="test.py",
             mapping_path=self.TEST_MAPPING,
         )
         instrument_config(config)
@@ -109,8 +111,8 @@ class TestXXX(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_xxx_def_use(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_XXX_DEF_USE)
+    def test_fendr_def_use(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_DEF_USE)
         config = Config.create(
             path=str(src),
             language="python",
@@ -118,7 +120,8 @@ class TestXXX(BaseTest):
             predicates="line",
             test_events="test_line,test_def,test_use",
             working=BaseTest.TEST_DIR,
-            tests=r"test\.py",
+            exclude="test.py",
+            test_files="test.py",
             mapping_path=self.TEST_MAPPING,
         )
         instrument_config(config)
@@ -156,8 +159,8 @@ class TestXXX(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_xxx_def_uses(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_XXX_DEF_USES)
+    def test_fendr_def_uses(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_DEF_USES)
         config = Config.create(
             path=str(src),
             language="python",
@@ -165,7 +168,8 @@ class TestXXX(BaseTest):
             predicates="line",
             test_events="test_line,test_def,test_use",
             working=BaseTest.TEST_DIR,
-            tests=r"test\.py",
+            exclude="test.py",
+            test_files="test.py",
             mapping_path=self.TEST_MAPPING,
         )
         instrument_config(config)
@@ -203,8 +207,8 @@ class TestXXX(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_xxx_assert_def_use(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_XXX_DEF_USE)
+    def test_fendr_assert_def_use(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_DEF_USE)
         config = Config.create(
             path=str(src),
             language="python",
@@ -250,8 +254,8 @@ class TestXXX(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_xxx_assert_def_uses(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_XXX_DEF_USES)
+    def test_fendr_assert_def_uses(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_DEF_USES)
         config = Config.create(
             path=str(src),
             language="python",
