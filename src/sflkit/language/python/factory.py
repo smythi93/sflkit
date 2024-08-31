@@ -56,6 +56,7 @@ class PythonEventFactory(MetaVisitor, NodeVisitor):
         event_id_generator: IDGenerator,
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
+        **kwargs,
     ):
         super().__init__(
             language, event_id_generator, function_id_generator, tmp_generator
@@ -158,9 +159,10 @@ class BranchEventFactory(PythonEventFactory):
         event_id_generator: IDGenerator,
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
+        **kwargs,
     ):
         super().__init__(
-            language, event_id_generator, function_id_generator, tmp_generator
+            language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.branch_id = 0
 
@@ -367,9 +369,10 @@ class FunctionEventFactory(PythonEventFactory):
         event_id_generator: IDGenerator,
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
+        **kwargs,
     ):
         super().__init__(
-            language, event_id_generator, function_id_generator, tmp_generator
+            language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.function_stack = list()
 
@@ -956,9 +959,10 @@ class TestLineEventFactory(LineEventFactory):
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
         ignore_inner: bool = False,
+        **kwargs,
     ):
         super().__init__(
-            language, event_id_generator, function_id_generator, tmp_generator
+            language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.ignore_inner = ignore_inner
         self.in_function = False
@@ -1008,9 +1012,10 @@ class TestDefEventFactory(DefEventFactory):
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
         ignore_inner: bool = False,
+        **kwargs,
     ):
         super().__init__(
-            language, event_id_generator, function_id_generator, tmp_generator
+            language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.ignore_inner = ignore_inner
         self.in_function = False
@@ -1076,9 +1081,10 @@ class TestUseEventFactory(UseEventFactory):
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
         ignore_inner: bool = False,
+        **kwargs,
     ):
         super().__init__(
-            language, event_id_generator, function_id_generator, tmp_generator
+            language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.ignore_inner = ignore_inner
         self.in_function = False
@@ -1127,9 +1133,10 @@ class TestAssertEventFactory(PythonEventFactory):
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
         ignore_inner: bool = False,
+        **kwargs,
     ):
         super().__init__(
-            language, event_id_generator, function_id_generator, tmp_generator
+            language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.ignore_inner = ignore_inner
         self.in_function = False

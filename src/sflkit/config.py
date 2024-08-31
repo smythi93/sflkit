@@ -3,11 +3,8 @@ import csv
 import hashlib
 import os.path
 import queue
-from codecs import ignore_errors
 from pathlib import Path
 from typing import List, Callable, Union, Optional
-
-from sflkitlib.events import EventType
 
 from sflkit.analysis.analysis_type import AnalysisType
 from sflkit.analysis.factory import (
@@ -29,6 +26,7 @@ from sflkit.language.visitor import ASTVisitor
 from sflkit.mapping import EventMapping, InstrumentationError
 from sflkit.model.event_file import EventFile
 from sflkit.runners import RunnerType
+from sflkitlib.events import EventType
 
 
 class ConfigError(Exception):
