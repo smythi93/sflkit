@@ -86,7 +86,7 @@ class Runner(abc.ABC):
         output.mkdir(parents=True, exist_ok=True)
         for test_result in TestResult:
             (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
-        for run_id, test in enumerate(tests):
+        for event_file, test in enumerate(tests):
             test_result = self.run_test(directory, test, environ=environ)
             self.tests[test_result].add(test)
             if os.path.exists(directory / "EVENTS_PATH"):

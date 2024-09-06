@@ -4,11 +4,8 @@ from pathlib import Path
 from sflkit import Config, instrument_config
 from sflkit.analysis.analysis_type import AnalysisType
 from sflkit.analysis.suggestion import Location
-from sflkit.mapping import EventMapping
-from sflkit.model import EventFile
-from sflkit.runners import PytestRunner
-from sflkit.fendr.analyzer import SliceAnalyzer
-from sflkit.fendr.models import (
+from sflkit.dependency.analyzer import DependencyAnalyzer
+from sflkit.dependency.models import (
     TestLineModel,
     TestDefUseModel,
     TestFunctionModel,
@@ -16,12 +13,15 @@ from sflkit.fendr.models import (
     TestAssertDefUseModel,
     TestAssertDefUsesModel,
 )
+from sflkit.events.event_file import EventFile
+from sflkit.events.mapping import EventMapping
+from sflkit.runners import PytestRunner
 from utils import BaseTest
 
 
-class TestFendr(BaseTest):
-    def test_fendr_function(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_SETUP)
+class TestDependencyWeights(BaseTest):
+    def test_dw_function(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_SETUP)
         config = Config.create(
             path=str(src),
             language="python",
@@ -38,7 +38,7 @@ class TestFendr(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = SliceAnalyzer(
+        analyzer = DependencyAnalyzer(
             TestFunctionModel,
             [
                 EventFile(
@@ -63,8 +63,8 @@ class TestFendr(BaseTest):
         self.assertIn(Location("main.py", 6), suggestions[1].lines)
         self.assertIn(Location("main.py", 2), suggestions[1].lines)
 
-    def test_fendr_line(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_LINES)
+    def test_dw_line(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_LINES)
         config = Config.create(
             path=str(src),
             language="python",
@@ -81,7 +81,7 @@ class TestFendr(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = SliceAnalyzer(
+        analyzer = DependencyAnalyzer(
             TestLineModel,
             [
                 EventFile(
@@ -103,7 +103,7 @@ class TestFendr(BaseTest):
         self.assertEqual(3, len(suggestions))
         self.assertAlmostEquals(1, suggestions[0].suspiciousness, delta=0.00001)
         self.assertAlmostEquals(0.775, suggestions[1].suspiciousness, delta=0.00001)
-        self.assertAlmostEquals(0.3, suggestions[2].suspiciousness, delta=0.00001)
+        self.assertAlmostEquals(0.15, suggestions[2].suspiciousness, delta=0.00001)
         self.assertEqual(1, len(suggestions[0].lines))
         self.assertIn(Location("main.py", 10), suggestions[0].lines)
         self.assertEqual(1, len(suggestions[1].lines))
@@ -111,8 +111,8 @@ class TestFendr(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_fendr_def_use(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_DEF_USE)
+    def test_dw_def_use(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_DEF_USE)
         config = Config.create(
             path=str(src),
             language="python",
@@ -129,7 +129,7 @@ class TestFendr(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = SliceAnalyzer(
+        analyzer = DependencyAnalyzer(
             TestDefUseModel,
             [
                 EventFile(
@@ -151,7 +151,7 @@ class TestFendr(BaseTest):
         self.assertEqual(3, len(suggestions))
         self.assertAlmostEquals(0.85416, suggestions[0].suspiciousness, delta=0.00001)
         self.assertAlmostEquals(0.64583, suggestions[1].suspiciousness, delta=0.00001)
-        self.assertAlmostEquals(0.4375, suggestions[2].suspiciousness, delta=0.00001)
+        self.assertAlmostEquals(0.21875, suggestions[2].suspiciousness, delta=0.00001)
         self.assertEqual(1, len(suggestions[0].lines))
         self.assertIn(Location("main.py", 10), suggestions[0].lines)
         self.assertEqual(1, len(suggestions[1].lines))
@@ -159,8 +159,8 @@ class TestFendr(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_fendr_def_uses(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_DEF_USES)
+    def test_dw_def_uses(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_DEF_USES)
         config = Config.create(
             path=str(src),
             language="python",
@@ -177,7 +177,7 @@ class TestFendr(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = SliceAnalyzer(
+        analyzer = DependencyAnalyzer(
             TestDefUsesModel,
             [
                 EventFile(
@@ -199,7 +199,7 @@ class TestFendr(BaseTest):
         self.assertEqual(3, len(suggestions))
         self.assertAlmostEquals(0.80555, suggestions[0].suspiciousness, delta=0.00001)
         self.assertAlmostEquals(0.61111, suggestions[1].suspiciousness, delta=0.00001)
-        self.assertAlmostEquals(0.38888, suggestions[2].suspiciousness, delta=0.00001)
+        self.assertAlmostEquals(0.19444, suggestions[2].suspiciousness, delta=0.00001)
         self.assertEqual(1, len(suggestions[0].lines))
         self.assertIn(Location("main.py", 10), suggestions[0].lines)
         self.assertEqual(1, len(suggestions[1].lines))
@@ -207,8 +207,8 @@ class TestFendr(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_fendr_assert_def_use(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_DEF_USE)
+    def test_dw_assert_def_use(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_DEF_USE)
         config = Config.create(
             path=str(src),
             language="python",
@@ -224,7 +224,7 @@ class TestFendr(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = SliceAnalyzer(
+        analyzer = DependencyAnalyzer(
             TestAssertDefUseModel,
             [
                 EventFile(
@@ -246,7 +246,7 @@ class TestFendr(BaseTest):
         self.assertEqual(3, len(suggestions))
         self.assertAlmostEquals(0.85416, suggestions[0].suspiciousness, delta=0.00001)
         self.assertAlmostEquals(0.5, suggestions[1].suspiciousness, delta=0.00001)
-        self.assertAlmostEquals(0.375, suggestions[2].suspiciousness, delta=0.00001)
+        self.assertAlmostEquals(0.1875, suggestions[2].suspiciousness, delta=0.00001)
         self.assertEqual(1, len(suggestions[0].lines))
         self.assertIn(Location("main.py", 10), suggestions[0].lines)
         self.assertEqual(1, len(suggestions[1].lines))
@@ -254,8 +254,8 @@ class TestFendr(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_fendr_assert_def_uses(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_FENDR_DEF_USES)
+    def test_dw_assert_def_uses(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_DEF_USES)
         config = Config.create(
             path=str(src),
             language="python",
@@ -271,7 +271,7 @@ class TestFendr(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = SliceAnalyzer(
+        analyzer = DependencyAnalyzer(
             TestAssertDefUsesModel,
             [
                 EventFile(
@@ -293,7 +293,7 @@ class TestFendr(BaseTest):
         self.assertEqual(3, len(suggestions))
         self.assertAlmostEquals(0.80555, suggestions[0].suspiciousness, delta=0.00001)
         self.assertAlmostEquals(0.47222, suggestions[1].suspiciousness, delta=0.00001)
-        self.assertAlmostEquals(0.27777, suggestions[2].suspiciousness, delta=0.00001)
+        self.assertAlmostEquals(0.13888, suggestions[2].suspiciousness, delta=0.00001)
         self.assertEqual(1, len(suggestions[0].lines))
         self.assertIn(Location("main.py", 10), suggestions[0].lines)
         self.assertEqual(1, len(suggestions[1].lines))

@@ -2,6 +2,7 @@ import enum
 from abc import abstractmethod
 from typing import List, Type, Optional
 
+from sflkit.events.event_file import EventFile
 from sflkit.model.scope import Scope
 
 
@@ -58,6 +59,9 @@ class AnalysisObject:
         self.suspiciousness: float = 0
         self.last_evaluation: EvaluationResult = EvaluationResult.UNOBSERVED
         self.hits = dict()
+
+    def adjust_weight(self, event_file: EventFile, weight: float):
+        pass
 
     @abstractmethod
     def serialize(self) -> dict:

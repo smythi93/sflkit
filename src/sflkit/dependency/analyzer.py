@@ -7,15 +7,15 @@ from sflkit.analysis.analysis_type import AnalysisType, AnalysisObject
 from sflkit.analysis.analyzer import load_analysis_json, deserialize
 from sflkit.analysis.factory import AnalysisFactory
 from sflkit.analysis.suggestion import Suggestion
-from sflkit.model import EventFile
-from sflkit.fendr.models import TestSliceModel
+from sflkit.dependency.models import TestDependencyModel
+from sflkit.events.event_file import EventFile
 from sflkit.model.model import MetaModel
 
 
-class SliceAnalyzer(Analyzer):
+class DependencyAnalyzer(Analyzer):
     def __init__(
         self,
-        model_class: Type[TestSliceModel],
+        model_class: Type[TestDependencyModel],
         relevant_event_files: Optional[List[EventFile]] = None,
         irrelevant_event_files: Optional[List[EventFile]] = None,
         factory: Optional[AnalysisFactory] = None,
@@ -50,13 +50,15 @@ class SliceAnalyzer(Analyzer):
         )
 
     @staticmethod
-    def load_with_slice(path: os.PathLike, model_class: Type[TestSliceModel]):
-        return SliceAnalyzer(
+    def load_with_dependencies(
+        path: os.PathLike, model_class: Type[TestDependencyModel]
+    ):
+        return DependencyAnalyzer(
             model_class, meta_model=MetaModel(load_analysis_json(path))
         )
 
     @staticmethod
-    def loads_with_slice(data: str, model_class: Type[TestSliceModel]):
-        return SliceAnalyzer(
+    def loads_with_dependencies(data: str, model_class: Type[TestDependencyModel]):
+        return DependencyAnalyzer(
             model_class, meta_model=MetaModel(set(map(deserialize, json.loads(data))))
         )

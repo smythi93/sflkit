@@ -1,13 +1,12 @@
 import os
 import subprocess
-from pathlib import Path
 
 from parameterized import parameterized
 from sflkitlib.events import event
 
 from sflkit import instrument_config
 from sflkit.config import Config
-from sflkit.mapping import EventMapping
+from sflkit.events.mapping import EventMapping
 from utils import BaseTest
 
 

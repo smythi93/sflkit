@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from sflkit.instrumentation import Instrumentation
 from sflkit.language.visitor import ASTVisitor
-from sflkit.mapping import EventMapping
+from sflkit.events.mapping import EventMapping
 
 
 class FileInstrumentation(Instrumentation):

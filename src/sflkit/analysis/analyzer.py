@@ -20,7 +20,7 @@ from sflkit.analysis.predicate import (
 )
 from sflkit.analysis.spectra import Line, Function, DefUse, Loop, Length
 from sflkit.analysis.suggestion import Suggestion
-from sflkit.model.event_file import EventFile
+from sflkit.events.event_file import EventFile
 from sflkit.model.model import Model, MetaModel
 
 
@@ -169,11 +169,11 @@ class Analyzer:
             objects = self.get_analysis()
         coverage = dict()
         for obj in objects:
-            for run_id in obj.hits:
-                if run_id not in coverage:
-                    coverage[run_id] = {obj}
+            for event_file in obj.hits:
+                if event_file not in coverage:
+                    coverage[event_file] = {obj}
                 else:
-                    coverage[run_id].add(obj)
+                    coverage[event_file].add(obj)
         return coverage
 
     def get_coverage(self, type_: AnalysisType = None) -> Set[AnalysisObject]:

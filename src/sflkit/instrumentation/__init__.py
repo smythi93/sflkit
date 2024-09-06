@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from sflkit import Config
 from sflkit.language.visitor import ASTVisitor
-from sflkit.mapping import EventMapping
+from sflkit.events.mapping import EventMapping
 
 
 class Instrumentation:

@@ -19,7 +19,7 @@ from sflkitlib.events.event import (
 
 from sflkit import Config, instrument_config
 from sflkit.language.language import Language
-from sflkit.mapping import EventMapping
+from sflkit.events.mapping import EventMapping
 from utils import BaseTest
 
 

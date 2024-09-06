@@ -2,7 +2,6 @@ from os import PathLike
 from pathlib import Path
 
 from sflkit.analysis.analyzer import Analyzer
-from sflkit.analysis.predicate import Predicate
 from sflkit.config import Config, parse_config
 from sflkit.instrumentation.dir_instrumentation import DirInstrumentation
 

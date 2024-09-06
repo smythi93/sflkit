@@ -3,7 +3,7 @@ from pickle import PickleError
 
 from sflkitlib.events import event
 
-from sflkit.mapping import EventMapping
+from sflkit.events.mapping import EventMapping
 
 
 class EventFile(object):

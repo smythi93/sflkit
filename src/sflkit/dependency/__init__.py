@@ -1,6 +1,6 @@
-from sflkit.fendr.analyzer import SliceAnalyzer
-from sflkit.fendr.models import (
-    TestSliceModel,
+from sflkit.dependency.analyzer import DependencyAnalyzer
+from sflkit.dependency.models import (
+    TestDependencyModel,
     TestFunctionModel,
     TestLineModel,
     TestDefUseModel,
@@ -10,8 +10,8 @@ from sflkit.fendr.models import (
 )
 
 __all__ = [
-    "SliceAnalyzer",
-    "TestSliceModel",
+    "DependencyAnalyzer",
+    "TestDependencyModel",
     "TestFunctionModel",
     "TestLineModel",
     "TestDefUseModel",

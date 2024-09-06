@@ -10,6 +10,7 @@ from sflkit.analysis.analysis_type import (
     MetaEvent,
 )
 from sflkit.analysis.suggestion import Suggestion, Location
+from sflkit.events.event_file import EventFile
 from sflkit.model.scope import Scope
 from sflkitlib.events import EventType
 from sflkitlib.events.event import (
@@ -138,11 +139,11 @@ class Spectrum(AnalysisObject, ABC):
         self.failed = failed
         self.failed_not_observed = failed - self.failed_observed
 
-    def adjust_weight(self, run_id: int, weight: float):
-        if run_id not in self.weights:
-            self.weights[run_id] = weight
+    def adjust_weight(self, event_file: EventFile, weight: float):
+        if event_file not in self.weights:
+            self.weights[event_file] = weight
         else:
-            self.weights[run_id] = max(self.weights[run_id], weight)
+            self.weights[event_file] = max(self.weights[event_file], weight)
 
     def set_weight(self):
         self.weight = (

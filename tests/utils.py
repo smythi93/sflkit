@@ -4,11 +4,10 @@ import subprocess
 import unittest
 from typing import List
 
-from sflkitlib.events import event
-
 from sflkit import instrument_config, Analyzer, Config
-from sflkit.mapping import EventMapping
-from sflkit.model import EventFile
+from sflkit.events.event_file import EventFile
+from sflkit.events.mapping import EventMapping
+from sflkitlib.events import event
 
 
 class BaseTest(unittest.TestCase):
@@ -29,10 +28,10 @@ class BaseTest(unittest.TestCase):
     TEST_PROPERTIES = "test_properties"
     TEST_SPECIAL_VALUES = "test_special_values"
     TEST_RUNNER = "test_runner"
-    TEST_FENDR_SETUP = "test_fendr_setup"
-    TEST_FENDR_LINES = "test_fendr_lines"
-    TEST_FENDR_DEF_USE = "test_fendr_def_use"
-    TEST_FENDR_DEF_USES = "test_fendr_def_uses"
+    TEST_DW_SETUP = "test_dw_setup"
+    TEST_DW_LINES = "test_dw_lines"
+    TEST_DW_DEF_USE = "test_dw_def_use"
+    TEST_DW_DEF_USES = "test_dw_def_uses"
     DELTA = 0.0000001
 
     EVENTS = [

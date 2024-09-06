@@ -1,15 +1,17 @@
-from typing import Set
+from typing import Set, List, Optional
 
+from sflkit.analysis.analysis_type import AnalysisObject
+from sflkit.events.event_file import EventFile
 from sflkit.model.scope import Scope
 
 
 class MetaModel:
     # noinspection PyUnresolvedReferences
-    def __init__(self, analysis_objects: Set["AnalysisObject"] = None):
+    def __init__(self, analysis_objects: Set[AnalysisObject] = None):
         self.analysis_objects = analysis_objects or set()
 
     # noinspection PyUnresolvedReferences
-    def get_analysis(self) -> Set["AnalysisObject"]:
+    def get_analysis(self) -> Set[AnalysisObject]:
         return self.analysis_objects
 
 
@@ -18,22 +20,22 @@ class Model:
         self.factory = factory
         self.variables = Scope()
         self.returns = Scope()
-        self.current_run_id = None
+        self.current_event_file = None
 
-    def prepare(self, run_id):
+    def prepare(self, event_file):
         self.factory.reset()
         self.variables = Scope()
         self.returns = Scope()
-        self.current_run_id = run_id
+        self.current_event_file = event_file
 
-    def follow_up(self, run_id):
+    def follow_up(self, event_file):
         pass
 
     # noinspection PyUnresolvedReferences
-    def handle_event(self, event, scope: Scope = None) -> Set["AnalysisObject"]:
+    def handle_event(self, event, scope: Scope = None) -> Set[AnalysisObject]:
         analysis = self.factory.handle(event, scope=scope)
         for a in analysis:
-            a.hit(self.current_run_id, event, scope)
+            a.hit(self.current_event_file, event, scope)
         return set(analysis)
 
     def handle_line_event(self, event):
@@ -102,9 +104,11 @@ class Model:
         self.variables = self.variables.exit()
 
     # noinspection PyUnresolvedReferences
-    def get_analysis(self) -> Set["AnalysisObject"]:
+    def get_analysis(self) -> Set[AnalysisObject]:
         return self.factory.get_all()
 
-    def finalize(self, passed, failed):
+    def finalize(
+        self, passed: Optional[List[EventFile]], failed: Optional[List[EventFile]]
+    ):
         for p in self.get_analysis():
             p.analyze(passed, failed)

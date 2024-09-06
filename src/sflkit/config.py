@@ -23,8 +23,8 @@ from sflkit.language.meta import (
     MetaVisitor,
 )
 from sflkit.language.visitor import ASTVisitor
-from sflkit.mapping import EventMapping, InstrumentationError
-from sflkit.model.event_file import EventFile
+from sflkit.events.mapping import EventMapping, InstrumentationError
+from sflkit.events.event_file import EventFile
 from sflkit.runners import RunnerType
 from sflkitlib.events import EventType
 
