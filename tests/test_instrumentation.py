@@ -187,6 +187,7 @@ class TestInstrumentation(BaseTest):
                 test_events="test_line",
                 working=BaseTest.TEST_DIR,
                 tests="tests",
+                mapping_path=BaseTest.TEST_MAPPING,
             )
         )
         tests = dst / "tests"

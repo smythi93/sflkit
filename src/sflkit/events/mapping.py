@@ -60,7 +60,7 @@ class EventMapping:
         )
 
     @staticmethod
-    def load_from_file(file: Path, path: os.PathLike):
+    def load_from_file(file: Path, path: Optional[os.PathLike] = None):
         if file.exists():
             return EventMapping(load_json(file), file)
         else:

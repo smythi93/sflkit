@@ -374,6 +374,7 @@ class EventTests(BaseTest):
             test_events="test_line",
             working=BaseTest.TEST_DIR,
             tests="tests",
+            mapping_path=BaseTest.TEST_MAPPING,
         )
         instrument_config(config)
         subprocess.run(

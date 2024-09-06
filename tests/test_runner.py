@@ -5,7 +5,7 @@ from sflkit import Config, instrument_config, Analyzer
 from sflkit.analysis.analysis_type import AnalysisType
 from sflkit.analysis.suggestion import Location
 from sflkit.events.mapping import EventMapping
-from sflkit.model import EventFile
+from sflkit.events.event_file import EventFile
 from sflkit.runners.run import (
     PytestRunner,
     InputRunner,
@@ -36,6 +36,7 @@ class RunnerTests(BaseTest):
             predicates="line",
             working=BaseTest.TEST_DIR,
             exclude="tests",
+            mapping_path=BaseTest.TEST_MAPPING,
         )
         instrument_config(config)
         runner = PytestRunner(set_python_path=True)

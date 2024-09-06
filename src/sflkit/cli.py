@@ -10,7 +10,7 @@ from sflkit.analysis.suggestion import Suggestion, Location
 from sflkit.config import hash_identifier
 from sflkit.logger import LOGGER
 from sflkit.events.mapping import EventMapping
-from sflkit.model import EventFile
+from sflkit.events.event_file import EventFile
 
 INSTRUMENT = "instrument"
 RUN = "run"

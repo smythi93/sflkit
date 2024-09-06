@@ -9,7 +9,7 @@ from sflkit import Config, instrument_config, Analyzer
 from sflkit.analysis.analysis_type import AnalysisType
 from sflkit.analysis.suggestion import Location
 from sflkit.events.mapping import EventMapping
-from sflkit.model import EventFile
+from sflkit.events.event_file import EventFile
 from sflkit.runners.run import (
     PytestRunner,
 )

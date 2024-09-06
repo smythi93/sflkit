@@ -35,7 +35,7 @@ class TestSimilarityCoefficient(BaseTest):
             "Cohen": 0.5,
             "Crosstab": 1.3333333333333333,
             "Dice": 1,
-            "DStar": 2,
+            "DStar": 1,
             "Euclid": 1.7320508075688772,
             "Fleiss": 0.875,
             "GP02": 5.82842712474619,

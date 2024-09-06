@@ -83,33 +83,41 @@ class ConfigTests(unittest.TestCase):
             exclude="test,test2",
         )
         created_config = Config.create_from_values(
-            config.target_path,
-            config.language,
-            config.predicates,
-            config.factory,
-            config.events,
-            config.metrics,
-            config.meta_visitor,
-            config.visitor,
-            config.passing,
-            config.failing,
-            config.mapping,
-            config.instrument_include,
-            config.instrument_exclude,
-            config.instrument_working,
-            config.runner,
+            target_path=config.target_path,
+            language=config.language,
+            predicates=config.predicates,
+            factory=config.factory,
+            test_factory=config.test_factory,
+            events=config.events,
+            test_events=config.test_events,
+            ignore_inner=config.ignore_inner,
+            metrics=config.metrics,
+            meta_visitor=config.meta_visitor,
+            visitor=config.visitor,
+            passing=config.passing,
+            failing=config.failing,
+            instrument_include=config.instrument_include,
+            instrument_exclude=config.instrument_exclude,
+            instrument_test=config.instrument_test,
+            instrument_working=config.instrument_working,
+            runner=config.runner,
         )
         self.assertEqual(config.target_path, created_config.target_path)
         self.assertEqual(config.language, created_config.language)
         self.assertEqual(config.predicates, created_config.predicates)
         self.assertEqual(config.factory, created_config.factory)
+        self.assertEqual(config.test_factory, created_config.test_factory)
         self.assertEqual(config.events, created_config.events)
+        self.assertEqual(config.test_events, created_config.test_events)
+        self.assertEqual(config.ignore_inner, created_config.ignore_inner)
         self.assertEqual(config.metrics, created_config.metrics)
         self.assertEqual(config.meta_visitor, created_config.meta_visitor)
         self.assertEqual(config.visitor, created_config.visitor)
         self.assertEqual(config.passing, created_config.passing)
         self.assertEqual(config.failing, created_config.failing)
+        self.assertEqual(config.instrument_include, created_config.instrument_include)
         self.assertEqual(config.instrument_exclude, created_config.instrument_exclude)
+        self.assertEqual(config.instrument_test, created_config.instrument_test)
         self.assertEqual(config.instrument_working, created_config.instrument_working)
         self.assertEqual(config.runner, created_config.runner)
 
