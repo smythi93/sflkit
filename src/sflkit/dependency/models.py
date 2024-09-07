@@ -82,6 +82,15 @@ class TestDependencyModel(Model):
         if self.current_test_failing:
             self.add(event)
 
+    def finalize(
+        self, passed: Optional[List[EventFile]], failed: Optional[List[EventFile]]
+    ):
+        for p in self.get_analysis():
+            if failed:
+                for f in failed:
+                    p.adjust_weight(f, 0)
+            p.analyze(passed, failed)
+
 
 class TestFunctionModel(TestDependencyModel):
     def __init__(self, factory):
