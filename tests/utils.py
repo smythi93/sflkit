@@ -32,6 +32,7 @@ class BaseTest(unittest.TestCase):
     TEST_DW_LINES = "test_dw_lines"
     TEST_DW_DEF_USE = "test_dw_def_use"
     TEST_DW_DEF_USES = "test_dw_def_uses"
+    TEST_DW_DISTANCES = "test_dw_distances"
     DELTA = 0.0000001
 
     EVENTS = [

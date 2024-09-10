@@ -152,11 +152,9 @@ class TestFunctionModel(TestDependencyModel):
 class TestLineModel(TestFunctionModel):
     def __init__(self, factory):
         super().__init__(factory)
-        self.lines = 0
 
     def prepare(self, event_file):
         super().prepare(event_file)
-        self.lines = 0
 
     def follow_up(self, event_file):
         TestDependencyModel.follow_up(self, event_file)
@@ -208,19 +206,23 @@ class TestDefUseModel(TestFunctionModel):
             self.add(event)
             self.current_uses.append(event)
 
+    def get_distances(self) -> Dict[WeightedAnalyses, int]:
+        distances = super().get_distances()
+        sorted_analyses = sorted(self.parts, key=lambda s: distances[s])
+        for analyses in sorted_analyses:
+            if analyses in self.use_def_analyses:
+                if self.use_def_analyses[analyses]:
+                    for def_analyses in self.use_def_analyses[analyses]:
+                        distances[def_analyses] = min(
+                            distances[def_analyses], distances[analyses] + 1
+                        )
+        return distances
+
     def follow_up(self, event_file):
         TestDependencyModel.follow_up(self, event_file)
         self.adjust_weights_for_tests(event_file)
         if event_file.failing:
             distances = self.get_distances()
-            sorted_analyses = sorted(self.parts, key=lambda s: distances[s])
-            for analyses in sorted_analyses:
-                if analyses in self.use_def_analyses:
-                    if self.use_def_analyses[analyses]:
-                        for def_analyses in self.use_def_analyses[analyses]:
-                            distances[def_analyses] = min(
-                                distances[def_analyses], distances[analyses] + 1
-                            )
             max_distance = max(max(distances.values()), 0) + 1
             for analyses in distances:
                 analyses.weight *= 1 - distances[analyses] / max_distance
@@ -260,29 +262,33 @@ class TestAssertDefUseModel(TestDefUseModel):
             self.add(event)
             self.asserts.add((event.file, event.line))
 
+    def get_distances(self) -> Dict[WeightedAnalyses, int]:
+        distances = super().get_distances()
+        sorted_analyses = sorted(self.parts, key=lambda s: distances[s])
+        assert_analyses = set()
+        for analyses in sorted_analyses:
+            if (
+                distances[analyses] > 0
+                and (analyses.file, analyses.line) in self.asserts
+            ):
+                distances[analyses] += 1
+                assert_analyses.add(analyses)
+            if analyses in self.use_def_analyses:
+                if self.use_def_analyses[analyses]:
+                    for def_analyses in self.use_def_analyses[analyses]:
+                        distances[def_analyses] = min(
+                            distances[def_analyses], distances[analyses] + 1
+                        )
+                        if analyses in assert_analyses:
+                            distances[def_analyses] += 1
+                            assert_analyses.add(def_analyses)
+        return distances
+
     def follow_up(self, event_file):
         TestDependencyModel.follow_up(self, event_file)
         self.adjust_weights_for_tests(event_file)
         if event_file.failing:
             distances = self.get_distances()
-            sorted_analyses = sorted(self.parts, key=lambda s: distances[s])
-            assert_analyses = set()
-            for analyses in sorted_analyses:
-                if (
-                    distances[analyses] > 0
-                    and (analyses.file, analyses.line) in self.asserts
-                ):
-                    distances[analyses] += 1
-                    assert_analyses.add(analyses)
-                if analyses in self.use_def_analyses:
-                    if self.use_def_analyses[analyses]:
-                        for def_analyses in self.use_def_analyses[analyses]:
-                            distances[def_analyses] = min(
-                                distances[def_analyses], distances[analyses] + 1
-                            )
-                            if analyses in assert_analyses:
-                                distances[def_analyses] += 1
-                                assert_analyses.add(def_analyses)
             max_distance = max(max(distances.values()), 0) + 1
             for analyses in distances:
                 analyses.weight *= 1 - distances[analyses] / max_distance
