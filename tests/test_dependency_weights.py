@@ -4,8 +4,8 @@ from pathlib import Path
 from sflkit import Config, instrument_config
 from sflkit.analysis.analysis_type import AnalysisType
 from sflkit.analysis.suggestion import Location
-from sflkit.dependency.analyzer import DependencyAnalyzer
-from sflkit.dependency.models import (
+from sflkit.weights.analyzer import TimeAnalyzer
+from sflkit.weights.models import (
     TestLineModel,
     TestDefUseModel,
     TestFunctionModel,
@@ -20,9 +20,9 @@ from sflkit.runners import PytestRunner
 from utils import BaseTest
 
 
-class TestDependencyWeights(BaseTest):
-    def test_dw_function(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_SETUP)
+class TestTimeWeights(BaseTest):
+    def test_time_function(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_WEIGHTS_SETUP)
         config = Config.create(
             path=str(src),
             language="python",
@@ -39,7 +39,7 @@ class TestDependencyWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = DependencyAnalyzer(
+        analyzer = TimeAnalyzer(
             TestFunctionModel,
             [
                 EventFile(
@@ -64,8 +64,8 @@ class TestDependencyWeights(BaseTest):
         self.assertIn(Location("main.py", 6), suggestions[1].lines)
         self.assertIn(Location("main.py", 2), suggestions[1].lines)
 
-    def test_dw_line(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_LINES)
+    def test_time_line(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_WEIGHTS_LINES)
         config = Config.create(
             path=str(src),
             language="python",
@@ -82,7 +82,7 @@ class TestDependencyWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = DependencyAnalyzer(
+        analyzer = TimeAnalyzer(
             TestLineModel,
             [
                 EventFile(
@@ -112,8 +112,8 @@ class TestDependencyWeights(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_dw_def_use(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_DEF_USE)
+    def test_time_def_use(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_WEIGHTS_DEF_USE)
         config = Config.create(
             path=str(src),
             language="python",
@@ -130,7 +130,7 @@ class TestDependencyWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = DependencyAnalyzer(
+        analyzer = TimeAnalyzer(
             TestDefUseModel,
             [
                 EventFile(
@@ -160,8 +160,8 @@ class TestDependencyWeights(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_dw_def_uses(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_DEF_USES)
+    def test_time_def_uses(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_WEIGHTS_DEF_USES)
         config = Config.create(
             path=str(src),
             language="python",
@@ -178,7 +178,7 @@ class TestDependencyWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = DependencyAnalyzer(
+        analyzer = TimeAnalyzer(
             TestDefUsesModel,
             [
                 EventFile(
@@ -208,8 +208,8 @@ class TestDependencyWeights(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_dw_assert_def_use(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_DEF_USE)
+    def test_time_assert_def_use(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_WEIGHTS_DEF_USE)
         config = Config.create(
             path=str(src),
             language="python",
@@ -225,7 +225,7 @@ class TestDependencyWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = DependencyAnalyzer(
+        analyzer = TimeAnalyzer(
             TestAssertDefUseModel,
             [
                 EventFile(
@@ -255,8 +255,8 @@ class TestDependencyWeights(BaseTest):
         self.assertEqual(1, len(suggestions[2].lines))
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
-    def test_dw_assert_def_uses(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_DEF_USES)
+    def test_time_assert_def_uses(self):
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_WEIGHTS_DEF_USES)
         config = Config.create(
             path=str(src),
             language="python",
@@ -272,7 +272,7 @@ class TestDependencyWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = DependencyAnalyzer(
+        analyzer = TimeAnalyzer(
             TestAssertDefUsesModel,
             [
                 EventFile(
@@ -294,7 +294,7 @@ class TestDependencyWeights(BaseTest):
         self.assertEqual(3, len(suggestions))
         self.assertAlmostEquals(0.80555, suggestions[0].suspiciousness, delta=0.00001)
         self.assertAlmostEquals(0.47222, suggestions[1].suspiciousness, delta=0.00001)
-        self.assertAlmostEquals(0.27777, suggestions[2].suspiciousness, delta=0.00001)
+        self.assertAlmostEquals(0.33333, suggestions[2].suspiciousness, delta=0.00001)
         self.assertEqual(1, len(suggestions[0].lines))
         self.assertIn(Location("main.py", 10), suggestions[0].lines)
         self.assertEqual(1, len(suggestions[1].lines))
@@ -303,7 +303,7 @@ class TestDependencyWeights(BaseTest):
         self.assertIn(Location("main.py", 2), suggestions[2].lines)
 
     def test_distances(self):
-        src = Path(BaseTest.TEST_RESOURCES, self.TEST_DW_DISTANCES)
+        src = Path(BaseTest.TEST_RESOURCES, self.TEST_WEIGHTS_DISTANCES)
         config = Config.create(
             path=str(src),
             language="python",
@@ -337,7 +337,7 @@ class TestDependencyWeights(BaseTest):
             ],
             expectations,
         ):
-            analyzer = DependencyAnalyzer(
+            analyzer = TimeAnalyzer(
                 model_class,
                 [
                     EventFile(

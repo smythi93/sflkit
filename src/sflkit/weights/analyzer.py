@@ -7,15 +7,15 @@ from sflkit.analysis.analysis_type import AnalysisType, AnalysisObject
 from sflkit.analysis.analyzer import load_analysis_json, deserialize
 from sflkit.analysis.factory import AnalysisFactory
 from sflkit.analysis.suggestion import Suggestion
-from sflkit.dependency.models import TestDependencyModel
+from sflkit.weights.models import TestTimeModel
 from sflkit.events.event_file import EventFile
 from sflkit.model.model import MetaModel
 
 
-class DependencyAnalyzer(Analyzer):
+class TimeAnalyzer(Analyzer):
     def __init__(
         self,
-        model_class: Type[TestDependencyModel],
+        model_class: Type[TestTimeModel],
         relevant_event_files: Optional[List[EventFile]] = None,
         irrelevant_event_files: Optional[List[EventFile]] = None,
         factory: Optional[AnalysisFactory] = None,
@@ -50,15 +50,11 @@ class DependencyAnalyzer(Analyzer):
         )
 
     @staticmethod
-    def load_with_dependencies(
-        path: os.PathLike, model_class: Type[TestDependencyModel]
-    ):
-        return DependencyAnalyzer(
-            model_class, meta_model=MetaModel(load_analysis_json(path))
-        )
+    def load_with_dependencies(path: os.PathLike, model_class: Type[TestTimeModel]):
+        return TimeAnalyzer(model_class, meta_model=MetaModel(load_analysis_json(path)))
 
     @staticmethod
-    def loads_with_dependencies(data: str, model_class: Type[TestDependencyModel]):
-        return DependencyAnalyzer(
+    def loads_with_dependencies(data: str, model_class: Type[TestTimeModel]):
+        return TimeAnalyzer(
             model_class, meta_model=MetaModel(set(map(deserialize, json.loads(data))))
         )

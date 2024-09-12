@@ -31,7 +31,7 @@ class WeightedAnalyses:
             analysis.adjust_weight(event_file, self.weight)
 
 
-class TestDependencyModel(Model):
+class TestTimeModel(Model):
     def __init__(self, factory):
         super().__init__(factory)
         self.parts = list()
@@ -83,7 +83,7 @@ class TestDependencyModel(Model):
             self.add(event)
 
 
-class TestFunctionModel(TestDependencyModel):
+class TestFunctionModel(TestTimeModel):
     def __init__(self, factory):
         super().__init__(factory)
         self.test_start_capture = False
@@ -157,7 +157,7 @@ class TestLineModel(TestFunctionModel):
         super().prepare(event_file)
 
     def follow_up(self, event_file):
-        TestDependencyModel.follow_up(self, event_file)
+        TestTimeModel.follow_up(self, event_file)
         self.adjust_weights_for_tests(event_file)
         if event_file.failing:
             distances = self.get_distances()
@@ -219,7 +219,7 @@ class TestDefUseModel(TestFunctionModel):
         return distances
 
     def follow_up(self, event_file):
-        TestDependencyModel.follow_up(self, event_file)
+        TestTimeModel.follow_up(self, event_file)
         self.adjust_weights_for_tests(event_file)
         if event_file.failing:
             distances = self.get_distances()
@@ -285,7 +285,7 @@ class TestAssertDefUseModel(TestDefUseModel):
         return distances
 
     def follow_up(self, event_file):
-        TestDependencyModel.follow_up(self, event_file)
+        TestTimeModel.follow_up(self, event_file)
         self.adjust_weights_for_tests(event_file)
         if event_file.failing:
             distances = self.get_distances()

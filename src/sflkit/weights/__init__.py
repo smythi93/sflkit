@@ -1,6 +1,6 @@
-from sflkit.dependency.analyzer import DependencyAnalyzer
-from sflkit.dependency.models import (
-    TestDependencyModel,
+from sflkit.weights.analyzer import TimeAnalyzer
+from sflkit.weights.models import (
+    TestTimeModel,
     TestFunctionModel,
     TestLineModel,
     TestDefUseModel,
@@ -10,8 +10,8 @@ from sflkit.dependency.models import (
 )
 
 __all__ = [
-    "DependencyAnalyzer",
-    "TestDependencyModel",
+    "TimeAnalyzer",
+    "TestTimeModel",
     "TestFunctionModel",
     "TestLineModel",
     "TestDefUseModel",

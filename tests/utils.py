@@ -28,11 +28,11 @@ class BaseTest(unittest.TestCase):
     TEST_PROPERTIES = "test_properties"
     TEST_SPECIAL_VALUES = "test_special_values"
     TEST_RUNNER = "test_runner"
-    TEST_DW_SETUP = "test_dw_setup"
-    TEST_DW_LINES = "test_dw_lines"
-    TEST_DW_DEF_USE = "test_dw_def_use"
-    TEST_DW_DEF_USES = "test_dw_def_uses"
-    TEST_DW_DISTANCES = "test_dw_distances"
+    TEST_WEIGHTS_SETUP = "test_weights_setup"
+    TEST_WEIGHTS_LINES = "test_weights_lines"
+    TEST_WEIGHTS_DEF_USE = "test_weights_def_use"
+    TEST_WEIGHTS_DEF_USES = "test_weights_def_uses"
+    TEST_WEIGHTS_DISTANCES = "test_weights_distances"
     DELTA = 0.0000001
 
     EVENTS = [
