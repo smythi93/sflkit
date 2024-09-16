@@ -2,16 +2,18 @@ import os.path
 from typing import List, Dict, Set, Optional
 
 import pandas as pd
-from sflkitlib.events.event import Event
 
-from sflkit import Predicate
 from sflkit.analysis.analysis_type import AnalysisObject, EvaluationResult
 from sflkit.analysis.factory import CombinationFactory, analysis_factory_mapping
+from sflkit.analysis.predicate import Predicate
 from sflkit.analysis.spectra import Spectrum
+from sflkit.events.event_file import EventFile
 from sflkit.features.value import Feature, FeatureValue, BinaryFeature, TertiaryFeature
 from sflkit.features.vector import FeatureVector
-from sflkit.model import Model, EventFile, Scope
+from sflkit.model.model import Model
+from sflkit.model.scope import Scope
 from sflkit.runners.run import TestResult
+from sflkitlib.events.event import Event
 
 
 class FeatureBuilder(CombinationFactory):
