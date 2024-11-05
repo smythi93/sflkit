@@ -108,7 +108,7 @@ class FeatureBuilder(CombinationFactory):
             num_dict["failing"] = 1 if vector.result == TestResult.FAILING else 0
             if label:
                 num_dict["label"] = label
-            data.append(vector.num_dict_vector(features))
+            data.append(num_dict)
         return pd.DataFrame(data)
 
 
