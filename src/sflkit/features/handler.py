@@ -97,8 +97,10 @@ class FeatureBuilder(CombinationFactory):
         new_feature_builder.feature_vectors = dict(self.feature_vectors)
         return new_feature_builder
 
-    def to_df(self, label: Optional[str] = None):
-        features = self.get_all_features()
+    def to_df(
+        self, label: Optional[str] = None, features: Optional[List[Feature]] = None
+    ):
+        features = features or self.get_all_features()
         data = list()
         for vector in self:
             num_dict = vector.num_dict_vector(features)
@@ -142,5 +144,5 @@ class EventHandler:
         new_handler.model = Model(new_handler.feature_builder)
         return new_handler
 
-    def to_df(self):
-        return self.builder.to_df()
+    def to_df(self, features: List[Feature]):
+        return self.builder.to_df(features=features)
