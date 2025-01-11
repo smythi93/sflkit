@@ -79,7 +79,7 @@ class LineEventFactory(PythonEventFactory):
     def get_function(self):
         return "add_line_event"
 
-    def visit_line(self, node: AST) -> Injection:
+    def visit_line(self, node: stmt) -> Injection:
         line_event = LineEvent(
             self.file, node.lineno, self.event_id_generator.get_next_id()
         )
