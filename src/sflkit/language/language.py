@@ -91,3 +91,6 @@ class Language(enum.Enum):
         ["py"],
     )
     C = (None, dict(), None, None, None, None, None, None, ["c", "h"])
+    JAVA = (
+
+    )
