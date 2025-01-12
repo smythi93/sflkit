@@ -9,80 +9,178 @@ else:
 
 # This class defines a complete listener for a parse tree produced by JavaParser.
 class JavaParserListener(ParseTreeListener):
-    # Enter a parse tree produced by JavaParser#compilationUnit.
-    def enterCompilationUnit(self, ctx: JavaParser.CompilationUnitContext):
+    # Enter a parse tree produced by JavaParser#start_.
+    def enterStart_(self, ctx: JavaParser.Start_Context):
         pass
 
-    # Exit a parse tree produced by JavaParser#compilationUnit.
-    def exitCompilationUnit(self, ctx: JavaParser.CompilationUnitContext):
+    # Exit a parse tree produced by JavaParser#start_.
+    def exitStart_(self, ctx: JavaParser.Start_Context):
         pass
 
-    # Enter a parse tree produced by JavaParser#packageDeclaration.
-    def enterPackageDeclaration(self, ctx: JavaParser.PackageDeclarationContext):
+    # Enter a parse tree produced by JavaParser#identifier.
+    def enterIdentifier(self, ctx: JavaParser.IdentifierContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#packageDeclaration.
-    def exitPackageDeclaration(self, ctx: JavaParser.PackageDeclarationContext):
+    # Exit a parse tree produced by JavaParser#identifier.
+    def exitIdentifier(self, ctx: JavaParser.IdentifierContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#importDeclaration.
-    def enterImportDeclaration(self, ctx: JavaParser.ImportDeclarationContext):
+    # Enter a parse tree produced by JavaParser#typeIdentifier.
+    def enterTypeIdentifier(self, ctx: JavaParser.TypeIdentifierContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#importDeclaration.
-    def exitImportDeclaration(self, ctx: JavaParser.ImportDeclarationContext):
+    # Exit a parse tree produced by JavaParser#typeIdentifier.
+    def exitTypeIdentifier(self, ctx: JavaParser.TypeIdentifierContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#typeDeclaration.
-    def enterTypeDeclaration(self, ctx: JavaParser.TypeDeclarationContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#typeDeclaration.
-    def exitTypeDeclaration(self, ctx: JavaParser.TypeDeclarationContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#modifier.
-    def enterModifier(self, ctx: JavaParser.ModifierContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#modifier.
-    def exitModifier(self, ctx: JavaParser.ModifierContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#classOrInterfaceModifier.
-    def enterClassOrInterfaceModifier(
-        self, ctx: JavaParser.ClassOrInterfaceModifierContext
+    # Enter a parse tree produced by JavaParser#unqualifiedMethodIdentifier.
+    def enterUnqualifiedMethodIdentifier(
+        self, ctx: JavaParser.UnqualifiedMethodIdentifierContext
     ):
         pass
 
-    # Exit a parse tree produced by JavaParser#classOrInterfaceModifier.
-    def exitClassOrInterfaceModifier(
-        self, ctx: JavaParser.ClassOrInterfaceModifierContext
+    # Exit a parse tree produced by JavaParser#unqualifiedMethodIdentifier.
+    def exitUnqualifiedMethodIdentifier(
+        self, ctx: JavaParser.UnqualifiedMethodIdentifierContext
     ):
         pass
 
-    # Enter a parse tree produced by JavaParser#variableModifier.
-    def enterVariableModifier(self, ctx: JavaParser.VariableModifierContext):
+    # Enter a parse tree produced by JavaParser#contextualKeyword.
+    def enterContextualKeyword(self, ctx: JavaParser.ContextualKeywordContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#variableModifier.
-    def exitVariableModifier(self, ctx: JavaParser.VariableModifierContext):
+    # Exit a parse tree produced by JavaParser#contextualKeyword.
+    def exitContextualKeyword(self, ctx: JavaParser.ContextualKeywordContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#classDeclaration.
-    def enterClassDeclaration(self, ctx: JavaParser.ClassDeclarationContext):
+    # Enter a parse tree produced by JavaParser#contextualKeywordMinusForTypeIdentifier.
+    def enterContextualKeywordMinusForTypeIdentifier(
+        self, ctx: JavaParser.ContextualKeywordMinusForTypeIdentifierContext
+    ):
         pass
 
-    # Exit a parse tree produced by JavaParser#classDeclaration.
-    def exitClassDeclaration(self, ctx: JavaParser.ClassDeclarationContext):
+    # Exit a parse tree produced by JavaParser#contextualKeywordMinusForTypeIdentifier.
+    def exitContextualKeywordMinusForTypeIdentifier(
+        self, ctx: JavaParser.ContextualKeywordMinusForTypeIdentifierContext
+    ):
         pass
 
-    # Enter a parse tree produced by JavaParser#typeParameters.
-    def enterTypeParameters(self, ctx: JavaParser.TypeParametersContext):
+    # Enter a parse tree produced by JavaParser#contextualKeywordMinusForUnqualifiedMethodIdentifier.
+    def enterContextualKeywordMinusForUnqualifiedMethodIdentifier(
+        self,
+        ctx: JavaParser.ContextualKeywordMinusForUnqualifiedMethodIdentifierContext,
+    ):
         pass
 
-    # Exit a parse tree produced by JavaParser#typeParameters.
-    def exitTypeParameters(self, ctx: JavaParser.TypeParametersContext):
+    # Exit a parse tree produced by JavaParser#contextualKeywordMinusForUnqualifiedMethodIdentifier.
+    def exitContextualKeywordMinusForUnqualifiedMethodIdentifier(
+        self,
+        ctx: JavaParser.ContextualKeywordMinusForUnqualifiedMethodIdentifierContext,
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#literal.
+    def enterLiteral(self, ctx: JavaParser.LiteralContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#literal.
+    def exitLiteral(self, ctx: JavaParser.LiteralContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#primitiveType.
+    def enterPrimitiveType(self, ctx: JavaParser.PrimitiveTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#primitiveType.
+    def exitPrimitiveType(self, ctx: JavaParser.PrimitiveTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#numericType.
+    def enterNumericType(self, ctx: JavaParser.NumericTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#numericType.
+    def exitNumericType(self, ctx: JavaParser.NumericTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#integralType.
+    def enterIntegralType(self, ctx: JavaParser.IntegralTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#integralType.
+    def exitIntegralType(self, ctx: JavaParser.IntegralTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#floatingPointType.
+    def enterFloatingPointType(self, ctx: JavaParser.FloatingPointTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#floatingPointType.
+    def exitFloatingPointType(self, ctx: JavaParser.FloatingPointTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#referenceType.
+    def enterReferenceType(self, ctx: JavaParser.ReferenceTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#referenceType.
+    def exitReferenceType(self, ctx: JavaParser.ReferenceTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#coit.
+    def enterCoit(self, ctx: JavaParser.CoitContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#coit.
+    def exitCoit(self, ctx: JavaParser.CoitContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classOrInterfaceType.
+    def enterClassOrInterfaceType(self, ctx: JavaParser.ClassOrInterfaceTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classOrInterfaceType.
+    def exitClassOrInterfaceType(self, ctx: JavaParser.ClassOrInterfaceTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classType.
+    def enterClassType(self, ctx: JavaParser.ClassTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classType.
+    def exitClassType(self, ctx: JavaParser.ClassTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfaceType.
+    def enterInterfaceType(self, ctx: JavaParser.InterfaceTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfaceType.
+    def exitInterfaceType(self, ctx: JavaParser.InterfaceTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#typeVariable.
+    def enterTypeVariable(self, ctx: JavaParser.TypeVariableContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#typeVariable.
+    def exitTypeVariable(self, ctx: JavaParser.TypeVariableContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#arrayType.
+    def enterArrayType(self, ctx: JavaParser.ArrayTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#arrayType.
+    def exitArrayType(self, ctx: JavaParser.ArrayTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#dims.
+    def enterDims(self, ctx: JavaParser.DimsContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#dims.
+    def exitDims(self, ctx: JavaParser.DimsContext):
         pass
 
     # Enter a parse tree produced by JavaParser#typeParameter.
@@ -93,6 +191,14 @@ class JavaParserListener(ParseTreeListener):
     def exitTypeParameter(self, ctx: JavaParser.TypeParameterContext):
         pass
 
+    # Enter a parse tree produced by JavaParser#typeParameterModifier.
+    def enterTypeParameterModifier(self, ctx: JavaParser.TypeParameterModifierContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#typeParameterModifier.
+    def exitTypeParameterModifier(self, ctx: JavaParser.TypeParameterModifierContext):
+        pass
+
     # Enter a parse tree produced by JavaParser#typeBound.
     def enterTypeBound(self, ctx: JavaParser.TypeBoundContext):
         pass
@@ -101,44 +207,320 @@ class JavaParserListener(ParseTreeListener):
     def exitTypeBound(self, ctx: JavaParser.TypeBoundContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#enumDeclaration.
-    def enterEnumDeclaration(self, ctx: JavaParser.EnumDeclarationContext):
+    # Enter a parse tree produced by JavaParser#additionalBound.
+    def enterAdditionalBound(self, ctx: JavaParser.AdditionalBoundContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#enumDeclaration.
-    def exitEnumDeclaration(self, ctx: JavaParser.EnumDeclarationContext):
+    # Exit a parse tree produced by JavaParser#additionalBound.
+    def exitAdditionalBound(self, ctx: JavaParser.AdditionalBoundContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#enumConstants.
-    def enterEnumConstants(self, ctx: JavaParser.EnumConstantsContext):
+    # Enter a parse tree produced by JavaParser#typeArguments.
+    def enterTypeArguments(self, ctx: JavaParser.TypeArgumentsContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#enumConstants.
-    def exitEnumConstants(self, ctx: JavaParser.EnumConstantsContext):
+    # Exit a parse tree produced by JavaParser#typeArguments.
+    def exitTypeArguments(self, ctx: JavaParser.TypeArgumentsContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#enumConstant.
-    def enterEnumConstant(self, ctx: JavaParser.EnumConstantContext):
+    # Enter a parse tree produced by JavaParser#typeArgumentList.
+    def enterTypeArgumentList(self, ctx: JavaParser.TypeArgumentListContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#enumConstant.
-    def exitEnumConstant(self, ctx: JavaParser.EnumConstantContext):
+    # Exit a parse tree produced by JavaParser#typeArgumentList.
+    def exitTypeArgumentList(self, ctx: JavaParser.TypeArgumentListContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#enumBodyDeclarations.
-    def enterEnumBodyDeclarations(self, ctx: JavaParser.EnumBodyDeclarationsContext):
+    # Enter a parse tree produced by JavaParser#typeArgument.
+    def enterTypeArgument(self, ctx: JavaParser.TypeArgumentContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#enumBodyDeclarations.
-    def exitEnumBodyDeclarations(self, ctx: JavaParser.EnumBodyDeclarationsContext):
+    # Exit a parse tree produced by JavaParser#typeArgument.
+    def exitTypeArgument(self, ctx: JavaParser.TypeArgumentContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#interfaceDeclaration.
-    def enterInterfaceDeclaration(self, ctx: JavaParser.InterfaceDeclarationContext):
+    # Enter a parse tree produced by JavaParser#wildcard.
+    def enterWildcard(self, ctx: JavaParser.WildcardContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#interfaceDeclaration.
-    def exitInterfaceDeclaration(self, ctx: JavaParser.InterfaceDeclarationContext):
+    # Exit a parse tree produced by JavaParser#wildcard.
+    def exitWildcard(self, ctx: JavaParser.WildcardContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#wildcardBounds.
+    def enterWildcardBounds(self, ctx: JavaParser.WildcardBoundsContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#wildcardBounds.
+    def exitWildcardBounds(self, ctx: JavaParser.WildcardBoundsContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#moduleName.
+    def enterModuleName(self, ctx: JavaParser.ModuleNameContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#moduleName.
+    def exitModuleName(self, ctx: JavaParser.ModuleNameContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#packageName.
+    def enterPackageName(self, ctx: JavaParser.PackageNameContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#packageName.
+    def exitPackageName(self, ctx: JavaParser.PackageNameContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#typeName.
+    def enterTypeName(self, ctx: JavaParser.TypeNameContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#typeName.
+    def exitTypeName(self, ctx: JavaParser.TypeNameContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#packageOrTypeName.
+    def enterPackageOrTypeName(self, ctx: JavaParser.PackageOrTypeNameContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#packageOrTypeName.
+    def exitPackageOrTypeName(self, ctx: JavaParser.PackageOrTypeNameContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#expressionName.
+    def enterExpressionName(self, ctx: JavaParser.ExpressionNameContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#expressionName.
+    def exitExpressionName(self, ctx: JavaParser.ExpressionNameContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#methodName.
+    def enterMethodName(self, ctx: JavaParser.MethodNameContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#methodName.
+    def exitMethodName(self, ctx: JavaParser.MethodNameContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#ambiguousName.
+    def enterAmbiguousName(self, ctx: JavaParser.AmbiguousNameContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#ambiguousName.
+    def exitAmbiguousName(self, ctx: JavaParser.AmbiguousNameContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#compilationUnit.
+    def enterCompilationUnit(self, ctx: JavaParser.CompilationUnitContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#compilationUnit.
+    def exitCompilationUnit(self, ctx: JavaParser.CompilationUnitContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#ordinaryCompilationUnit.
+    def enterOrdinaryCompilationUnit(
+        self, ctx: JavaParser.OrdinaryCompilationUnitContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#ordinaryCompilationUnit.
+    def exitOrdinaryCompilationUnit(
+        self, ctx: JavaParser.OrdinaryCompilationUnitContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#modularCompilationUnit.
+    def enterModularCompilationUnit(
+        self, ctx: JavaParser.ModularCompilationUnitContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#modularCompilationUnit.
+    def exitModularCompilationUnit(self, ctx: JavaParser.ModularCompilationUnitContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#packageDeclaration.
+    def enterPackageDeclaration(self, ctx: JavaParser.PackageDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#packageDeclaration.
+    def exitPackageDeclaration(self, ctx: JavaParser.PackageDeclarationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#packageModifier.
+    def enterPackageModifier(self, ctx: JavaParser.PackageModifierContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#packageModifier.
+    def exitPackageModifier(self, ctx: JavaParser.PackageModifierContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#importDeclaration.
+    def enterImportDeclaration(self, ctx: JavaParser.ImportDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#importDeclaration.
+    def exitImportDeclaration(self, ctx: JavaParser.ImportDeclarationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#singleTypeImportDeclaration.
+    def enterSingleTypeImportDeclaration(
+        self, ctx: JavaParser.SingleTypeImportDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#singleTypeImportDeclaration.
+    def exitSingleTypeImportDeclaration(
+        self, ctx: JavaParser.SingleTypeImportDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#typeImportOnDemandDeclaration.
+    def enterTypeImportOnDemandDeclaration(
+        self, ctx: JavaParser.TypeImportOnDemandDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#typeImportOnDemandDeclaration.
+    def exitTypeImportOnDemandDeclaration(
+        self, ctx: JavaParser.TypeImportOnDemandDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#singleStaticImportDeclaration.
+    def enterSingleStaticImportDeclaration(
+        self, ctx: JavaParser.SingleStaticImportDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#singleStaticImportDeclaration.
+    def exitSingleStaticImportDeclaration(
+        self, ctx: JavaParser.SingleStaticImportDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#staticImportOnDemandDeclaration.
+    def enterStaticImportOnDemandDeclaration(
+        self, ctx: JavaParser.StaticImportOnDemandDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#staticImportOnDemandDeclaration.
+    def exitStaticImportOnDemandDeclaration(
+        self, ctx: JavaParser.StaticImportOnDemandDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#topLevelClassOrInterfaceDeclaration.
+    def enterTopLevelClassOrInterfaceDeclaration(
+        self, ctx: JavaParser.TopLevelClassOrInterfaceDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#topLevelClassOrInterfaceDeclaration.
+    def exitTopLevelClassOrInterfaceDeclaration(
+        self, ctx: JavaParser.TopLevelClassOrInterfaceDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#moduleDeclaration.
+    def enterModuleDeclaration(self, ctx: JavaParser.ModuleDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#moduleDeclaration.
+    def exitModuleDeclaration(self, ctx: JavaParser.ModuleDeclarationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#moduleDirective.
+    def enterModuleDirective(self, ctx: JavaParser.ModuleDirectiveContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#moduleDirective.
+    def exitModuleDirective(self, ctx: JavaParser.ModuleDirectiveContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#requiresModifier.
+    def enterRequiresModifier(self, ctx: JavaParser.RequiresModifierContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#requiresModifier.
+    def exitRequiresModifier(self, ctx: JavaParser.RequiresModifierContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classDeclaration.
+    def enterClassDeclaration(self, ctx: JavaParser.ClassDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classDeclaration.
+    def exitClassDeclaration(self, ctx: JavaParser.ClassDeclarationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#normalClassDeclaration.
+    def enterNormalClassDeclaration(
+        self, ctx: JavaParser.NormalClassDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#normalClassDeclaration.
+    def exitNormalClassDeclaration(self, ctx: JavaParser.NormalClassDeclarationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classModifier.
+    def enterClassModifier(self, ctx: JavaParser.ClassModifierContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classModifier.
+    def exitClassModifier(self, ctx: JavaParser.ClassModifierContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#typeParameters.
+    def enterTypeParameters(self, ctx: JavaParser.TypeParametersContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#typeParameters.
+    def exitTypeParameters(self, ctx: JavaParser.TypeParametersContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#typeParameterList.
+    def enterTypeParameterList(self, ctx: JavaParser.TypeParameterListContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#typeParameterList.
+    def exitTypeParameterList(self, ctx: JavaParser.TypeParameterListContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classExtends.
+    def enterClassExtends(self, ctx: JavaParser.ClassExtendsContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classExtends.
+    def exitClassExtends(self, ctx: JavaParser.ClassExtendsContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classImplements.
+    def enterClassImplements(self, ctx: JavaParser.ClassImplementsContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classImplements.
+    def exitClassImplements(self, ctx: JavaParser.ClassImplementsContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfaceTypeList.
+    def enterInterfaceTypeList(self, ctx: JavaParser.InterfaceTypeListContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfaceTypeList.
+    def exitInterfaceTypeList(self, ctx: JavaParser.InterfaceTypeListContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classPermits.
+    def enterClassPermits(self, ctx: JavaParser.ClassPermitsContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classPermits.
+    def exitClassPermits(self, ctx: JavaParser.ClassPermitsContext):
         pass
 
     # Enter a parse tree produced by JavaParser#classBody.
@@ -149,14 +531,6 @@ class JavaParserListener(ParseTreeListener):
     def exitClassBody(self, ctx: JavaParser.ClassBodyContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#interfaceBody.
-    def enterInterfaceBody(self, ctx: JavaParser.InterfaceBodyContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#interfaceBody.
-    def exitInterfaceBody(self, ctx: JavaParser.InterfaceBodyContext):
-        pass
-
     # Enter a parse tree produced by JavaParser#classBodyDeclaration.
     def enterClassBodyDeclaration(self, ctx: JavaParser.ClassBodyDeclarationContext):
         pass
@@ -165,82 +539,14 @@ class JavaParserListener(ParseTreeListener):
     def exitClassBodyDeclaration(self, ctx: JavaParser.ClassBodyDeclarationContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#memberDeclaration.
-    def enterMemberDeclaration(self, ctx: JavaParser.MemberDeclarationContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#memberDeclaration.
-    def exitMemberDeclaration(self, ctx: JavaParser.MemberDeclarationContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#methodDeclaration.
-    def enterMethodDeclaration(self, ctx: JavaParser.MethodDeclarationContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#methodDeclaration.
-    def exitMethodDeclaration(self, ctx: JavaParser.MethodDeclarationContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#methodBody.
-    def enterMethodBody(self, ctx: JavaParser.MethodBodyContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#methodBody.
-    def exitMethodBody(self, ctx: JavaParser.MethodBodyContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#typeTypeOrVoid.
-    def enterTypeTypeOrVoid(self, ctx: JavaParser.TypeTypeOrVoidContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#typeTypeOrVoid.
-    def exitTypeTypeOrVoid(self, ctx: JavaParser.TypeTypeOrVoidContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#genericMethodDeclaration.
-    def enterGenericMethodDeclaration(
-        self, ctx: JavaParser.GenericMethodDeclarationContext
+    # Enter a parse tree produced by JavaParser#classMemberDeclaration.
+    def enterClassMemberDeclaration(
+        self, ctx: JavaParser.ClassMemberDeclarationContext
     ):
         pass
 
-    # Exit a parse tree produced by JavaParser#genericMethodDeclaration.
-    def exitGenericMethodDeclaration(
-        self, ctx: JavaParser.GenericMethodDeclarationContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#genericConstructorDeclaration.
-    def enterGenericConstructorDeclaration(
-        self, ctx: JavaParser.GenericConstructorDeclarationContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#genericConstructorDeclaration.
-    def exitGenericConstructorDeclaration(
-        self, ctx: JavaParser.GenericConstructorDeclarationContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#constructorDeclaration.
-    def enterConstructorDeclaration(
-        self, ctx: JavaParser.ConstructorDeclarationContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#constructorDeclaration.
-    def exitConstructorDeclaration(self, ctx: JavaParser.ConstructorDeclarationContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#compactConstructorDeclaration.
-    def enterCompactConstructorDeclaration(
-        self, ctx: JavaParser.CompactConstructorDeclarationContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#compactConstructorDeclaration.
-    def exitCompactConstructorDeclaration(
-        self, ctx: JavaParser.CompactConstructorDeclarationContext
-    ):
+    # Exit a parse tree produced by JavaParser#classMemberDeclaration.
+    def exitClassMemberDeclaration(self, ctx: JavaParser.ClassMemberDeclarationContext):
         pass
 
     # Enter a parse tree produced by JavaParser#fieldDeclaration.
@@ -251,100 +557,22 @@ class JavaParserListener(ParseTreeListener):
     def exitFieldDeclaration(self, ctx: JavaParser.FieldDeclarationContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#interfaceBodyDeclaration.
-    def enterInterfaceBodyDeclaration(
-        self, ctx: JavaParser.InterfaceBodyDeclarationContext
+    # Enter a parse tree produced by JavaParser#fieldModifier.
+    def enterFieldModifier(self, ctx: JavaParser.FieldModifierContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#fieldModifier.
+    def exitFieldModifier(self, ctx: JavaParser.FieldModifierContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#variableDeclaratorList.
+    def enterVariableDeclaratorList(
+        self, ctx: JavaParser.VariableDeclaratorListContext
     ):
         pass
 
-    # Exit a parse tree produced by JavaParser#interfaceBodyDeclaration.
-    def exitInterfaceBodyDeclaration(
-        self, ctx: JavaParser.InterfaceBodyDeclarationContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#interfaceMemberDeclaration.
-    def enterInterfaceMemberDeclaration(
-        self, ctx: JavaParser.InterfaceMemberDeclarationContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#interfaceMemberDeclaration.
-    def exitInterfaceMemberDeclaration(
-        self, ctx: JavaParser.InterfaceMemberDeclarationContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#constDeclaration.
-    def enterConstDeclaration(self, ctx: JavaParser.ConstDeclarationContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#constDeclaration.
-    def exitConstDeclaration(self, ctx: JavaParser.ConstDeclarationContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#constantDeclarator.
-    def enterConstantDeclarator(self, ctx: JavaParser.ConstantDeclaratorContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#constantDeclarator.
-    def exitConstantDeclarator(self, ctx: JavaParser.ConstantDeclaratorContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#interfaceMethodDeclaration.
-    def enterInterfaceMethodDeclaration(
-        self, ctx: JavaParser.InterfaceMethodDeclarationContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#interfaceMethodDeclaration.
-    def exitInterfaceMethodDeclaration(
-        self, ctx: JavaParser.InterfaceMethodDeclarationContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#interfaceMethodModifier.
-    def enterInterfaceMethodModifier(
-        self, ctx: JavaParser.InterfaceMethodModifierContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#interfaceMethodModifier.
-    def exitInterfaceMethodModifier(
-        self, ctx: JavaParser.InterfaceMethodModifierContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#genericInterfaceMethodDeclaration.
-    def enterGenericInterfaceMethodDeclaration(
-        self, ctx: JavaParser.GenericInterfaceMethodDeclarationContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#genericInterfaceMethodDeclaration.
-    def exitGenericInterfaceMethodDeclaration(
-        self, ctx: JavaParser.GenericInterfaceMethodDeclarationContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#interfaceCommonBodyDeclaration.
-    def enterInterfaceCommonBodyDeclaration(
-        self, ctx: JavaParser.InterfaceCommonBodyDeclarationContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#interfaceCommonBodyDeclaration.
-    def exitInterfaceCommonBodyDeclaration(
-        self, ctx: JavaParser.InterfaceCommonBodyDeclarationContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#variableDeclarators.
-    def enterVariableDeclarators(self, ctx: JavaParser.VariableDeclaratorsContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#variableDeclarators.
-    def exitVariableDeclarators(self, ctx: JavaParser.VariableDeclaratorsContext):
+    # Exit a parse tree produced by JavaParser#variableDeclaratorList.
+    def exitVariableDeclaratorList(self, ctx: JavaParser.VariableDeclaratorListContext):
         pass
 
     # Enter a parse tree produced by JavaParser#variableDeclarator.
@@ -371,44 +599,120 @@ class JavaParserListener(ParseTreeListener):
     def exitVariableInitializer(self, ctx: JavaParser.VariableInitializerContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#arrayInitializer.
-    def enterArrayInitializer(self, ctx: JavaParser.ArrayInitializerContext):
+    # Enter a parse tree produced by JavaParser#unannType.
+    def enterUnannType(self, ctx: JavaParser.UnannTypeContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#arrayInitializer.
-    def exitArrayInitializer(self, ctx: JavaParser.ArrayInitializerContext):
+    # Exit a parse tree produced by JavaParser#unannType.
+    def exitUnannType(self, ctx: JavaParser.UnannTypeContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#classOrInterfaceType.
-    def enterClassOrInterfaceType(self, ctx: JavaParser.ClassOrInterfaceTypeContext):
+    # Enter a parse tree produced by JavaParser#unannPrimitiveType.
+    def enterUnannPrimitiveType(self, ctx: JavaParser.UnannPrimitiveTypeContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#classOrInterfaceType.
-    def exitClassOrInterfaceType(self, ctx: JavaParser.ClassOrInterfaceTypeContext):
+    # Exit a parse tree produced by JavaParser#unannPrimitiveType.
+    def exitUnannPrimitiveType(self, ctx: JavaParser.UnannPrimitiveTypeContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#typeArgument.
-    def enterTypeArgument(self, ctx: JavaParser.TypeArgumentContext):
+    # Enter a parse tree produced by JavaParser#unannReferenceType.
+    def enterUnannReferenceType(self, ctx: JavaParser.UnannReferenceTypeContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#typeArgument.
-    def exitTypeArgument(self, ctx: JavaParser.TypeArgumentContext):
+    # Exit a parse tree produced by JavaParser#unannReferenceType.
+    def exitUnannReferenceType(self, ctx: JavaParser.UnannReferenceTypeContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#qualifiedNameList.
-    def enterQualifiedNameList(self, ctx: JavaParser.QualifiedNameListContext):
+    # Enter a parse tree produced by JavaParser#unannClassOrInterfaceType.
+    def enterUnannClassOrInterfaceType(
+        self, ctx: JavaParser.UnannClassOrInterfaceTypeContext
+    ):
         pass
 
-    # Exit a parse tree produced by JavaParser#qualifiedNameList.
-    def exitQualifiedNameList(self, ctx: JavaParser.QualifiedNameListContext):
+    # Exit a parse tree produced by JavaParser#unannClassOrInterfaceType.
+    def exitUnannClassOrInterfaceType(
+        self, ctx: JavaParser.UnannClassOrInterfaceTypeContext
+    ):
         pass
 
-    # Enter a parse tree produced by JavaParser#formalParameters.
-    def enterFormalParameters(self, ctx: JavaParser.FormalParametersContext):
+    # Enter a parse tree produced by JavaParser#uCOIT.
+    def enterUCOIT(self, ctx: JavaParser.UCOITContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#formalParameters.
-    def exitFormalParameters(self, ctx: JavaParser.FormalParametersContext):
+    # Exit a parse tree produced by JavaParser#uCOIT.
+    def exitUCOIT(self, ctx: JavaParser.UCOITContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#unannClassType.
+    def enterUnannClassType(self, ctx: JavaParser.UnannClassTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#unannClassType.
+    def exitUnannClassType(self, ctx: JavaParser.UnannClassTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#unannInterfaceType.
+    def enterUnannInterfaceType(self, ctx: JavaParser.UnannInterfaceTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#unannInterfaceType.
+    def exitUnannInterfaceType(self, ctx: JavaParser.UnannInterfaceTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#unannTypeVariable.
+    def enterUnannTypeVariable(self, ctx: JavaParser.UnannTypeVariableContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#unannTypeVariable.
+    def exitUnannTypeVariable(self, ctx: JavaParser.UnannTypeVariableContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#unannArrayType.
+    def enterUnannArrayType(self, ctx: JavaParser.UnannArrayTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#unannArrayType.
+    def exitUnannArrayType(self, ctx: JavaParser.UnannArrayTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#methodDeclaration.
+    def enterMethodDeclaration(self, ctx: JavaParser.MethodDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#methodDeclaration.
+    def exitMethodDeclaration(self, ctx: JavaParser.MethodDeclarationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#methodModifier.
+    def enterMethodModifier(self, ctx: JavaParser.MethodModifierContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#methodModifier.
+    def exitMethodModifier(self, ctx: JavaParser.MethodModifierContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#methodHeader.
+    def enterMethodHeader(self, ctx: JavaParser.MethodHeaderContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#methodHeader.
+    def exitMethodHeader(self, ctx: JavaParser.MethodHeaderContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#result.
+    def enterResult(self, ctx: JavaParser.ResultContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#result.
+    def exitResult(self, ctx: JavaParser.ResultContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#methodDeclarator.
+    def enterMethodDeclarator(self, ctx: JavaParser.MethodDeclaratorContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#methodDeclarator.
+    def exitMethodDeclarator(self, ctx: JavaParser.MethodDeclaratorContext):
         pass
 
     # Enter a parse tree produced by JavaParser#receiverParameter.
@@ -435,230 +739,172 @@ class JavaParserListener(ParseTreeListener):
     def exitFormalParameter(self, ctx: JavaParser.FormalParameterContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#lastFormalParameter.
-    def enterLastFormalParameter(self, ctx: JavaParser.LastFormalParameterContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#lastFormalParameter.
-    def exitLastFormalParameter(self, ctx: JavaParser.LastFormalParameterContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#lambdaLVTIList.
-    def enterLambdaLVTIList(self, ctx: JavaParser.LambdaLVTIListContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#lambdaLVTIList.
-    def exitLambdaLVTIList(self, ctx: JavaParser.LambdaLVTIListContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#lambdaLVTIParameter.
-    def enterLambdaLVTIParameter(self, ctx: JavaParser.LambdaLVTIParameterContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#lambdaLVTIParameter.
-    def exitLambdaLVTIParameter(self, ctx: JavaParser.LambdaLVTIParameterContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#qualifiedName.
-    def enterQualifiedName(self, ctx: JavaParser.QualifiedNameContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#qualifiedName.
-    def exitQualifiedName(self, ctx: JavaParser.QualifiedNameContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#literal.
-    def enterLiteral(self, ctx: JavaParser.LiteralContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#literal.
-    def exitLiteral(self, ctx: JavaParser.LiteralContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#integerLiteral.
-    def enterIntegerLiteral(self, ctx: JavaParser.IntegerLiteralContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#integerLiteral.
-    def exitIntegerLiteral(self, ctx: JavaParser.IntegerLiteralContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#floatLiteral.
-    def enterFloatLiteral(self, ctx: JavaParser.FloatLiteralContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#floatLiteral.
-    def exitFloatLiteral(self, ctx: JavaParser.FloatLiteralContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#altAnnotationQualifiedName.
-    def enterAltAnnotationQualifiedName(
-        self, ctx: JavaParser.AltAnnotationQualifiedNameContext
+    # Enter a parse tree produced by JavaParser#variableArityParameter.
+    def enterVariableArityParameter(
+        self, ctx: JavaParser.VariableArityParameterContext
     ):
         pass
 
-    # Exit a parse tree produced by JavaParser#altAnnotationQualifiedName.
-    def exitAltAnnotationQualifiedName(
-        self, ctx: JavaParser.AltAnnotationQualifiedNameContext
+    # Exit a parse tree produced by JavaParser#variableArityParameter.
+    def exitVariableArityParameter(self, ctx: JavaParser.VariableArityParameterContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#variableModifier.
+    def enterVariableModifier(self, ctx: JavaParser.VariableModifierContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#variableModifier.
+    def exitVariableModifier(self, ctx: JavaParser.VariableModifierContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#throwsT.
+    def enterThrowsT(self, ctx: JavaParser.ThrowsTContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#throwsT.
+    def exitThrowsT(self, ctx: JavaParser.ThrowsTContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#exceptionTypeList.
+    def enterExceptionTypeList(self, ctx: JavaParser.ExceptionTypeListContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#exceptionTypeList.
+    def exitExceptionTypeList(self, ctx: JavaParser.ExceptionTypeListContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#exceptionType.
+    def enterExceptionType(self, ctx: JavaParser.ExceptionTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#exceptionType.
+    def exitExceptionType(self, ctx: JavaParser.ExceptionTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#methodBody.
+    def enterMethodBody(self, ctx: JavaParser.MethodBodyContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#methodBody.
+    def exitMethodBody(self, ctx: JavaParser.MethodBodyContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#instanceInitializer.
+    def enterInstanceInitializer(self, ctx: JavaParser.InstanceInitializerContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#instanceInitializer.
+    def exitInstanceInitializer(self, ctx: JavaParser.InstanceInitializerContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#staticInitializer.
+    def enterStaticInitializer(self, ctx: JavaParser.StaticInitializerContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#staticInitializer.
+    def exitStaticInitializer(self, ctx: JavaParser.StaticInitializerContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#constructorDeclaration.
+    def enterConstructorDeclaration(
+        self, ctx: JavaParser.ConstructorDeclarationContext
     ):
         pass
 
-    # Enter a parse tree produced by JavaParser#annotation.
-    def enterAnnotation(self, ctx: JavaParser.AnnotationContext):
+    # Exit a parse tree produced by JavaParser#constructorDeclaration.
+    def exitConstructorDeclaration(self, ctx: JavaParser.ConstructorDeclarationContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#annotation.
-    def exitAnnotation(self, ctx: JavaParser.AnnotationContext):
+    # Enter a parse tree produced by JavaParser#constructorModifier.
+    def enterConstructorModifier(self, ctx: JavaParser.ConstructorModifierContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#elementValuePairs.
-    def enterElementValuePairs(self, ctx: JavaParser.ElementValuePairsContext):
+    # Exit a parse tree produced by JavaParser#constructorModifier.
+    def exitConstructorModifier(self, ctx: JavaParser.ConstructorModifierContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#elementValuePairs.
-    def exitElementValuePairs(self, ctx: JavaParser.ElementValuePairsContext):
+    # Enter a parse tree produced by JavaParser#constructorDeclarator.
+    def enterConstructorDeclarator(self, ctx: JavaParser.ConstructorDeclaratorContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#elementValuePair.
-    def enterElementValuePair(self, ctx: JavaParser.ElementValuePairContext):
+    # Exit a parse tree produced by JavaParser#constructorDeclarator.
+    def exitConstructorDeclarator(self, ctx: JavaParser.ConstructorDeclaratorContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#elementValuePair.
-    def exitElementValuePair(self, ctx: JavaParser.ElementValuePairContext):
+    # Enter a parse tree produced by JavaParser#simpleTypeName.
+    def enterSimpleTypeName(self, ctx: JavaParser.SimpleTypeNameContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#elementValue.
-    def enterElementValue(self, ctx: JavaParser.ElementValueContext):
+    # Exit a parse tree produced by JavaParser#simpleTypeName.
+    def exitSimpleTypeName(self, ctx: JavaParser.SimpleTypeNameContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#elementValue.
-    def exitElementValue(self, ctx: JavaParser.ElementValueContext):
+    # Enter a parse tree produced by JavaParser#constructorBody.
+    def enterConstructorBody(self, ctx: JavaParser.ConstructorBodyContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#elementValueArrayInitializer.
-    def enterElementValueArrayInitializer(
-        self, ctx: JavaParser.ElementValueArrayInitializerContext
+    # Exit a parse tree produced by JavaParser#constructorBody.
+    def exitConstructorBody(self, ctx: JavaParser.ConstructorBodyContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#explicitConstructorInvocation.
+    def enterExplicitConstructorInvocation(
+        self, ctx: JavaParser.ExplicitConstructorInvocationContext
     ):
         pass
 
-    # Exit a parse tree produced by JavaParser#elementValueArrayInitializer.
-    def exitElementValueArrayInitializer(
-        self, ctx: JavaParser.ElementValueArrayInitializerContext
+    # Exit a parse tree produced by JavaParser#explicitConstructorInvocation.
+    def exitExplicitConstructorInvocation(
+        self, ctx: JavaParser.ExplicitConstructorInvocationContext
     ):
         pass
 
-    # Enter a parse tree produced by JavaParser#annotationTypeDeclaration.
-    def enterAnnotationTypeDeclaration(
-        self, ctx: JavaParser.AnnotationTypeDeclarationContext
-    ):
+    # Enter a parse tree produced by JavaParser#enumDeclaration.
+    def enterEnumDeclaration(self, ctx: JavaParser.EnumDeclarationContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#annotationTypeDeclaration.
-    def exitAnnotationTypeDeclaration(
-        self, ctx: JavaParser.AnnotationTypeDeclarationContext
-    ):
+    # Exit a parse tree produced by JavaParser#enumDeclaration.
+    def exitEnumDeclaration(self, ctx: JavaParser.EnumDeclarationContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#annotationTypeBody.
-    def enterAnnotationTypeBody(self, ctx: JavaParser.AnnotationTypeBodyContext):
+    # Enter a parse tree produced by JavaParser#enumBody.
+    def enterEnumBody(self, ctx: JavaParser.EnumBodyContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#annotationTypeBody.
-    def exitAnnotationTypeBody(self, ctx: JavaParser.AnnotationTypeBodyContext):
+    # Exit a parse tree produced by JavaParser#enumBody.
+    def exitEnumBody(self, ctx: JavaParser.EnumBodyContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#annotationTypeElementDeclaration.
-    def enterAnnotationTypeElementDeclaration(
-        self, ctx: JavaParser.AnnotationTypeElementDeclarationContext
-    ):
+    # Enter a parse tree produced by JavaParser#enumConstantList.
+    def enterEnumConstantList(self, ctx: JavaParser.EnumConstantListContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#annotationTypeElementDeclaration.
-    def exitAnnotationTypeElementDeclaration(
-        self, ctx: JavaParser.AnnotationTypeElementDeclarationContext
-    ):
+    # Exit a parse tree produced by JavaParser#enumConstantList.
+    def exitEnumConstantList(self, ctx: JavaParser.EnumConstantListContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#annotationTypeElementRest.
-    def enterAnnotationTypeElementRest(
-        self, ctx: JavaParser.AnnotationTypeElementRestContext
-    ):
+    # Enter a parse tree produced by JavaParser#enumConstant.
+    def enterEnumConstant(self, ctx: JavaParser.EnumConstantContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#annotationTypeElementRest.
-    def exitAnnotationTypeElementRest(
-        self, ctx: JavaParser.AnnotationTypeElementRestContext
-    ):
+    # Exit a parse tree produced by JavaParser#enumConstant.
+    def exitEnumConstant(self, ctx: JavaParser.EnumConstantContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#annotationMethodOrConstantRest.
-    def enterAnnotationMethodOrConstantRest(
-        self, ctx: JavaParser.AnnotationMethodOrConstantRestContext
-    ):
+    # Enter a parse tree produced by JavaParser#enumConstantModifier.
+    def enterEnumConstantModifier(self, ctx: JavaParser.EnumConstantModifierContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#annotationMethodOrConstantRest.
-    def exitAnnotationMethodOrConstantRest(
-        self, ctx: JavaParser.AnnotationMethodOrConstantRestContext
-    ):
+    # Exit a parse tree produced by JavaParser#enumConstantModifier.
+    def exitEnumConstantModifier(self, ctx: JavaParser.EnumConstantModifierContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#annotationMethodRest.
-    def enterAnnotationMethodRest(self, ctx: JavaParser.AnnotationMethodRestContext):
+    # Enter a parse tree produced by JavaParser#enumBodyDeclarations.
+    def enterEnumBodyDeclarations(self, ctx: JavaParser.EnumBodyDeclarationsContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#annotationMethodRest.
-    def exitAnnotationMethodRest(self, ctx: JavaParser.AnnotationMethodRestContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#annotationConstantRest.
-    def enterAnnotationConstantRest(
-        self, ctx: JavaParser.AnnotationConstantRestContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#annotationConstantRest.
-    def exitAnnotationConstantRest(self, ctx: JavaParser.AnnotationConstantRestContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#defaultValue.
-    def enterDefaultValue(self, ctx: JavaParser.DefaultValueContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#defaultValue.
-    def exitDefaultValue(self, ctx: JavaParser.DefaultValueContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#moduleDeclaration.
-    def enterModuleDeclaration(self, ctx: JavaParser.ModuleDeclarationContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#moduleDeclaration.
-    def exitModuleDeclaration(self, ctx: JavaParser.ModuleDeclarationContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#moduleBody.
-    def enterModuleBody(self, ctx: JavaParser.ModuleBodyContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#moduleBody.
-    def exitModuleBody(self, ctx: JavaParser.ModuleBodyContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#moduleDirective.
-    def enterModuleDirective(self, ctx: JavaParser.ModuleDirectiveContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#moduleDirective.
-    def exitModuleDirective(self, ctx: JavaParser.ModuleDirectiveContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#requiresModifier.
-    def enterRequiresModifier(self, ctx: JavaParser.RequiresModifierContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#requiresModifier.
-    def exitRequiresModifier(self, ctx: JavaParser.RequiresModifierContext):
+    # Exit a parse tree produced by JavaParser#enumBodyDeclarations.
+    def exitEnumBodyDeclarations(self, ctx: JavaParser.EnumBodyDeclarationsContext):
         pass
 
     # Enter a parse tree produced by JavaParser#recordDeclaration.
@@ -693,12 +939,328 @@ class JavaParserListener(ParseTreeListener):
     def exitRecordComponent(self, ctx: JavaParser.RecordComponentContext):
         pass
 
+    # Enter a parse tree produced by JavaParser#variableArityRecordComponent.
+    def enterVariableArityRecordComponent(
+        self, ctx: JavaParser.VariableArityRecordComponentContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#variableArityRecordComponent.
+    def exitVariableArityRecordComponent(
+        self, ctx: JavaParser.VariableArityRecordComponentContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#recordComponentModifier.
+    def enterRecordComponentModifier(
+        self, ctx: JavaParser.RecordComponentModifierContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#recordComponentModifier.
+    def exitRecordComponentModifier(
+        self, ctx: JavaParser.RecordComponentModifierContext
+    ):
+        pass
+
     # Enter a parse tree produced by JavaParser#recordBody.
     def enterRecordBody(self, ctx: JavaParser.RecordBodyContext):
         pass
 
     # Exit a parse tree produced by JavaParser#recordBody.
     def exitRecordBody(self, ctx: JavaParser.RecordBodyContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#recordBodyDeclaration.
+    def enterRecordBodyDeclaration(self, ctx: JavaParser.RecordBodyDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#recordBodyDeclaration.
+    def exitRecordBodyDeclaration(self, ctx: JavaParser.RecordBodyDeclarationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#compactConstructorDeclaration.
+    def enterCompactConstructorDeclaration(
+        self, ctx: JavaParser.CompactConstructorDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#compactConstructorDeclaration.
+    def exitCompactConstructorDeclaration(
+        self, ctx: JavaParser.CompactConstructorDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfaceDeclaration.
+    def enterInterfaceDeclaration(self, ctx: JavaParser.InterfaceDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfaceDeclaration.
+    def exitInterfaceDeclaration(self, ctx: JavaParser.InterfaceDeclarationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#normalInterfaceDeclaration.
+    def enterNormalInterfaceDeclaration(
+        self, ctx: JavaParser.NormalInterfaceDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#normalInterfaceDeclaration.
+    def exitNormalInterfaceDeclaration(
+        self, ctx: JavaParser.NormalInterfaceDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfaceModifier.
+    def enterInterfaceModifier(self, ctx: JavaParser.InterfaceModifierContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfaceModifier.
+    def exitInterfaceModifier(self, ctx: JavaParser.InterfaceModifierContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfaceExtends.
+    def enterInterfaceExtends(self, ctx: JavaParser.InterfaceExtendsContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfaceExtends.
+    def exitInterfaceExtends(self, ctx: JavaParser.InterfaceExtendsContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfacePermits.
+    def enterInterfacePermits(self, ctx: JavaParser.InterfacePermitsContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfacePermits.
+    def exitInterfacePermits(self, ctx: JavaParser.InterfacePermitsContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfaceBody.
+    def enterInterfaceBody(self, ctx: JavaParser.InterfaceBodyContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfaceBody.
+    def exitInterfaceBody(self, ctx: JavaParser.InterfaceBodyContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfaceMemberDeclaration.
+    def enterInterfaceMemberDeclaration(
+        self, ctx: JavaParser.InterfaceMemberDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfaceMemberDeclaration.
+    def exitInterfaceMemberDeclaration(
+        self, ctx: JavaParser.InterfaceMemberDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#constantDeclaration.
+    def enterConstantDeclaration(self, ctx: JavaParser.ConstantDeclarationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#constantDeclaration.
+    def exitConstantDeclaration(self, ctx: JavaParser.ConstantDeclarationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#constantModifier.
+    def enterConstantModifier(self, ctx: JavaParser.ConstantModifierContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#constantModifier.
+    def exitConstantModifier(self, ctx: JavaParser.ConstantModifierContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfaceMethodDeclaration.
+    def enterInterfaceMethodDeclaration(
+        self, ctx: JavaParser.InterfaceMethodDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfaceMethodDeclaration.
+    def exitInterfaceMethodDeclaration(
+        self, ctx: JavaParser.InterfaceMethodDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#interfaceMethodModifier.
+    def enterInterfaceMethodModifier(
+        self, ctx: JavaParser.InterfaceMethodModifierContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#interfaceMethodModifier.
+    def exitInterfaceMethodModifier(
+        self, ctx: JavaParser.InterfaceMethodModifierContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#annotationInterfaceDeclaration.
+    def enterAnnotationInterfaceDeclaration(
+        self, ctx: JavaParser.AnnotationInterfaceDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#annotationInterfaceDeclaration.
+    def exitAnnotationInterfaceDeclaration(
+        self, ctx: JavaParser.AnnotationInterfaceDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#annotationInterfaceBody.
+    def enterAnnotationInterfaceBody(
+        self, ctx: JavaParser.AnnotationInterfaceBodyContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#annotationInterfaceBody.
+    def exitAnnotationInterfaceBody(
+        self, ctx: JavaParser.AnnotationInterfaceBodyContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#annotationInterfaceMemberDeclaration.
+    def enterAnnotationInterfaceMemberDeclaration(
+        self, ctx: JavaParser.AnnotationInterfaceMemberDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#annotationInterfaceMemberDeclaration.
+    def exitAnnotationInterfaceMemberDeclaration(
+        self, ctx: JavaParser.AnnotationInterfaceMemberDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#annotationInterfaceElementDeclaration.
+    def enterAnnotationInterfaceElementDeclaration(
+        self, ctx: JavaParser.AnnotationInterfaceElementDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#annotationInterfaceElementDeclaration.
+    def exitAnnotationInterfaceElementDeclaration(
+        self, ctx: JavaParser.AnnotationInterfaceElementDeclarationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#annotationInterfaceElementModifier.
+    def enterAnnotationInterfaceElementModifier(
+        self, ctx: JavaParser.AnnotationInterfaceElementModifierContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#annotationInterfaceElementModifier.
+    def exitAnnotationInterfaceElementModifier(
+        self, ctx: JavaParser.AnnotationInterfaceElementModifierContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#defaultValue.
+    def enterDefaultValue(self, ctx: JavaParser.DefaultValueContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#defaultValue.
+    def exitDefaultValue(self, ctx: JavaParser.DefaultValueContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#annotation.
+    def enterAnnotation(self, ctx: JavaParser.AnnotationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#annotation.
+    def exitAnnotation(self, ctx: JavaParser.AnnotationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#normalAnnotation.
+    def enterNormalAnnotation(self, ctx: JavaParser.NormalAnnotationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#normalAnnotation.
+    def exitNormalAnnotation(self, ctx: JavaParser.NormalAnnotationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#elementValuePairList.
+    def enterElementValuePairList(self, ctx: JavaParser.ElementValuePairListContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#elementValuePairList.
+    def exitElementValuePairList(self, ctx: JavaParser.ElementValuePairListContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#elementValuePair.
+    def enterElementValuePair(self, ctx: JavaParser.ElementValuePairContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#elementValuePair.
+    def exitElementValuePair(self, ctx: JavaParser.ElementValuePairContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#elementValue.
+    def enterElementValue(self, ctx: JavaParser.ElementValueContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#elementValue.
+    def exitElementValue(self, ctx: JavaParser.ElementValueContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#elementValueArrayInitializer.
+    def enterElementValueArrayInitializer(
+        self, ctx: JavaParser.ElementValueArrayInitializerContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#elementValueArrayInitializer.
+    def exitElementValueArrayInitializer(
+        self, ctx: JavaParser.ElementValueArrayInitializerContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#elementValueList.
+    def enterElementValueList(self, ctx: JavaParser.ElementValueListContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#elementValueList.
+    def exitElementValueList(self, ctx: JavaParser.ElementValueListContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#markerAnnotation.
+    def enterMarkerAnnotation(self, ctx: JavaParser.MarkerAnnotationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#markerAnnotation.
+    def exitMarkerAnnotation(self, ctx: JavaParser.MarkerAnnotationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#singleElementAnnotation.
+    def enterSingleElementAnnotation(
+        self, ctx: JavaParser.SingleElementAnnotationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#singleElementAnnotation.
+    def exitSingleElementAnnotation(
+        self, ctx: JavaParser.SingleElementAnnotationContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#arrayInitializer.
+    def enterArrayInitializer(self, ctx: JavaParser.ArrayInitializerContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#arrayInitializer.
+    def exitArrayInitializer(self, ctx: JavaParser.ArrayInitializerContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#variableInitializerList.
+    def enterVariableInitializerList(
+        self, ctx: JavaParser.VariableInitializerListContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#variableInitializerList.
+    def exitVariableInitializerList(
+        self, ctx: JavaParser.VariableInitializerListContext
+    ):
         pass
 
     # Enter a parse tree produced by JavaParser#block.
@@ -709,12 +1271,32 @@ class JavaParserListener(ParseTreeListener):
     def exitBlock(self, ctx: JavaParser.BlockContext):
         pass
 
+    # Enter a parse tree produced by JavaParser#blockStatements.
+    def enterBlockStatements(self, ctx: JavaParser.BlockStatementsContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#blockStatements.
+    def exitBlockStatements(self, ctx: JavaParser.BlockStatementsContext):
+        pass
+
     # Enter a parse tree produced by JavaParser#blockStatement.
     def enterBlockStatement(self, ctx: JavaParser.BlockStatementContext):
         pass
 
     # Exit a parse tree produced by JavaParser#blockStatement.
     def exitBlockStatement(self, ctx: JavaParser.BlockStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#localClassOrInterfaceDeclaration.
+    def enterLocalClassOrInterfaceDeclaration(
+        self, ctx: JavaParser.LocalClassOrInterfaceDeclarationContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#localClassOrInterfaceDeclaration.
+    def exitLocalClassOrInterfaceDeclaration(
+        self, ctx: JavaParser.LocalClassOrInterfaceDeclarationContext
+    ):
         pass
 
     # Enter a parse tree produced by JavaParser#localVariableDeclaration.
@@ -729,28 +1311,24 @@ class JavaParserListener(ParseTreeListener):
     ):
         pass
 
-    # Enter a parse tree produced by JavaParser#identifier.
-    def enterIdentifier(self, ctx: JavaParser.IdentifierContext):
+    # Enter a parse tree produced by JavaParser#localVariableType.
+    def enterLocalVariableType(self, ctx: JavaParser.LocalVariableTypeContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#identifier.
-    def exitIdentifier(self, ctx: JavaParser.IdentifierContext):
+    # Exit a parse tree produced by JavaParser#localVariableType.
+    def exitLocalVariableType(self, ctx: JavaParser.LocalVariableTypeContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#typeIdentifier.
-    def enterTypeIdentifier(self, ctx: JavaParser.TypeIdentifierContext):
+    # Enter a parse tree produced by JavaParser#localVariableDeclarationStatement.
+    def enterLocalVariableDeclarationStatement(
+        self, ctx: JavaParser.LocalVariableDeclarationStatementContext
+    ):
         pass
 
-    # Exit a parse tree produced by JavaParser#typeIdentifier.
-    def exitTypeIdentifier(self, ctx: JavaParser.TypeIdentifierContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#localTypeDeclaration.
-    def enterLocalTypeDeclaration(self, ctx: JavaParser.LocalTypeDeclarationContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#localTypeDeclaration.
-    def exitLocalTypeDeclaration(self, ctx: JavaParser.LocalTypeDeclarationContext):
+    # Exit a parse tree produced by JavaParser#localVariableDeclarationStatement.
+    def exitLocalVariableDeclarationStatement(
+        self, ctx: JavaParser.LocalVariableDeclarationStatementContext
+    ):
         pass
 
     # Enter a parse tree produced by JavaParser#statement.
@@ -761,52 +1339,128 @@ class JavaParserListener(ParseTreeListener):
     def exitStatement(self, ctx: JavaParser.StatementContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#catchClause.
-    def enterCatchClause(self, ctx: JavaParser.CatchClauseContext):
+    # Enter a parse tree produced by JavaParser#statementNoShortIf.
+    def enterStatementNoShortIf(self, ctx: JavaParser.StatementNoShortIfContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#catchClause.
-    def exitCatchClause(self, ctx: JavaParser.CatchClauseContext):
+    # Exit a parse tree produced by JavaParser#statementNoShortIf.
+    def exitStatementNoShortIf(self, ctx: JavaParser.StatementNoShortIfContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#catchType.
-    def enterCatchType(self, ctx: JavaParser.CatchTypeContext):
+    # Enter a parse tree produced by JavaParser#statementWithoutTrailingSubstatement.
+    def enterStatementWithoutTrailingSubstatement(
+        self, ctx: JavaParser.StatementWithoutTrailingSubstatementContext
+    ):
         pass
 
-    # Exit a parse tree produced by JavaParser#catchType.
-    def exitCatchType(self, ctx: JavaParser.CatchTypeContext):
+    # Exit a parse tree produced by JavaParser#statementWithoutTrailingSubstatement.
+    def exitStatementWithoutTrailingSubstatement(
+        self, ctx: JavaParser.StatementWithoutTrailingSubstatementContext
+    ):
         pass
 
-    # Enter a parse tree produced by JavaParser#finallyBlock.
-    def enterFinallyBlock(self, ctx: JavaParser.FinallyBlockContext):
+    # Enter a parse tree produced by JavaParser#emptyStatement_.
+    def enterEmptyStatement_(self, ctx: JavaParser.EmptyStatement_Context):
         pass
 
-    # Exit a parse tree produced by JavaParser#finallyBlock.
-    def exitFinallyBlock(self, ctx: JavaParser.FinallyBlockContext):
+    # Exit a parse tree produced by JavaParser#emptyStatement_.
+    def exitEmptyStatement_(self, ctx: JavaParser.EmptyStatement_Context):
         pass
 
-    # Enter a parse tree produced by JavaParser#resourceSpecification.
-    def enterResourceSpecification(self, ctx: JavaParser.ResourceSpecificationContext):
+    # Enter a parse tree produced by JavaParser#labeledStatement.
+    def enterLabeledStatement(self, ctx: JavaParser.LabeledStatementContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#resourceSpecification.
-    def exitResourceSpecification(self, ctx: JavaParser.ResourceSpecificationContext):
+    # Exit a parse tree produced by JavaParser#labeledStatement.
+    def exitLabeledStatement(self, ctx: JavaParser.LabeledStatementContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#resources.
-    def enterResources(self, ctx: JavaParser.ResourcesContext):
+    # Enter a parse tree produced by JavaParser#labeledStatementNoShortIf.
+    def enterLabeledStatementNoShortIf(
+        self, ctx: JavaParser.LabeledStatementNoShortIfContext
+    ):
         pass
 
-    # Exit a parse tree produced by JavaParser#resources.
-    def exitResources(self, ctx: JavaParser.ResourcesContext):
+    # Exit a parse tree produced by JavaParser#labeledStatementNoShortIf.
+    def exitLabeledStatementNoShortIf(
+        self, ctx: JavaParser.LabeledStatementNoShortIfContext
+    ):
         pass
 
-    # Enter a parse tree produced by JavaParser#resource.
-    def enterResource(self, ctx: JavaParser.ResourceContext):
+    # Enter a parse tree produced by JavaParser#expressionStatement.
+    def enterExpressionStatement(self, ctx: JavaParser.ExpressionStatementContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#resource.
-    def exitResource(self, ctx: JavaParser.ResourceContext):
+    # Exit a parse tree produced by JavaParser#expressionStatement.
+    def exitExpressionStatement(self, ctx: JavaParser.ExpressionStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#statementExpression.
+    def enterStatementExpression(self, ctx: JavaParser.StatementExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#statementExpression.
+    def exitStatementExpression(self, ctx: JavaParser.StatementExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#ifThenStatement.
+    def enterIfThenStatement(self, ctx: JavaParser.IfThenStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#ifThenStatement.
+    def exitIfThenStatement(self, ctx: JavaParser.IfThenStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#ifThenElseStatement.
+    def enterIfThenElseStatement(self, ctx: JavaParser.IfThenElseStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#ifThenElseStatement.
+    def exitIfThenElseStatement(self, ctx: JavaParser.IfThenElseStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#ifThenElseStatementNoShortIf.
+    def enterIfThenElseStatementNoShortIf(
+        self, ctx: JavaParser.IfThenElseStatementNoShortIfContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#ifThenElseStatementNoShortIf.
+    def exitIfThenElseStatementNoShortIf(
+        self, ctx: JavaParser.IfThenElseStatementNoShortIfContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#assertStatement.
+    def enterAssertStatement(self, ctx: JavaParser.AssertStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#assertStatement.
+    def exitAssertStatement(self, ctx: JavaParser.AssertStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#switchStatement.
+    def enterSwitchStatement(self, ctx: JavaParser.SwitchStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#switchStatement.
+    def exitSwitchStatement(self, ctx: JavaParser.SwitchStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#switchBlock.
+    def enterSwitchBlock(self, ctx: JavaParser.SwitchBlockContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#switchBlock.
+    def exitSwitchBlock(self, ctx: JavaParser.SwitchBlockContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#switchRule.
+    def enterSwitchRule(self, ctx: JavaParser.SwitchRuleContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#switchRule.
+    def exitSwitchRule(self, ctx: JavaParser.SwitchRuleContext):
         pass
 
     # Enter a parse tree produced by JavaParser#switchBlockStatementGroup.
@@ -829,12 +1483,76 @@ class JavaParserListener(ParseTreeListener):
     def exitSwitchLabel(self, ctx: JavaParser.SwitchLabelContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#forControl.
-    def enterForControl(self, ctx: JavaParser.ForControlContext):
+    # Enter a parse tree produced by JavaParser#caseConstant.
+    def enterCaseConstant(self, ctx: JavaParser.CaseConstantContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#forControl.
-    def exitForControl(self, ctx: JavaParser.ForControlContext):
+    # Exit a parse tree produced by JavaParser#caseConstant.
+    def exitCaseConstant(self, ctx: JavaParser.CaseConstantContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#whileStatement.
+    def enterWhileStatement(self, ctx: JavaParser.WhileStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#whileStatement.
+    def exitWhileStatement(self, ctx: JavaParser.WhileStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#whileStatementNoShortIf.
+    def enterWhileStatementNoShortIf(
+        self, ctx: JavaParser.WhileStatementNoShortIfContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#whileStatementNoShortIf.
+    def exitWhileStatementNoShortIf(
+        self, ctx: JavaParser.WhileStatementNoShortIfContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#doStatement.
+    def enterDoStatement(self, ctx: JavaParser.DoStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#doStatement.
+    def exitDoStatement(self, ctx: JavaParser.DoStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#forStatement.
+    def enterForStatement(self, ctx: JavaParser.ForStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#forStatement.
+    def exitForStatement(self, ctx: JavaParser.ForStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#forStatementNoShortIf.
+    def enterForStatementNoShortIf(self, ctx: JavaParser.ForStatementNoShortIfContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#forStatementNoShortIf.
+    def exitForStatementNoShortIf(self, ctx: JavaParser.ForStatementNoShortIfContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#basicForStatement.
+    def enterBasicForStatement(self, ctx: JavaParser.BasicForStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#basicForStatement.
+    def exitBasicForStatement(self, ctx: JavaParser.BasicForStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#basicForStatementNoShortIf.
+    def enterBasicForStatementNoShortIf(
+        self, ctx: JavaParser.BasicForStatementNoShortIfContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#basicForStatementNoShortIf.
+    def exitBasicForStatementNoShortIf(
+        self, ctx: JavaParser.BasicForStatementNoShortIfContext
+    ):
         pass
 
     # Enter a parse tree produced by JavaParser#forInit.
@@ -845,180 +1563,184 @@ class JavaParserListener(ParseTreeListener):
     def exitForInit(self, ctx: JavaParser.ForInitContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#enhancedForControl.
-    def enterEnhancedForControl(self, ctx: JavaParser.EnhancedForControlContext):
+    # Enter a parse tree produced by JavaParser#forUpdate.
+    def enterForUpdate(self, ctx: JavaParser.ForUpdateContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#enhancedForControl.
-    def exitEnhancedForControl(self, ctx: JavaParser.EnhancedForControlContext):
+    # Exit a parse tree produced by JavaParser#forUpdate.
+    def exitForUpdate(self, ctx: JavaParser.ForUpdateContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#parExpression.
-    def enterParExpression(self, ctx: JavaParser.ParExpressionContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#parExpression.
-    def exitParExpression(self, ctx: JavaParser.ParExpressionContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#expressionList.
-    def enterExpressionList(self, ctx: JavaParser.ExpressionListContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#expressionList.
-    def exitExpressionList(self, ctx: JavaParser.ExpressionListContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#methodCall.
-    def enterMethodCall(self, ctx: JavaParser.MethodCallContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#methodCall.
-    def exitMethodCall(self, ctx: JavaParser.MethodCallContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#TernaryExpression.
-    def enterTernaryExpression(self, ctx: JavaParser.TernaryExpressionContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#TernaryExpression.
-    def exitTernaryExpression(self, ctx: JavaParser.TernaryExpressionContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#InstanceOfOperatorExpression.
-    def enterInstanceOfOperatorExpression(
-        self, ctx: JavaParser.InstanceOfOperatorExpressionContext
+    # Enter a parse tree produced by JavaParser#statementExpressionList.
+    def enterStatementExpressionList(
+        self, ctx: JavaParser.StatementExpressionListContext
     ):
         pass
 
-    # Exit a parse tree produced by JavaParser#InstanceOfOperatorExpression.
-    def exitInstanceOfOperatorExpression(
-        self, ctx: JavaParser.InstanceOfOperatorExpressionContext
+    # Exit a parse tree produced by JavaParser#statementExpressionList.
+    def exitStatementExpressionList(
+        self, ctx: JavaParser.StatementExpressionListContext
     ):
         pass
 
-    # Enter a parse tree produced by JavaParser#UnaryOperatorExpression.
-    def enterUnaryOperatorExpression(
-        self, ctx: JavaParser.UnaryOperatorExpressionContext
+    # Enter a parse tree produced by JavaParser#enhancedForStatement.
+    def enterEnhancedForStatement(self, ctx: JavaParser.EnhancedForStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#enhancedForStatement.
+    def exitEnhancedForStatement(self, ctx: JavaParser.EnhancedForStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#enhancedForStatementNoShortIf.
+    def enterEnhancedForStatementNoShortIf(
+        self, ctx: JavaParser.EnhancedForStatementNoShortIfContext
     ):
         pass
 
-    # Exit a parse tree produced by JavaParser#UnaryOperatorExpression.
-    def exitUnaryOperatorExpression(
-        self, ctx: JavaParser.UnaryOperatorExpressionContext
+    # Exit a parse tree produced by JavaParser#enhancedForStatementNoShortIf.
+    def exitEnhancedForStatementNoShortIf(
+        self, ctx: JavaParser.EnhancedForStatementNoShortIfContext
     ):
         pass
 
-    # Enter a parse tree produced by JavaParser#PrimaryExpression.
-    def enterPrimaryExpression(self, ctx: JavaParser.PrimaryExpressionContext):
+    # Enter a parse tree produced by JavaParser#breakStatement.
+    def enterBreakStatement(self, ctx: JavaParser.BreakStatementContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#PrimaryExpression.
-    def exitPrimaryExpression(self, ctx: JavaParser.PrimaryExpressionContext):
+    # Exit a parse tree produced by JavaParser#breakStatement.
+    def exitBreakStatement(self, ctx: JavaParser.BreakStatementContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#ObjectCreationExpression.
-    def enterObjectCreationExpression(
-        self, ctx: JavaParser.ObjectCreationExpressionContext
+    # Enter a parse tree produced by JavaParser#continueStatement.
+    def enterContinueStatement(self, ctx: JavaParser.ContinueStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#continueStatement.
+    def exitContinueStatement(self, ctx: JavaParser.ContinueStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#returnStatement.
+    def enterReturnStatement(self, ctx: JavaParser.ReturnStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#returnStatement.
+    def exitReturnStatement(self, ctx: JavaParser.ReturnStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#throwStatement.
+    def enterThrowStatement(self, ctx: JavaParser.ThrowStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#throwStatement.
+    def exitThrowStatement(self, ctx: JavaParser.ThrowStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#synchronizedStatement.
+    def enterSynchronizedStatement(self, ctx: JavaParser.SynchronizedStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#synchronizedStatement.
+    def exitSynchronizedStatement(self, ctx: JavaParser.SynchronizedStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#tryStatement.
+    def enterTryStatement(self, ctx: JavaParser.TryStatementContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#tryStatement.
+    def exitTryStatement(self, ctx: JavaParser.TryStatementContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#catches.
+    def enterCatches(self, ctx: JavaParser.CatchesContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#catches.
+    def exitCatches(self, ctx: JavaParser.CatchesContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#catchClause.
+    def enterCatchClause(self, ctx: JavaParser.CatchClauseContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#catchClause.
+    def exitCatchClause(self, ctx: JavaParser.CatchClauseContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#catchFormalParameter.
+    def enterCatchFormalParameter(self, ctx: JavaParser.CatchFormalParameterContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#catchFormalParameter.
+    def exitCatchFormalParameter(self, ctx: JavaParser.CatchFormalParameterContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#catchType.
+    def enterCatchType(self, ctx: JavaParser.CatchTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#catchType.
+    def exitCatchType(self, ctx: JavaParser.CatchTypeContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#finallyBlock.
+    def enterFinallyBlock(self, ctx: JavaParser.FinallyBlockContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#finallyBlock.
+    def exitFinallyBlock(self, ctx: JavaParser.FinallyBlockContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#tryWithResourcesStatement.
+    def enterTryWithResourcesStatement(
+        self, ctx: JavaParser.TryWithResourcesStatementContext
     ):
         pass
 
-    # Exit a parse tree produced by JavaParser#ObjectCreationExpression.
-    def exitObjectCreationExpression(
-        self, ctx: JavaParser.ObjectCreationExpressionContext
+    # Exit a parse tree produced by JavaParser#tryWithResourcesStatement.
+    def exitTryWithResourcesStatement(
+        self, ctx: JavaParser.TryWithResourcesStatementContext
     ):
         pass
 
-    # Enter a parse tree produced by JavaParser#ExpressionLambda.
-    def enterExpressionLambda(self, ctx: JavaParser.ExpressionLambdaContext):
+    # Enter a parse tree produced by JavaParser#resourceSpecification.
+    def enterResourceSpecification(self, ctx: JavaParser.ResourceSpecificationContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#ExpressionLambda.
-    def exitExpressionLambda(self, ctx: JavaParser.ExpressionLambdaContext):
+    # Exit a parse tree produced by JavaParser#resourceSpecification.
+    def exitResourceSpecification(self, ctx: JavaParser.ResourceSpecificationContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#PostIncrementDecrementOperatorExpression.
-    def enterPostIncrementDecrementOperatorExpression(
-        self, ctx: JavaParser.PostIncrementDecrementOperatorExpressionContext
-    ):
+    # Enter a parse tree produced by JavaParser#resourceList.
+    def enterResourceList(self, ctx: JavaParser.ResourceListContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#PostIncrementDecrementOperatorExpression.
-    def exitPostIncrementDecrementOperatorExpression(
-        self, ctx: JavaParser.PostIncrementDecrementOperatorExpressionContext
-    ):
+    # Exit a parse tree produced by JavaParser#resourceList.
+    def exitResourceList(self, ctx: JavaParser.ResourceListContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#MemberReferenceExpression.
-    def enterMemberReferenceExpression(
-        self, ctx: JavaParser.MemberReferenceExpressionContext
-    ):
+    # Enter a parse tree produced by JavaParser#resource.
+    def enterResource(self, ctx: JavaParser.ResourceContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#MemberReferenceExpression.
-    def exitMemberReferenceExpression(
-        self, ctx: JavaParser.MemberReferenceExpressionContext
-    ):
+    # Exit a parse tree produced by JavaParser#resource.
+    def exitResource(self, ctx: JavaParser.ResourceContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#ExpressionSwitch.
-    def enterExpressionSwitch(self, ctx: JavaParser.ExpressionSwitchContext):
+    # Enter a parse tree produced by JavaParser#variableAccess.
+    def enterVariableAccess(self, ctx: JavaParser.VariableAccessContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#ExpressionSwitch.
-    def exitExpressionSwitch(self, ctx: JavaParser.ExpressionSwitchContext):
+    # Exit a parse tree produced by JavaParser#variableAccess.
+    def exitVariableAccess(self, ctx: JavaParser.VariableAccessContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#BinaryOperatorExpression.
-    def enterBinaryOperatorExpression(
-        self, ctx: JavaParser.BinaryOperatorExpressionContext
-    ):
+    # Enter a parse tree produced by JavaParser#yieldStatement.
+    def enterYieldStatement(self, ctx: JavaParser.YieldStatementContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#BinaryOperatorExpression.
-    def exitBinaryOperatorExpression(
-        self, ctx: JavaParser.BinaryOperatorExpressionContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#MethodCallExpression.
-    def enterMethodCallExpression(self, ctx: JavaParser.MethodCallExpressionContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#MethodCallExpression.
-    def exitMethodCallExpression(self, ctx: JavaParser.MethodCallExpressionContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#MethodReferenceExpression.
-    def enterMethodReferenceExpression(
-        self, ctx: JavaParser.MethodReferenceExpressionContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#MethodReferenceExpression.
-    def exitMethodReferenceExpression(
-        self, ctx: JavaParser.MethodReferenceExpressionContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#SquareBracketExpression.
-    def enterSquareBracketExpression(
-        self, ctx: JavaParser.SquareBracketExpressionContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#SquareBracketExpression.
-    def exitSquareBracketExpression(
-        self, ctx: JavaParser.SquareBracketExpressionContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#CastExpression.
-    def enterCastExpression(self, ctx: JavaParser.CastExpressionContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#CastExpression.
-    def exitCastExpression(self, ctx: JavaParser.CastExpressionContext):
+    # Exit a parse tree produced by JavaParser#yieldStatement.
+    def exitYieldStatement(self, ctx: JavaParser.YieldStatementContext):
         pass
 
     # Enter a parse tree produced by JavaParser#pattern.
@@ -1027,6 +1749,412 @@ class JavaParserListener(ParseTreeListener):
 
     # Exit a parse tree produced by JavaParser#pattern.
     def exitPattern(self, ctx: JavaParser.PatternContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#typePattern.
+    def enterTypePattern(self, ctx: JavaParser.TypePatternContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#typePattern.
+    def exitTypePattern(self, ctx: JavaParser.TypePatternContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#expression.
+    def enterExpression(self, ctx: JavaParser.ExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#expression.
+    def exitExpression(self, ctx: JavaParser.ExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#primary.
+    def enterPrimary(self, ctx: JavaParser.PrimaryContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#primary.
+    def exitPrimary(self, ctx: JavaParser.PrimaryContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#primaryNoNewArray.
+    def enterPrimaryNoNewArray(self, ctx: JavaParser.PrimaryNoNewArrayContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#primaryNoNewArray.
+    def exitPrimaryNoNewArray(self, ctx: JavaParser.PrimaryNoNewArrayContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#pNNA.
+    def enterPNNA(self, ctx: JavaParser.PNNAContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#pNNA.
+    def exitPNNA(self, ctx: JavaParser.PNNAContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classLiteral.
+    def enterClassLiteral(self, ctx: JavaParser.ClassLiteralContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classLiteral.
+    def exitClassLiteral(self, ctx: JavaParser.ClassLiteralContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classInstanceCreationExpression.
+    def enterClassInstanceCreationExpression(
+        self, ctx: JavaParser.ClassInstanceCreationExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classInstanceCreationExpression.
+    def exitClassInstanceCreationExpression(
+        self, ctx: JavaParser.ClassInstanceCreationExpressionContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#unqualifiedClassInstanceCreationExpression.
+    def enterUnqualifiedClassInstanceCreationExpression(
+        self, ctx: JavaParser.UnqualifiedClassInstanceCreationExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#unqualifiedClassInstanceCreationExpression.
+    def exitUnqualifiedClassInstanceCreationExpression(
+        self, ctx: JavaParser.UnqualifiedClassInstanceCreationExpressionContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#classOrInterfaceTypeToInstantiate.
+    def enterClassOrInterfaceTypeToInstantiate(
+        self, ctx: JavaParser.ClassOrInterfaceTypeToInstantiateContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#classOrInterfaceTypeToInstantiate.
+    def exitClassOrInterfaceTypeToInstantiate(
+        self, ctx: JavaParser.ClassOrInterfaceTypeToInstantiateContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#typeArgumentsOrDiamond.
+    def enterTypeArgumentsOrDiamond(
+        self, ctx: JavaParser.TypeArgumentsOrDiamondContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#typeArgumentsOrDiamond.
+    def exitTypeArgumentsOrDiamond(self, ctx: JavaParser.TypeArgumentsOrDiamondContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#arrayCreationExpression.
+    def enterArrayCreationExpression(
+        self, ctx: JavaParser.ArrayCreationExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#arrayCreationExpression.
+    def exitArrayCreationExpression(
+        self, ctx: JavaParser.ArrayCreationExpressionContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#arrayCreationExpressionWithoutInitializer.
+    def enterArrayCreationExpressionWithoutInitializer(
+        self, ctx: JavaParser.ArrayCreationExpressionWithoutInitializerContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#arrayCreationExpressionWithoutInitializer.
+    def exitArrayCreationExpressionWithoutInitializer(
+        self, ctx: JavaParser.ArrayCreationExpressionWithoutInitializerContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#arrayCreationExpressionWithInitializer.
+    def enterArrayCreationExpressionWithInitializer(
+        self, ctx: JavaParser.ArrayCreationExpressionWithInitializerContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#arrayCreationExpressionWithInitializer.
+    def exitArrayCreationExpressionWithInitializer(
+        self, ctx: JavaParser.ArrayCreationExpressionWithInitializerContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#dimExprs.
+    def enterDimExprs(self, ctx: JavaParser.DimExprsContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#dimExprs.
+    def exitDimExprs(self, ctx: JavaParser.DimExprsContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#dimExpr.
+    def enterDimExpr(self, ctx: JavaParser.DimExprContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#dimExpr.
+    def exitDimExpr(self, ctx: JavaParser.DimExprContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#arrayAccess.
+    def enterArrayAccess(self, ctx: JavaParser.ArrayAccessContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#arrayAccess.
+    def exitArrayAccess(self, ctx: JavaParser.ArrayAccessContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#fieldAccess.
+    def enterFieldAccess(self, ctx: JavaParser.FieldAccessContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#fieldAccess.
+    def exitFieldAccess(self, ctx: JavaParser.FieldAccessContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#methodInvocation.
+    def enterMethodInvocation(self, ctx: JavaParser.MethodInvocationContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#methodInvocation.
+    def exitMethodInvocation(self, ctx: JavaParser.MethodInvocationContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#argumentList.
+    def enterArgumentList(self, ctx: JavaParser.ArgumentListContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#argumentList.
+    def exitArgumentList(self, ctx: JavaParser.ArgumentListContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#methodReference.
+    def enterMethodReference(self, ctx: JavaParser.MethodReferenceContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#methodReference.
+    def exitMethodReference(self, ctx: JavaParser.MethodReferenceContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#postfixExpression.
+    def enterPostfixExpression(self, ctx: JavaParser.PostfixExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#postfixExpression.
+    def exitPostfixExpression(self, ctx: JavaParser.PostfixExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#pfE.
+    def enterPfE(self, ctx: JavaParser.PfEContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#pfE.
+    def exitPfE(self, ctx: JavaParser.PfEContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#postIncrementExpression.
+    def enterPostIncrementExpression(
+        self, ctx: JavaParser.PostIncrementExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#postIncrementExpression.
+    def exitPostIncrementExpression(
+        self, ctx: JavaParser.PostIncrementExpressionContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#postDecrementExpression.
+    def enterPostDecrementExpression(
+        self, ctx: JavaParser.PostDecrementExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#postDecrementExpression.
+    def exitPostDecrementExpression(
+        self, ctx: JavaParser.PostDecrementExpressionContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#unaryExpression.
+    def enterUnaryExpression(self, ctx: JavaParser.UnaryExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#unaryExpression.
+    def exitUnaryExpression(self, ctx: JavaParser.UnaryExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#preIncrementExpression.
+    def enterPreIncrementExpression(
+        self, ctx: JavaParser.PreIncrementExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#preIncrementExpression.
+    def exitPreIncrementExpression(self, ctx: JavaParser.PreIncrementExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#preDecrementExpression.
+    def enterPreDecrementExpression(
+        self, ctx: JavaParser.PreDecrementExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#preDecrementExpression.
+    def exitPreDecrementExpression(self, ctx: JavaParser.PreDecrementExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#unaryExpressionNotPlusMinus.
+    def enterUnaryExpressionNotPlusMinus(
+        self, ctx: JavaParser.UnaryExpressionNotPlusMinusContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#unaryExpressionNotPlusMinus.
+    def exitUnaryExpressionNotPlusMinus(
+        self, ctx: JavaParser.UnaryExpressionNotPlusMinusContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#castExpression.
+    def enterCastExpression(self, ctx: JavaParser.CastExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#castExpression.
+    def exitCastExpression(self, ctx: JavaParser.CastExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#multiplicativeExpression.
+    def enterMultiplicativeExpression(
+        self, ctx: JavaParser.MultiplicativeExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#multiplicativeExpression.
+    def exitMultiplicativeExpression(
+        self, ctx: JavaParser.MultiplicativeExpressionContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#additiveExpression.
+    def enterAdditiveExpression(self, ctx: JavaParser.AdditiveExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#additiveExpression.
+    def exitAdditiveExpression(self, ctx: JavaParser.AdditiveExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#shiftExpression.
+    def enterShiftExpression(self, ctx: JavaParser.ShiftExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#shiftExpression.
+    def exitShiftExpression(self, ctx: JavaParser.ShiftExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#relationalExpression.
+    def enterRelationalExpression(self, ctx: JavaParser.RelationalExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#relationalExpression.
+    def exitRelationalExpression(self, ctx: JavaParser.RelationalExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#equalityExpression.
+    def enterEqualityExpression(self, ctx: JavaParser.EqualityExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#equalityExpression.
+    def exitEqualityExpression(self, ctx: JavaParser.EqualityExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#andExpression.
+    def enterAndExpression(self, ctx: JavaParser.AndExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#andExpression.
+    def exitAndExpression(self, ctx: JavaParser.AndExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#exclusiveOrExpression.
+    def enterExclusiveOrExpression(self, ctx: JavaParser.ExclusiveOrExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#exclusiveOrExpression.
+    def exitExclusiveOrExpression(self, ctx: JavaParser.ExclusiveOrExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#inclusiveOrExpression.
+    def enterInclusiveOrExpression(self, ctx: JavaParser.InclusiveOrExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#inclusiveOrExpression.
+    def exitInclusiveOrExpression(self, ctx: JavaParser.InclusiveOrExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#conditionalAndExpression.
+    def enterConditionalAndExpression(
+        self, ctx: JavaParser.ConditionalAndExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#conditionalAndExpression.
+    def exitConditionalAndExpression(
+        self, ctx: JavaParser.ConditionalAndExpressionContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#conditionalOrExpression.
+    def enterConditionalOrExpression(
+        self, ctx: JavaParser.ConditionalOrExpressionContext
+    ):
+        pass
+
+    # Exit a parse tree produced by JavaParser#conditionalOrExpression.
+    def exitConditionalOrExpression(
+        self, ctx: JavaParser.ConditionalOrExpressionContext
+    ):
+        pass
+
+    # Enter a parse tree produced by JavaParser#conditionalExpression.
+    def enterConditionalExpression(self, ctx: JavaParser.ConditionalExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#conditionalExpression.
+    def exitConditionalExpression(self, ctx: JavaParser.ConditionalExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#assignmentExpression.
+    def enterAssignmentExpression(self, ctx: JavaParser.AssignmentExpressionContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#assignmentExpression.
+    def exitAssignmentExpression(self, ctx: JavaParser.AssignmentExpressionContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#assignment.
+    def enterAssignment(self, ctx: JavaParser.AssignmentContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#assignment.
+    def exitAssignment(self, ctx: JavaParser.AssignmentContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#leftHandSide.
+    def enterLeftHandSide(self, ctx: JavaParser.LeftHandSideContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#leftHandSide.
+    def exitLeftHandSide(self, ctx: JavaParser.LeftHandSideContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#assignmentOperator.
+    def enterAssignmentOperator(self, ctx: JavaParser.AssignmentOperatorContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#assignmentOperator.
+    def exitAssignmentOperator(self, ctx: JavaParser.AssignmentOperatorContext):
         pass
 
     # Enter a parse tree produced by JavaParser#lambdaExpression.
@@ -1045,20 +2173,36 @@ class JavaParserListener(ParseTreeListener):
     def exitLambdaParameters(self, ctx: JavaParser.LambdaParametersContext):
         pass
 
+    # Enter a parse tree produced by JavaParser#lambdaParameterList.
+    def enterLambdaParameterList(self, ctx: JavaParser.LambdaParameterListContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#lambdaParameterList.
+    def exitLambdaParameterList(self, ctx: JavaParser.LambdaParameterListContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#lambdaParameter.
+    def enterLambdaParameter(self, ctx: JavaParser.LambdaParameterContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#lambdaParameter.
+    def exitLambdaParameter(self, ctx: JavaParser.LambdaParameterContext):
+        pass
+
+    # Enter a parse tree produced by JavaParser#lambdaParameterType.
+    def enterLambdaParameterType(self, ctx: JavaParser.LambdaParameterTypeContext):
+        pass
+
+    # Exit a parse tree produced by JavaParser#lambdaParameterType.
+    def exitLambdaParameterType(self, ctx: JavaParser.LambdaParameterTypeContext):
+        pass
+
     # Enter a parse tree produced by JavaParser#lambdaBody.
     def enterLambdaBody(self, ctx: JavaParser.LambdaBodyContext):
         pass
 
     # Exit a parse tree produced by JavaParser#lambdaBody.
     def exitLambdaBody(self, ctx: JavaParser.LambdaBodyContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#primary.
-    def enterPrimary(self, ctx: JavaParser.PrimaryContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#primary.
-    def exitPrimary(self, ctx: JavaParser.PrimaryContext):
         pass
 
     # Enter a parse tree produced by JavaParser#switchExpression.
@@ -1069,182 +2213,12 @@ class JavaParserListener(ParseTreeListener):
     def exitSwitchExpression(self, ctx: JavaParser.SwitchExpressionContext):
         pass
 
-    # Enter a parse tree produced by JavaParser#switchLabeledRule.
-    def enterSwitchLabeledRule(self, ctx: JavaParser.SwitchLabeledRuleContext):
+    # Enter a parse tree produced by JavaParser#constantExpression.
+    def enterConstantExpression(self, ctx: JavaParser.ConstantExpressionContext):
         pass
 
-    # Exit a parse tree produced by JavaParser#switchLabeledRule.
-    def exitSwitchLabeledRule(self, ctx: JavaParser.SwitchLabeledRuleContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#guardedPattern.
-    def enterGuardedPattern(self, ctx: JavaParser.GuardedPatternContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#guardedPattern.
-    def exitGuardedPattern(self, ctx: JavaParser.GuardedPatternContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#switchRuleOutcome.
-    def enterSwitchRuleOutcome(self, ctx: JavaParser.SwitchRuleOutcomeContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#switchRuleOutcome.
-    def exitSwitchRuleOutcome(self, ctx: JavaParser.SwitchRuleOutcomeContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#classType.
-    def enterClassType(self, ctx: JavaParser.ClassTypeContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#classType.
-    def exitClassType(self, ctx: JavaParser.ClassTypeContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#creator.
-    def enterCreator(self, ctx: JavaParser.CreatorContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#creator.
-    def exitCreator(self, ctx: JavaParser.CreatorContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#createdName.
-    def enterCreatedName(self, ctx: JavaParser.CreatedNameContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#createdName.
-    def exitCreatedName(self, ctx: JavaParser.CreatedNameContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#innerCreator.
-    def enterInnerCreator(self, ctx: JavaParser.InnerCreatorContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#innerCreator.
-    def exitInnerCreator(self, ctx: JavaParser.InnerCreatorContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#arrayCreatorRest.
-    def enterArrayCreatorRest(self, ctx: JavaParser.ArrayCreatorRestContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#arrayCreatorRest.
-    def exitArrayCreatorRest(self, ctx: JavaParser.ArrayCreatorRestContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#classCreatorRest.
-    def enterClassCreatorRest(self, ctx: JavaParser.ClassCreatorRestContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#classCreatorRest.
-    def exitClassCreatorRest(self, ctx: JavaParser.ClassCreatorRestContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#explicitGenericInvocation.
-    def enterExplicitGenericInvocation(
-        self, ctx: JavaParser.ExplicitGenericInvocationContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#explicitGenericInvocation.
-    def exitExplicitGenericInvocation(
-        self, ctx: JavaParser.ExplicitGenericInvocationContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#typeArgumentsOrDiamond.
-    def enterTypeArgumentsOrDiamond(
-        self, ctx: JavaParser.TypeArgumentsOrDiamondContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#typeArgumentsOrDiamond.
-    def exitTypeArgumentsOrDiamond(self, ctx: JavaParser.TypeArgumentsOrDiamondContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#nonWildcardTypeArgumentsOrDiamond.
-    def enterNonWildcardTypeArgumentsOrDiamond(
-        self, ctx: JavaParser.NonWildcardTypeArgumentsOrDiamondContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#nonWildcardTypeArgumentsOrDiamond.
-    def exitNonWildcardTypeArgumentsOrDiamond(
-        self, ctx: JavaParser.NonWildcardTypeArgumentsOrDiamondContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#nonWildcardTypeArguments.
-    def enterNonWildcardTypeArguments(
-        self, ctx: JavaParser.NonWildcardTypeArgumentsContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#nonWildcardTypeArguments.
-    def exitNonWildcardTypeArguments(
-        self, ctx: JavaParser.NonWildcardTypeArgumentsContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#typeList.
-    def enterTypeList(self, ctx: JavaParser.TypeListContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#typeList.
-    def exitTypeList(self, ctx: JavaParser.TypeListContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#typeType.
-    def enterTypeType(self, ctx: JavaParser.TypeTypeContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#typeType.
-    def exitTypeType(self, ctx: JavaParser.TypeTypeContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#primitiveType.
-    def enterPrimitiveType(self, ctx: JavaParser.PrimitiveTypeContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#primitiveType.
-    def exitPrimitiveType(self, ctx: JavaParser.PrimitiveTypeContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#typeArguments.
-    def enterTypeArguments(self, ctx: JavaParser.TypeArgumentsContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#typeArguments.
-    def exitTypeArguments(self, ctx: JavaParser.TypeArgumentsContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#superSuffix.
-    def enterSuperSuffix(self, ctx: JavaParser.SuperSuffixContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#superSuffix.
-    def exitSuperSuffix(self, ctx: JavaParser.SuperSuffixContext):
-        pass
-
-    # Enter a parse tree produced by JavaParser#explicitGenericInvocationSuffix.
-    def enterExplicitGenericInvocationSuffix(
-        self, ctx: JavaParser.ExplicitGenericInvocationSuffixContext
-    ):
-        pass
-
-    # Exit a parse tree produced by JavaParser#explicitGenericInvocationSuffix.
-    def exitExplicitGenericInvocationSuffix(
-        self, ctx: JavaParser.ExplicitGenericInvocationSuffixContext
-    ):
-        pass
-
-    # Enter a parse tree produced by JavaParser#arguments.
-    def enterArguments(self, ctx: JavaParser.ArgumentsContext):
-        pass
-
-    # Exit a parse tree produced by JavaParser#arguments.
-    def exitArguments(self, ctx: JavaParser.ArgumentsContext):
+    # Exit a parse tree produced by JavaParser#constantExpression.
+    def exitConstantExpression(self, ctx: JavaParser.ConstantExpressionContext):
         pass
 
 
