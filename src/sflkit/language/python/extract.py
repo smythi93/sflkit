@@ -44,9 +44,16 @@ class PythonVarExtract(ast.NodeVisitor, VariableExtract):
                     variables += self.visit(value)
         return OrderedSet(variables)
 
+    def check_Attribute(self, node: ast.expr) -> bool:
+        if isinstance(node, ast.Attribute):
+            if isinstance(node.value, ast.Name):
+                return True
+            return self.check_Attribute(node.value)
+        return False
+
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         variables = self.visit(node.value)
-        if isinstance(node.value, ast.Name):
+        if self.check_Attribute(node):
             return (variables if self.use else {}) | OrderedSet(
                 f"{variable}.{node.attr}"
                 for variable in variables
@@ -151,7 +158,7 @@ class PythonConditionExtract(ast.NodeVisitor, ConditionExtract):
         self.file = factory.file
         self.factory = factory
 
-    def __get_tmp_var(self, val: ast.AST, expression: str):
+    def __get_tmp_var(self, val: ast.expr, expression: str):
         var = self.factory.tmp_generator.get_var_name()
         e = ConditionEvent(
             self.file,

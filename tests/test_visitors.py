@@ -1,6 +1,9 @@
 import ast
 import unittest
 
+import jast
+
+from sflkit.language.java.extract import JavaVarExtract
 from sflkit.language.python.extract import PythonVarExtract
 
 
@@ -47,3 +50,50 @@ class VarExtractionTest(unittest.TestCase):
     def test_arguments(self):
         self._test_extract("def f(x=y):\n    pass", ["x"], ["y"], use=False)
         self._test_extract("f(x=y)", ["y"], ["x"])
+
+    def test_attribute(self):
+        self._test_extract("x.y", ["x", "x.y"], ["y"])
+        self._test_extract("x.y.z", ["x", "x.y", "x.y.z"], ["y", "z", "y.z"])
+        self._test_extract("x.y", ["x.y"], ["x", "y"], use=False)
+        self._test_extract("x.y.z", ["x.y.z"], ["x", "x.y", "y", "z", "y.z"], use=False)
+        self._test_extract(
+            "x.f().z", ["x", "x.f"], ["f()", "z", "x.f()", "x.f().z", "f().z"]
+        )
+
+
+class JavaVarExtractionTest(unittest.TestCase):
+    def _test_extract(self, expr: str, ins, outs, use=True, mode=jast.ParseMode.EXPR):
+        visitor = JavaVarExtract(use=use)
+        tree = jast.parse(expr, mode=mode)
+        variables = visitor.visit(tree)
+        for i in ins:
+            self.assertIn(i, variables)
+        for o in outs:
+            self.assertNotIn(o, variables)
+
+    def test_lambda(self):
+        self._test_extract("d -> d + r", ["r"], ["d"])
+        self._test_extract("d -> d.name", [], ["d", "d.name"])
+
+    def test_arguments(self):
+        self._test_extract(
+            "int f(int x){}", ["x"], [], use=False, mode=jast.ParseMode.DECL
+        )
+        self._test_extract("x = f(y)", ["y"], ["x"])
+
+    def test_assign(self):
+        self._test_extract("x = y", ["y"], ["x"])
+        self._test_extract("x = y + z", ["y", "z"], ["x"])
+        self._test_extract("x = y", ["x"], ["y"], use=False)
+        self._test_extract("x = y + z", ["x"], ["y", "z"], use=False)
+        self._test_extract("x[y] = z", ["y", "z"], ["x"])
+        self._test_extract("x[y] = z", ["x"], ["y", "z"], use=False)
+
+    def test_attribute(self):
+        self._test_extract("x.y", ["x", "x.y"], ["y"])
+        self._test_extract("x.y.z", ["x", "x.y", "x.y.z"], ["y", "z", "y.z"])
+        self._test_extract("x.y", ["x.y"], ["x", "y"], use=False)
+        self._test_extract("x.y.z", ["x.y.z"], ["x", "x.y", "y", "z", "y.z"], use=False)
+        self._test_extract(
+            "x.f().z", ["x"], ["f()", "z", "x.f", "x.f()", "x.f().z", "f().z", "x.z"]
+        )
