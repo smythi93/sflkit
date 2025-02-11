@@ -182,7 +182,8 @@ class JavaConditionExtract(jast.JNodeVisitor, ConditionExtract):
                                 init=val,
                             )
                         ],
-                    )
+                    ),
+                    self.factory.get_event_call(e),
                 ]
             ),
             [e],

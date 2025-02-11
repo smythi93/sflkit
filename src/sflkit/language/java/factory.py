@@ -2,7 +2,6 @@ import abc
 from typing import List, Dict
 
 import jast
-from pure_eval.utils import is_standard_types
 
 from sflkit.language.java.extract import ReturnFinder
 from sflkit.language.meta import MetaVisitor, IDGenerator, TmpGenerator, Injection
@@ -18,6 +17,14 @@ from sflkitlib.events.event import (
     LoopHitEvent,
     LoopEndEvent,
     UseEvent,
+    ConditionEvent,
+    LenEvent,
+    TestStartEvent,
+    TestEndEvent,
+    TestLineEvent,
+    TestDefEvent,
+    TestUseEvent,
+    TestAssertEvent,
 )
 
 java_lib_name = jast.identifier("JLib")
@@ -35,12 +42,20 @@ def get_call(function: jast.identifier, *args) -> jast.Expr:
     )
 
 
-def java_lib_get_id(*args) -> jast.Expr:
-    return get_call(jast.identifier("getId"), *args)
+def java_lib_get_id(*args) -> jast.expr:
+    return get_call(jast.identifier("getId"), *args).value
 
 
-def java_lib_get_type(*args) -> jast.Expr:
-    return get_call(jast.identifier("getType"), *args)
+def java_lib_get_type(*args) -> jast.expr:
+    return get_call(jast.identifier("getType"), *args).value
+
+
+def java_lib_get_len(*args) -> jast.expr:
+    return get_call(jast.identifier("getLen"), *args).value
+
+
+def java_lib_has_len(*args) -> jast.expr:
+    return get_call(jast.identifier("hasLen"), *args).value
 
 
 class JavaEventFactory(MetaVisitor, jast.JNodeVisitor, abc.ABC):
@@ -79,10 +94,11 @@ class LineEventFactory(JavaEventFactory):
     def get_function(self) -> jast.identifier:
         return jast.identifier("addLineEvent")
 
+    def get_event(self, node: jast.stmt):
+        return LineEvent(self.file, node.lineno, self.event_id_generator.get_next_id())
+
     def visit_line(self, node: jast.stmt) -> Injection:
-        line_event = LineEvent(
-            self.file, node.lineno, self.event_id_generator.get_next_id()
-        )
+        line_event = self.get_event(node)
         return Injection(pre=[self.get_event_call(line_event)], events=[line_event])
 
     def generic_visit(self, node):
@@ -653,3 +669,214 @@ class UseEventFactory(JavaEventFactory):
 
     def visit_Synch(self, node: jast.Synch):
         return self.visit_use(node.lock)
+
+
+class ConditionEventFactory(JavaEventFactory):
+    def get_function(self) -> jast.identifier:
+        return jast.identifier("addConditionEvent")
+
+    def get_event_call(self, event: ConditionEvent):
+        call = super().get_event_call(event)
+        assert isinstance(call.value, jast.Member)
+        assert isinstance(call.value.member, jast.Call)
+        call.value.member.args.append(jast.Name(id=event.tmp_var))
+        return call
+
+    def visit_condition(self, node: jast.If | jast.While | jast.DoWhile | jast.For):
+        if node.test:
+            self.condition_extract.setup(self)
+            var, var_use, var_assign, events = self.condition_extract.visit(node.test)
+            return Injection(
+                pre=[var_assign],
+                assign=var_use,
+                events=events,
+            )
+        return Injection()
+
+    def visit_If(self, node: jast.If):
+        return self.visit_condition(node)
+
+    def visit_While(self, node: jast.While):
+        injection = self.visit_condition(node)
+        injection.body_last = injection.pre
+        return injection
+
+    def visit_DoWhile(self, node: jast.DoWhile):
+        injection = self.visit_condition(node)
+        injection.body_last = injection.pre
+        injection.pre = []
+        return injection
+
+    def visit_For(self, node: jast.For):
+        injection = self.visit_condition(node)
+        injection.body_last = injection.pre
+        return injection
+
+
+class LenEventFactory(DefEventFactory):
+    def get_function(self) -> jast.identifier:
+        return jast.identifier("addLenEvent")
+
+    def get_event_call(self, event: LenEvent):
+        call = super().get_event_call(event)
+        assert isinstance(call.value, jast.Member)
+        assert isinstance(call.value.member, jast.Call)
+        call.value.member.args.append(
+            java_lib_get_id(jast.Name(id=jast.identifier(event.var)))
+        )
+        call.value.member.args.append(
+            java_lib_get_len(jast.Name(id=jast.identifier(event.var)))
+        )
+        return jast.If(
+            test=java_lib_has_len(jast.Name(id=jast.identifier(event.var))),
+            body=[call],
+        )
+
+    def get_event(self, node: jast.stmt | jast.declaration, var: str):
+        return LenEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id(), var
+        )
+
+
+def is_test(mod: jast.modifier):
+    return (
+        isinstance(mod, jast.Annotation)
+        and len(mod.name.identifiers) == 1
+        and mod.name.identifiers[0] == "Test"
+    )
+
+
+class TestStartEventFactory(FunctionEventFactory):
+    def get_function(self) -> jast.identifier:
+        return jast.identifier("addTestStartEvent")
+
+    def visit_Method(self, node: jast.Method):
+        if any(map(is_test, node.modifiers)):
+            test_start_event = TestStartEvent(
+                self.file,
+                node.lineno,
+                self.event_id_generator.get_next_id(),
+                node.id.value,
+                self.get_function_id(node),
+            )
+            return Injection(
+                body=[
+                    self.get_event_call(test_start_event),
+                ],
+                events=[test_start_event],
+            )
+        return Injection()
+
+
+class TestEndEventFactory(FunctionEventFactory):
+    def get_function(self) -> jast.identifier:
+        return jast.identifier("addTestEndEvent")
+
+    def visit_Method(self, node: jast.Method):
+        if any(map(is_test, node.modifiers)):
+            test_end_event = TestEndEvent(
+                self.file,
+                node.lineno,
+                self.get_function_event_id(node),
+                node.id.value,
+                self.get_function_id(node),
+            )
+            return Injection(
+                finalbody=[
+                    self.get_event_call(test_end_event),
+                ],
+                events=[test_end_event],
+            )
+        return Injection()
+
+
+class TestEventFactory(JavaEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        ignore_inner: bool = False,
+        **kwargs,
+    ):
+        super().__init__(
+            language, event_id_generator, function_id_generator, tmp_generator, **kwargs
+        )
+        self.ignore_inner = ignore_inner
+        self.functions = 0
+        self.classes = 0
+
+    def enter_function(self, function):
+        self.functions += 1
+
+    def exit_function(self, function):
+        self.functions -= 1
+
+    def enter_class(self, class_):
+        self.classes += 1
+
+    def exit_class(self, class_):
+        self.classes -= 1
+
+    def visit(self, node):
+        if self.ignore_inner and (self.functions > 1 or self.classes > 1):
+            return Injection()
+        return super().visit(node)
+
+
+class TestLineEventFactory(LineEventFactory, TestEventFactory):
+    def get_function(self) -> jast.identifier:
+        return jast.identifier("addTestLineEvent")
+
+    def get_event(self, node: jast.stmt):
+        return TestLineEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id()
+        )
+
+
+class TestDefEventFactory(DefEventFactory, TestEventFactory):
+    def get_function(self) -> jast.identifier:
+        return jast.identifier("addTestDefEvent")
+
+    def get_event(self, node: jast.stmt | jast.declaration, var: str):
+        return TestDefEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id(), var
+        )
+
+
+class TestUseEventFactory(UseEventFactory, TestEventFactory):
+    def get_function(self) -> jast.identifier:
+        return jast.identifier("addTestUseEvent")
+
+    def get_event(self, node: jast.stmt | jast.declaration, var: str):
+        return TestUseEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id(), var
+        )
+
+
+class TestAssertEventFactory(JavaEventFactory, TestEventFactory):
+    def get_function(self) -> jast.identifier:
+        return jast.identifier("addTestAssertEvent")
+
+    def get_event(self, node: jast.stmt):
+        return TestAssertEvent(
+            self.file, node.lineno, self.event_id_generator.get_next_id()
+        )
+
+    def visit_Assert(self, node):
+        assert_event = self.get_event(node)
+        return Injection(
+            pre=[self.get_event_call(assert_event)],
+            events=[assert_event],
+        )
+
+    def visit_Expr(self, node):
+        call = node.value
+        if isinstance(call, jast.Call) and "assert" in call.id:
+            assert_event = self.get_event(node)
+            return Injection(
+                pre=[self.get_event_call(assert_event)],
+                events=[assert_event],
+            )
+        return Injection()

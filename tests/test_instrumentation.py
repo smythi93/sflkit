@@ -88,7 +88,7 @@ class TestInstrumentation(BaseTest):
                 predicates="line",
                 working=BaseTest.TEST_DIR,
                 exclude=r"exclude_dir,exclude\.py,excluded_file,"
-                + os.path.join("package", r"exclude.py"),
+                + os.path.join("package", r"exclude\.py"),
             )
         )
 
