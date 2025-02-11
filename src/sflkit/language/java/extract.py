@@ -145,6 +145,11 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def visit_Call(self, node):
         return self.visit(node.args)
 
+    def visit_declarator(self, node):
+        if self.use and node.init:
+            return self.visit(node.init)
+        return self.default_result()
+
 
 class JavaConditionExtract(jast.JNodeVisitor, ConditionExtract):
     def __init__(self):
@@ -237,3 +242,14 @@ class JavaConditionExtract(jast.JNodeVisitor, ConditionExtract):
 
     def visit_Expression(self, node):
         return self.visit(node.value)
+
+
+class ReturnFinder(jast.JNodeVisitor):
+    def default_result(self):
+        return False
+
+    def aggregate_result(self, aggregate, result):
+        return aggregate or result
+
+    def visit_Return(self, node):
+        return True

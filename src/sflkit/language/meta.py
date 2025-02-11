@@ -16,17 +16,25 @@ class Injection:
         error: List = None,
         post: List = None,
         assign: Any = None,
+        pre_block: List = None,
+        post_block: List = None,
+        static_pre_block: List = None,
+        static_post_block: List = None,
         events: List[Event] = None,
     ):
-        self.pre = pre if pre else list()
-        self.body = body if body else list()
-        self.body_last = body_last if body_last else list()
-        self.orelse = orelse if orelse else list()
-        self.finalbody = finalbody if finalbody else list()
-        self.error = error if error else list()
-        self.post = post if post else list()
+        self.pre = pre or []
+        self.body = body or []
+        self.body_last = body_last or []
+        self.orelse = orelse or []
+        self.finalbody = finalbody or []
+        self.error = error or []
+        self.post = post or []
         self.assign = assign
-        self.events = events if events else list()
+        self.pre_block = pre_block or []
+        self.post_block = post_block or []
+        self.static_pre_block = static_pre_block or []
+        self.static_post_block = static_post_block or []
+        self.events = events or []
 
     def __add__(self, other):
         if isinstance(other, Injection):
@@ -39,6 +47,10 @@ class Injection:
                 self.error + other.error,
                 self.post + other.post,
                 self.assign if self.assign else other.assign,
+                self.pre_block + other.pre_block,
+                self.post_block + other.post_block,
+                self.static_pre_block + other.static_pre_block,
+                self.static_post_block + other.static_post_block,
                 self.events + other.events,
             )
         else:
@@ -91,6 +103,12 @@ class MetaVisitor(ABC):
         pass
 
     def exit_function(self, function):
+        pass
+
+    def enter_block(self, block):
+        pass
+
+    def exit_block(self, block):
         pass
 
     def enter_class(self, class_):
@@ -162,6 +180,14 @@ class CombinationVisitor(MetaVisitor):
     def exit_function(self, function):
         for visitor in self.visitors:
             visitor.exit_function(function)
+
+    def enter_block(self, block):
+        for visitor in self.visitors:
+            visitor.enter_block(block)
+
+    def exit_block(self, block):
+        for visitor in self.visitors:
+            visitor.exit_block(block)
 
     def enter_class(self, class_):
         for visitor in self.visitors:
