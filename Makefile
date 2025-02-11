@@ -45,29 +45,9 @@ system-dev-tools:
 	$(SYSTEM_DEV_INSTALL) $(SYSTEM_DEV_TOOLS)
 
 
-## Parser
-
-JAVA_PARSER = src/sflkit/language/java/parser
-JAVA_LEXER_G4 = antlr/java/JavaLexer.g4
-JAVA_PARSER_G4 = antlr/java/JavaParser.g4
-
-JAVA_PARSERS = \
-	$(JAVA_PARSER)/JavaLexer.py \
-	$(JAVA_PARSER)/JavaParser.py \
-	$(JAVA_PARSER)/JavaParserVisitor.py\
-	$(JAVA_PARSER)/JavaParserListener.py
-
-java_parser: $(JAVA_PARSERS)
-
-$(JAVA_PARSERS) &: $(JAVA_LEXER_G4) $(JAVA_PARSER_G4)
-	$(ANTLR) -Dlanguage=Python3 -Xexact-output-dir -o $(JAVA_PARSER) \
-		-visitor $(JAVA_LEXER_G4) $(JAVA_PARSER_G4)
-	$(BLACK) src
-
-
 ## Test
 test tests:
-	$(PIP) install -e .
+	$(PIP) install -e ".[test]"
 	$(PYTEST) tests
 
 
