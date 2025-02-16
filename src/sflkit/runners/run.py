@@ -400,8 +400,9 @@ class PytestRunner(Runner):
             env=environ,
             cwd=directory,
         )
-        LOGGER.info(f"pytest collection finished with {process.returncode}")
+        LOGGER.debug(f"pytest collection finished with {process.returncode}")
         tests = PytestStructure.parse_tests(process.stdout.decode("utf8"))
+        LOGGER.debug(f"pytest collection found {len(tests)} tests")
         return self.normalize_paths(tests, file_bases, directory, root_dir)
 
     @staticmethod
@@ -439,10 +440,13 @@ class PytestRunner(Runner):
             if passing > 0 and failing == 0:
                 return TestResult.PASSING
             elif failing > 0 and passing == 0:
+                LOGGER.debug(output.decode("utf8"))
                 return TestResult.FAILING
             else:
+                LOGGER.debug(output.decode("utf8"))
                 return TestResult.UNDEFINED
         else:
+            LOGGER.debug(output.decode("utf8"))
             return TestResult.UNDEFINED
 
 
