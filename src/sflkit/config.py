@@ -62,7 +62,7 @@ class Config:
 
     def __init__(self, path: Union[str, configparser.ConfigParser] = None):
         self.target_path = None
-        self.language = None
+        self.language: Language = None
         self.predicates = list()
         self.factory = None
         self.test_factory = None

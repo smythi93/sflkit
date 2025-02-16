@@ -53,9 +53,9 @@ class VarExtractionTest(unittest.TestCase):
 
     def test_attribute(self):
         self._test_extract("x.y", ["x", "x.y"], ["y"])
-        self._test_extract("x.y.z", ["x", "x.y", "x.y.z"], ["y", "z", "y.z"])
+        self._test_extract("x.y.z", ["x", "x.y", "x.y.z"], ["y", "z", "y.z", "x.z"])
         self._test_extract("x.y", ["x.y"], ["x", "y"], use=False)
-        self._test_extract("x.y.z", ["x.y.z"], ["x", "x.y", "y", "z", "y.z"], use=False)
+        self._test_extract("x.y.z", ["x.y.z"], ["x", "x.y", "y", "z", "y.z", "x.z"], use=False)
         self._test_extract(
             "x.f().z", ["x", "x.f"], ["f()", "z", "x.f()", "x.f().z", "f().z"]
         )

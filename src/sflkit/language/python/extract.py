@@ -54,11 +54,8 @@ class PythonVarExtract(ast.NodeVisitor, VariableExtract):
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         variables = self.visit(node.value)
         if self.check_Attribute(node):
-            return (variables if self.use else {}) | OrderedSet(
-                f"{variable}.{node.attr}"
-                for variable in variables
-                if variable not in self.current_ignores
-            )
+            return (variables if self.use else {}) | OrderedSet([
+                ast.unparse(node)])
         else:
             return variables
 
