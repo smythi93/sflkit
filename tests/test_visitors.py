@@ -32,7 +32,7 @@ class VarExtractionTest(unittest.TestCase):
             "(d + r for d in ds if any(r for r in ds))", ["ds", "r"], ["d"]
         )
         self._test_extract(
-            '(d for d in ds if d.name == "test")', ["ds"], ["d", "d.name"]
+            '(d for d in ds if d.name == "test")', ["ds", "d.name"], ["d"]
         )
         self._test_extract("{d for d in ds}", ["ds"], ["d"])
         self._test_extract("{d for d in ds if any(r for r in ds)}", ["ds"], ["d", "r"])
@@ -40,7 +40,7 @@ class VarExtractionTest(unittest.TestCase):
             "{d + r for d in ds if any(r for r in ds)}", ["ds", "r"], ["d"]
         )
         self._test_extract(
-            '{d for d in ds if d.name == "test"}', ["ds"], ["d", "d.name"]
+            '{d for d in ds if d.name == "test"}', ["ds", "d.name"], ["d"]
         )
 
     def test_lambda(self):
