@@ -78,14 +78,14 @@ class FeatureBuilder(CombinationFactory):
     def hit(self, id_, *args, **kwargs):
         event: Event
         for a in self.analysis:
-            if isinstance(a, Spectrum):
-                feature = BinaryFeature(str(a), a)
+            if isinstance(a, Predicate):
+                feature = TertiaryFeature(str(a), a)
                 self.feature_vectors[id_].set_feature(
                     feature, self.map_evaluation(a, id_)
                 )
                 self.all_features.add(feature)
-            elif isinstance(a, Predicate):
-                feature = TertiaryFeature(str(a), a)
+            elif isinstance(a, Spectrum):
+                feature = BinaryFeature(str(a), a)
                 self.feature_vectors[id_].set_feature(
                     feature, self.map_evaluation(a, id_)
                 )

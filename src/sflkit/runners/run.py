@@ -401,6 +401,7 @@ class PytestRunner(Runner):
             cwd=directory,
         )
         LOGGER.debug(f"pytest collection finished with {process.returncode}")
+        LOGGER.debug(process.stderr.decode("utf8"))
         tests = PytestStructure.parse_tests(process.stdout.decode("utf8"))
         LOGGER.debug(f"pytest collection found {len(tests)} tests")
         return self.normalize_paths(tests, file_bases, directory, root_dir)
