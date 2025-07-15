@@ -1,10 +1,8 @@
 name: Release SFLKit to PyPi and GitHub Releases
 on:
   push:
-    tags:
-      - "v*"
     branches:
-      - main
+      - release
 
 permissions:
   contents: write
@@ -14,6 +12,11 @@ jobs:
     name: Release pushed tag
     runs-on: ubuntu-latest
     steps:
+      - name: Extract version from pyproject.toml
+        id: get_version
+        run: |
+          version=$(grep '^version =' pyproject.toml | sed -E "s/version = ['\"]([^'\"]+)['\"]/\\1/")
+          echo "version=$version" >> $GITHUB_OUTPUT
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -21,7 +24,7 @@ jobs:
         run: |
           gh release create "$tag" \
               --repo="$GITHUB_REPOSITORY" \
-              --title="${tag#v}" \
+              --title="${{ steps.get_version.outputs.version }}" \
               --generate-notes
   pypi-publish:
     name: Upload release to PyPI
@@ -32,6 +35,7 @@ jobs:
     permissions:
       id-token: write
     steps:
+      - uses: actions/checkout@v4
       - name: Build package distributions
         run: |
           pipx install build
