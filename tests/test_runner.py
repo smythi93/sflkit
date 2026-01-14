@@ -11,7 +11,7 @@ from sflkit.runners.run import (
     InputRunner,
     PytestStructure,
 )
-from tests.utils import BaseTest
+from utils import BaseTest
 
 
 class RunnerTests(BaseTest):

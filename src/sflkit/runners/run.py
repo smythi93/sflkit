@@ -6,6 +6,8 @@ import re
 import shutil
 import string
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Set
 
@@ -527,3 +529,98 @@ class InputRunner(Runner):
             process.stderr.decode("utf8"),
         )
         return result
+
+
+class ParallelPytestRunner(PytestRunner):
+    def __init__(
+        self,
+        re_filter: str = r".*",
+        timeout=DEFAULT_TIMEOUT,
+        set_python_path: bool = False,
+        workers: int = 4,
+    ):
+        super().__init__(re_filter, timeout, set_python_path)
+        self.workers = workers
+
+    def run_test(
+        self, directory: Path, test: str, environ: Environment = None
+    ) -> TestResult:
+        if environ is None:
+            environ = os.environ.copy()
+        environ["EVENTS_PATH"] = f"EVENTS_PATH_{threading.get_ident()}"
+        return super().run_test(
+            directory,
+            test,
+            environ=environ,
+        )
+
+    def run_tests(
+        self,
+        directory: Path,
+        output: Path,
+        tests: List[str],
+        environ: Environment = None,
+    ):
+        output.mkdir(parents=True, exist_ok=True)
+        for test_result in TestResult:
+            (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
+
+        def process_test(test: str):
+            tr = self.run_test(directory, test, environ=environ)
+            self.tests[tr].add(test)
+            if os.path.exists(directory / f"EVENTS_PATH_{threading.get_ident()}"):
+                shutil.move(
+                    directory / f"EVENTS_PATH_{threading.get_ident()}",
+                    output / tr.get_dir() / self.safe(test),
+                )
+
+        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+            executor.map(process_test, tests)
+
+
+# noinspection DuplicatedCode
+class ParallelInputRunner(InputRunner):
+    def __init__(
+        self,
+        access: os.PathLike,
+        passing: List[str | List[str]],
+        failing: List[str | List[str]],
+        workers: int = 4,
+    ):
+        super().__init__(access, passing, failing)
+        self.workers = workers
+
+    def run_test(
+        self, directory: Path, test_name: str, environ: Environment = None
+    ) -> TestResult:
+        if environ is None:
+            environ = os.environ.copy()
+        environ["EVENTS_PATH"] = f"EVENTS_PATH_{threading.get_ident()}"
+        return super().run_test(
+            directory,
+            test_name,
+            environ=environ,
+        )
+
+    def run_tests(
+        self,
+        directory: Path,
+        output: Path,
+        tests: List[str],
+        environ: Environment = None,
+    ):
+        output.mkdir(parents=True, exist_ok=True)
+        for test_result in TestResult:
+            (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
+
+        def process_test(test_name: str):
+            tr = self.run_test(directory, test_name, environ=environ)
+            self.tests[tr].add(test_name)
+            if os.path.exists(directory / f"EVENTS_PATH_{threading.get_ident()}"):
+                shutil.move(
+                    directory / f"EVENTS_PATH_{threading.get_ident()}",
+                    output / tr.get_dir() / self.safe(test_name),
+                )
+
+        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+            executor.map(process_test, tests)

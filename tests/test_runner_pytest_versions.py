@@ -13,7 +13,7 @@ from sflkit.events.event_file import EventFile
 from sflkit.runners.run import (
     PytestRunner,
 )
-from tests.utils import BaseTest
+from utils import BaseTest
 
 
 @unittest.skip
