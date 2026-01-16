@@ -581,18 +581,6 @@ class ParallelPytestRunner(PytestRunner):
     def use_parallel() -> Runner:
         return ParallelPytestRunner
 
-    def run_test(
-        self, directory: Path, test: str, environ: Environment = None
-    ) -> TestResult:
-        if environ is None:
-            environ = os.environ.copy()
-        environ["EVENTS_PATH"] = f"EVENTS_PATH_{threading.get_ident()}"
-        return super().run_test(
-            directory,
-            test,
-            environ=environ,
-        )
-
     def run_tests(
         self,
         directory: Path,
@@ -605,11 +593,17 @@ class ParallelPytestRunner(PytestRunner):
             (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
 
         def process_test(test: str):
+            if environ is None:
+                local_environ = os.environ.copy()
+            else:
+                local_environ = environ.copy()
+            events_path_name = f"EVENTS_PATH_{threading.get_ident()}"
+            local_environ["EVENTS_PATH"] = events_path_name
             tr = self.run_test(directory, test, environ=environ)
             self.tests[tr].add(test)
-            if os.path.exists(directory / f"EVENTS_PATH_{threading.get_ident()}"):
+            if os.path.exists(directory / events_path_name):
                 shutil.move(
-                    directory / f"EVENTS_PATH_{threading.get_ident()}",
+                    directory / events_path_name,
                     output / tr.get_dir() / self.safe(test),
                 )
             else:
@@ -640,18 +634,6 @@ class ParallelInputRunner(InputRunner):
     def use_parallel() -> Runner:
         return ParallelInputRunner
 
-    def run_test(
-        self, directory: Path, test_name: str, environ: Environment = None
-    ) -> TestResult:
-        if environ is None:
-            environ = os.environ.copy()
-        environ["EVENTS_PATH"] = f"EVENTS_PATH_{threading.get_ident()}"
-        return super().run_test(
-            directory,
-            test_name,
-            environ=environ,
-        )
-
     def run_tests(
         self,
         directory: Path,
@@ -666,23 +648,22 @@ class ParallelInputRunner(InputRunner):
         lock = threading.Lock()
 
         def process_test(test_name: str):
-            tr = self.run_test(directory, test_name, environ=environ)
+            if environ is None:
+                local_environ = os.environ.copy()
+            else:
+                local_environ = environ.copy()
+            events_path_name = f"EVENTS_PATH_{threading.get_ident()}"
+            local_environ["EVENTS_PATH"] = events_path_name
+            tr = self.run_test(directory, test_name, environ=local_environ)
             with lock:
                 self.tests[tr].add(test_name)
-            thread_id = threading.get_ident()
-            events_path = directory / f"EVENTS_PATH_{thread_id}"
-            if os.path.exists(events_path):
+            if os.path.exists(directory / events_path_name):
                 shutil.move(
-                    events_path,
+                    directory / events_path_name,
                     output / tr.get_dir() / self.safe(test_name),
                 )
             else:
-                # Check if any EVENTS_PATH files exist to help debug
-                events_files = list(directory.glob("EVENTS_PATH*"))
-                LOGGER.warning(
-                    f"EVENTS_PATH_{thread_id} not found for test {test_name} (result: {tr.value}). "
-                    f"Available EVENTS_PATH files: {[f.name for f in events_files]}"
-                )
+                LOGGER.warning(f"EVENTS_PATH not found for test {test_name}")
 
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
