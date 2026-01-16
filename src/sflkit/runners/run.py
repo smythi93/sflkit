@@ -599,7 +599,7 @@ class ParallelPytestRunner(PytestRunner):
                 local_environ = environ.copy()
             events_path_name = f"EVENTS_PATH_{threading.get_ident()}"
             local_environ["EVENTS_PATH"] = events_path_name
-            tr = self.run_test(directory, test, environ=environ)
+            tr = self.run_test(directory, test, environ=local_environ)
             self.tests[tr].add(test)
             if os.path.exists(directory / events_path_name):
                 shutil.move(
