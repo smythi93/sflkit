@@ -10,10 +10,15 @@ from sflkit.events.mapping import EventMapping
 from sflkitlib.events import event
 
 
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
 class BaseTest(unittest.TestCase):
-    TEST_RESOURCES = os.path.abspath(os.path.join("resources", "subjects", "tests"))
+    TEST_RESOURCES = os.path.abspath(
+        os.path.join(PROJECT_DIR, "resources", "subjects", "tests")
+    )
     TEST_MAPPING = "mapping.json"
-    TEST_DIR = "test_dir"
+    TEST_DIR = os.path.join(PROJECT_DIR, "test_dir")
     TEST_EVENTS = "test_events.json"
     TEST_PATH = "EVENTS_PATH"
     PYTHON = "python3"
@@ -33,6 +38,7 @@ class BaseTest(unittest.TestCase):
     TEST_WEIGHTS_DEF_USE = "test_weights_def_use"
     TEST_WEIGHTS_DEF_USES = "test_weights_def_uses"
     TEST_WEIGHTS_DISTANCES = "test_weights_distances"
+    TEST_PARALLEL = "test_parallel"
     DELTA = 0.0000001
 
     EVENTS = [

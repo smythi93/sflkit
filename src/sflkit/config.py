@@ -58,6 +58,8 @@ class Config:
 
     [test]
     runner=TestRunner                       : The testrunner class, None if no run needed
+    workers=number_of_workers               : Number of workers for parallel runners
+    thread_support=True|False               : Whether the subject uses threading
     """
 
     def __init__(self, path: Union[str, configparser.ConfigParser] = None):
@@ -82,6 +84,8 @@ class Config:
         self.instrument_test_files = list()
         self.instrument_working = None
         self.runner = None
+        self.workers = 1
+        self.thread_support = False
         self.mapping = None
         self.mapping_path = None
         self.events_id_generator = IDGenerator()
@@ -233,6 +237,23 @@ class Config:
                     test = config["test"]
                     if "runner" in test and test["runner"] != "None":
                         self.runner = RunnerType[test["runner"].upper()]
+                    if "workers" in test:
+                        self.workers = int(test["workers"])
+                        if (
+                            self.workers > 1
+                            and self.runner
+                            and not self.runner.name.startswith("PARALLEL_")
+                        ):
+                            self.runner = RunnerType["PARALLEL_" + self.runner.name]
+                    if "thread_support" in test:
+                        self.thread_support = test["thread_support"].lower() in [
+                            "True",
+                            "true",
+                            "1",
+                            "t",
+                            "y",
+                            "yes",
+                        ]
 
             except KeyError as e:
                 raise ConfigError(e)
@@ -258,6 +279,8 @@ class Config:
         instrument_test: Optional[List[str]] = None,
         instrument_working: Optional[str] = None,
         runner: Optional[RunnerType] = None,
+        workers: Optional[int] = 1,
+        thread_support: Optional[bool] = False,
     ):
         conf = Config()
         conf.target_path = target_path
@@ -280,6 +303,8 @@ class Config:
         conf.instrument_test = instrument_test or list()
         conf.instrument_working = instrument_working
         conf.runner = runner
+        conf.workers = workers or 1
+        conf.thread_support = thread_support
         if mapping:
             conf.mapping = mapping
             if mapping.path:
@@ -336,6 +361,8 @@ class Config:
         tests=None,
         test_files=None,
         runner=None,
+        workers=None,
+        thread_support=None,
     ):
         conf = configparser.ConfigParser()
         conf["target"] = dict()
@@ -375,6 +402,10 @@ class Config:
             conf["instrumentation"]["test_files"] = test_files
         if runner:
             conf["test"]["runner"] = runner
+        if workers:
+            conf["test"]["workers"] = str(workers)
+        if thread_support:
+            conf["test"]["thread_support"] = str(thread_support)
 
         return Config(conf)
 
@@ -425,6 +456,10 @@ class Config:
             )
         if self.runner:
             conf["test"]["runner"] = self.runner.name
+        if self.workers:
+            conf["test"]["workers"] = str(self.workers)
+        if self.thread_support:
+            conf["test"]["thread_support"] = str(self.thread_support)
 
         with open(path, "w") as fp:
             conf.write(fp)

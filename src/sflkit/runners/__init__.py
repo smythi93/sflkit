@@ -6,6 +6,7 @@ from sflkit.runners.run import (
     PytestRunner,
     UnittestRunner,
     InputRunner,
+    ParallelPytestRunner,
 )
 
 
@@ -17,3 +18,5 @@ class RunnerType(enum.Enum):
     PYTEST_RUNNER = PytestRunner
     UNITTEST_RUNNER = UnittestRunner
     INPUT_RUNNER = InputRunner
+    PARALLEL_PYTEST_RUNNER = ParallelPytestRunner
+    PARALLEL_UNITTEST_RUNNER = UnittestRunner
