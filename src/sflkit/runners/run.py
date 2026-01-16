@@ -108,6 +108,8 @@ class Runner(abc.ABC):
                     directory / "EVENTS_PATH",
                     output / test_result.get_dir() / self.safe(test),
                 )
+            else:
+                LOGGER.warning(f"EVENTS_PATH not found for test {test}")
         # Ensure all files are flushed to disk (helps with race conditions in CI)
         os.sync()
 
@@ -610,6 +612,8 @@ class ParallelPytestRunner(PytestRunner):
                     directory / f"EVENTS_PATH_{threading.get_ident()}",
                     output / tr.get_dir() / self.safe(test),
                 )
+            else:
+                LOGGER.warning(f"EVENTS_PATH not found for test {test}")
 
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
@@ -670,6 +674,8 @@ class ParallelInputRunner(InputRunner):
                     directory / f"EVENTS_PATH_{threading.get_ident()}",
                     output / tr.get_dir() / self.safe(test_name),
                 )
+            else:
+                LOGGER.warning(f"EVENTS_PATH not found for test {test_name}")
 
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
