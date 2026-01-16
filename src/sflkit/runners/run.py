@@ -669,13 +669,20 @@ class ParallelInputRunner(InputRunner):
             tr = self.run_test(directory, test_name, environ=environ)
             with lock:
                 self.tests[tr].add(test_name)
-            if os.path.exists(directory / f"EVENTS_PATH_{threading.get_ident()}"):
+            thread_id = threading.get_ident()
+            events_path = directory / f"EVENTS_PATH_{thread_id}"
+            if os.path.exists(events_path):
                 shutil.move(
-                    directory / f"EVENTS_PATH_{threading.get_ident()}",
+                    events_path,
                     output / tr.get_dir() / self.safe(test_name),
                 )
             else:
-                LOGGER.warning(f"EVENTS_PATH not found for test {test_name}")
+                # Check if any EVENTS_PATH files exist to help debug
+                events_files = list(directory.glob("EVENTS_PATH*"))
+                LOGGER.warning(
+                    f"EVENTS_PATH_{thread_id} not found for test {test_name} (result: {tr.value}). "
+                    f"Available EVENTS_PATH files: {[f.name for f in events_files]}"
+                )
 
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
