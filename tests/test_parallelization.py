@@ -228,12 +228,12 @@ class ParallelizationTest(BaseTest):
     )
 
     EVENTS_PATHS = {
-        "tests_test_example_py__MiddleTests__test_67": {
+        "tests_test_example_py__ExampleTests__test_67": {
             0: MAIN_PATH[:],
             1: THREAD_PATH_START[:] + THREAD_PATH_LOOP_6[:],
             2: THREAD_PATH_START[:] + THREAD_PATH_LOOP_7[:],
         },
-        "tests_test_example_py__MiddleTests__test_21345": {
+        "tests_test_example_py__ExampleTests__test_21345": {
             0: MAIN_PATH[:],
             1: THREAD_PATH_START[:] + THREAD_PATH_LOOP_2[:] + THREAD_PATH_LOOP_1[:],
             2: THREAD_PATH_START[:]
@@ -241,7 +241,7 @@ class ParallelizationTest(BaseTest):
             + THREAD_PATH_LOOP_4[:]
             + THREAD_PATH_LOOP_5[:],
         },
-        "tests_test_example_py__MiddleTests__test_32106": {
+        "tests_test_example_py__ExampleTests__test_32106": {
             0: MAIN_PATH[:],
             1: THREAD_PATH_START[:] + THREAD_PATH_LOOP_3[:] + THREAD_PATH_LOOP_2[:],
             2: THREAD_PATH_START[:]

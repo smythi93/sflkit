@@ -2,7 +2,7 @@ import unittest
 from example import compute_parallel
 
 
-class MiddleTests(unittest.TestCase):
+class ExampleTests(unittest.TestCase):
     def test_21345(self):
         self.assertEqual(compute_parallel([2, 1, 3, 4, 5]), [2, 1, 6, 24, 120])
 
