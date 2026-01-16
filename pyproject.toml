@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sflkit"
-version = "0.4.0"
+dynamic = ["version"]
 authors = [
     { name = "Marius Smytzek", email = "marius.smytzek@cispa.de" },
 ]
@@ -36,6 +36,9 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/smythi93/sflkit/"
 "Bug Tracker" = "https://github.com/smythi93/sflkit/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "sflkit.__version__"}
 
 [project.scripts]
 sflkit = "sflkit.cli:main"

@@ -37,7 +37,13 @@ class TestResult(enum.Enum):
 
 
 class Runner(abc.ABC):
-    def __init__(self, re_filter: str = r".*", timeout=DEFAULT_TIMEOUT):
+    def __init__(
+        self,
+        re_filter: str = r".*",
+        timeout=DEFAULT_TIMEOUT,
+        is_parallel: bool = False,
+        thread_support: bool = False,
+    ):
         self.timeout = timeout
         self.re_filter = re.compile(re_filter)
         self.passing_tests = set()
@@ -48,6 +54,12 @@ class Runner(abc.ABC):
             TestResult.FAILING: self.failing_tests,
             TestResult.UNDEFINED: self.undefined_tests,
         }
+        self.is_parallel = is_parallel
+        self.thread_support = thread_support
+
+    @staticmethod
+    def use_parallel() -> "Runner":
+        raise NotImplementedError()
 
     def get_tests(
         self,
@@ -109,6 +121,9 @@ class Runner(abc.ABC):
         self.passing_tests.clear()
         self.failing_tests.clear()
         self.undefined_tests.clear()
+        if environ is None:
+            environ = os.environ.copy()
+        environ["EVENTS_THREADS"] = "1" if self.thread_support else "0"
         self.run_tests(
             directory,
             output,
@@ -120,7 +135,9 @@ class Runner(abc.ABC):
 
 
 class VoidRunner(Runner):
-    pass
+    @staticmethod
+    def use_parallel() -> Runner:
+        return VoidRunner
 
 
 class PytestStructure:
@@ -264,9 +281,14 @@ class PytestRunner(Runner):
         re_filter: str = r".*",
         timeout=DEFAULT_TIMEOUT,
         set_python_path: bool = False,
+        thread_support: bool = False,
     ):
-        super().__init__(re_filter, timeout)
+        super().__init__(re_filter, timeout, thread_support=thread_support)
         self.set_python_path = set_python_path
+
+    @staticmethod
+    def use_parallel() -> Runner:
+        return ParallelPytestRunner
 
     @staticmethod
     def common_base(directory: Path, tests: List[str]) -> Path:
@@ -463,12 +485,17 @@ class InputRunner(Runner):
         access: os.PathLike,
         passing: List[str | List[str]],
         failing: List[str | List[str]],
+        thread_support: bool = False,
     ):
-        super().__init__()
+        super().__init__(thread_support=thread_support)
         self.access = access
         self.passing: Dict[str, List[str]] = self._prepare_tests(passing, "passing")
         self.failing: Dict[str, List[str]] = self._prepare_tests(failing, "failing")
         self.output: Dict[str, Tuple[str, str]] = dict()
+
+    @staticmethod
+    def use_parallel() -> Runner:
+        return ParallelInputRunner
 
     @staticmethod
     def split(s: str, sep: str = ",", esc: str = "\"'"):
@@ -538,9 +565,17 @@ class ParallelPytestRunner(PytestRunner):
         timeout=DEFAULT_TIMEOUT,
         set_python_path: bool = False,
         workers: int = 4,
+        thread_support: bool = False,
     ):
-        super().__init__(re_filter, timeout, set_python_path)
+        super().__init__(
+            re_filter, timeout, set_python_path, thread_support=thread_support
+        )
         self.workers = workers
+        self.is_parallel = True
+
+    @staticmethod
+    def use_parallel() -> Runner:
+        return ParallelPytestRunner
 
     def run_test(
         self, directory: Path, test: str, environ: Environment = None
@@ -575,10 +610,10 @@ class ParallelPytestRunner(PytestRunner):
                 )
 
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
-            executor.map(process_test, tests)
+            # Consume the iterator to ensure all tasks complete
+            list(executor.map(process_test, tests))
 
 
-# noinspection DuplicatedCode
 class ParallelInputRunner(InputRunner):
     def __init__(
         self,
@@ -586,9 +621,15 @@ class ParallelInputRunner(InputRunner):
         passing: List[str | List[str]],
         failing: List[str | List[str]],
         workers: int = 4,
+        thread_support: bool = False,
     ):
-        super().__init__(access, passing, failing)
+        super().__init__(access, passing, failing, thread_support=thread_support)
         self.workers = workers
+        self.is_parallel = True
+
+    @staticmethod
+    def use_parallel() -> Runner:
+        return ParallelInputRunner
 
     def run_test(
         self, directory: Path, test_name: str, environ: Environment = None
@@ -613,9 +654,12 @@ class ParallelInputRunner(InputRunner):
         for test_result in TestResult:
             (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
 
+        lock = threading.Lock()
+
         def process_test(test_name: str):
             tr = self.run_test(directory, test_name, environ=environ)
-            self.tests[tr].add(test_name)
+            with lock:
+                self.tests[tr].add(test_name)
             if os.path.exists(directory / f"EVENTS_PATH_{threading.get_ident()}"):
                 shutil.move(
                     directory / f"EVENTS_PATH_{threading.get_ident()}",
@@ -623,4 +667,5 @@ class ParallelInputRunner(InputRunner):
                 )
 
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
-            executor.map(process_test, tests)
+            # Consume the iterator to ensure all tasks complete
+            list(executor.map(process_test, tests))
