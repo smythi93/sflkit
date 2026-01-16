@@ -108,6 +108,8 @@ class Runner(abc.ABC):
                     directory / "EVENTS_PATH",
                     output / test_result.get_dir() / self.safe(test),
                 )
+        # Ensure all files are flushed to disk (helps with race conditions in CI)
+        os.sync()
 
     def run(
         self,
@@ -613,6 +615,9 @@ class ParallelPytestRunner(PytestRunner):
             # Consume the iterator to ensure all tasks complete
             list(executor.map(process_test, tests))
 
+        # Ensure all files are flushed to disk (helps with race conditions in CI)
+        os.sync()
+
 
 class ParallelInputRunner(InputRunner):
     def __init__(
@@ -669,3 +674,6 @@ class ParallelInputRunner(InputRunner):
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
             list(executor.map(process_test, tests))
+
+        # Ensure all files are flushed to disk (helps with race conditions in CI)
+        os.sync()
