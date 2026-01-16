@@ -12,10 +12,11 @@ jobs:
     name: Release push
     runs-on: ubuntu-latest
     steps:
-      - name: Extract version from pyproject.toml
+      - uses: actions/checkout@v4
+      - name: Extract version from __init__.py
         id: get_version
         run: |
-          version=$(grep '^version =' pyproject.toml | sed -E "s/version = ['\"]([^'\"]+)['\"]/\\1/")
+          version=$(grep '^__version__ =' src/sflkit/__init__.py | sed -E 's/__version__ = "(.+)"/\1/')
           echo "version=$version" >> $GITHUB_OUTPUT
       - name: Create GitHub release
         env:
