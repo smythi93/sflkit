@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Software Development :: Testing"
 ]
 dependencies = [
-    "sflkitlib @ git+ssh://git@github.com/smythi93/sflkit-lib.git",
+    "sflkitlib>=0.2.0",
     "numpy>=2.1.3",
     "matplotlib>=3.10.0",
     "pandas>=2.2.3",
