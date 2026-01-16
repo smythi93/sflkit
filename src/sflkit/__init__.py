@@ -6,6 +6,9 @@ from sflkit.config import Config, parse_config
 from sflkit.instrumentation.dir_instrumentation import DirInstrumentation
 
 
+__version__ = "0.5.0"
+
+
 def instrument_config(conf: Config):
     instrumentation = DirInstrumentation(
         conf.visitor, conf.mapping.path, test_visitor=conf.test_visitor
@@ -54,10 +57,10 @@ def analyze_config(conf: Config, analysis_dump: PathLike = None):
         results[analysis_type.name] = dict()
         for metric in conf.metrics:
             try:
-                results[analysis_type.name][
-                    metric.__name__
-                ] = analyzer.get_sorted_suggestions(
-                    conf.target_path, metric, analysis_type
+                results[analysis_type.name][metric.__name__] = (
+                    analyzer.get_sorted_suggestions(
+                        conf.target_path, metric, analysis_type
+                    )
                 )
             except (AttributeError, ValueError, TypeError) as e:
                 raise e

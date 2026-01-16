@@ -22,6 +22,7 @@ from sflkit.analysis.spectra import Line, Function, DefUse, Loop, Length
 from sflkit.analysis.suggestion import Suggestion
 from sflkit.events.event_file import EventFile
 from sflkit.model.model import Model, MetaModel
+from sflkit.model.parallel import ParallelModel
 
 
 class AnalysisEncoder(json.JSONEncoder):
@@ -39,7 +40,8 @@ class Analyzer:
         irrelevant_event_files: Optional[List[EventFile]] = None,
         factory: Optional[AnalysisFactory] = None,
         meta_model: Optional[MetaModel] = None,
-        model_class: Type[Model] = Model,
+        model_class: Type[Model] = None,
+        parallel: bool = False,
     ):
         if (
             relevant_event_files is None
@@ -56,6 +58,11 @@ class Analyzer:
         if self.meta:
             self.model = meta_model
         else:
+            if model_class is None:
+                if parallel:
+                    model_class = ParallelModel
+                else:
+                    model_class = Model
             self.model = model_class(factory)
         self.paths: Dict[int, os.PathLike] = dict()
         self.max_suspiciousness = 0

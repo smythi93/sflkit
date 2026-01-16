@@ -13,11 +13,13 @@ class EventFile(object):
         run_id: int,
         mapping: EventMapping,
         failing: bool = False,
+        thread_support: bool = False,
     ):
         self.path = path
         self.run_id = run_id
         self.mapping = mapping
         self.failing = failing
+        self.thread_support = thread_support
         self._csv_reader = None
         self._file_pointer = None
 
@@ -37,7 +39,11 @@ class EventFile(object):
     def load(self):
         while self._file_pointer.peek(1):
             try:
-                e = event.load_next_event(self._file_pointer, self.mapping.mapping)
+                e = event.load_next_event(
+                    self._file_pointer,
+                    self.mapping.mapping,
+                    with_thread_id=self.thread_support,
+                )
                 if self.mapping.is_valid(e):
                     yield e
             except (IndexError, ValueError, PickleError, KeyError):

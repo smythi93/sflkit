@@ -6,6 +6,8 @@ import re
 import shutil
 import string
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Set
 
@@ -35,7 +37,13 @@ class TestResult(enum.Enum):
 
 
 class Runner(abc.ABC):
-    def __init__(self, re_filter: str = r".*", timeout=DEFAULT_TIMEOUT):
+    def __init__(
+        self,
+        re_filter: str = r".*",
+        timeout=DEFAULT_TIMEOUT,
+        is_parallel: bool = False,
+        thread_support: bool = False,
+    ):
         self.timeout = timeout
         self.re_filter = re.compile(re_filter)
         self.passing_tests = set()
@@ -46,6 +54,12 @@ class Runner(abc.ABC):
             TestResult.FAILING: self.failing_tests,
             TestResult.UNDEFINED: self.undefined_tests,
         }
+        self.is_parallel = is_parallel
+        self.thread_support = thread_support
+
+    @staticmethod
+    def use_parallel() -> "Runner":
+        raise NotImplementedError()
 
     def get_tests(
         self,
@@ -94,6 +108,10 @@ class Runner(abc.ABC):
                     directory / "EVENTS_PATH",
                     output / test_result.get_dir() / self.safe(test),
                 )
+            else:
+                LOGGER.warning(f"EVENTS_PATH not found for test {test}")
+        # Ensure all files are flushed to disk (helps with race conditions in CI)
+        os.sync()
 
     def run(
         self,
@@ -107,6 +125,9 @@ class Runner(abc.ABC):
         self.passing_tests.clear()
         self.failing_tests.clear()
         self.undefined_tests.clear()
+        if environ is None:
+            environ = os.environ.copy()
+        environ["EVENTS_THREADS"] = "1" if self.thread_support else "0"
         self.run_tests(
             directory,
             output,
@@ -118,7 +139,9 @@ class Runner(abc.ABC):
 
 
 class VoidRunner(Runner):
-    pass
+    @staticmethod
+    def use_parallel() -> Runner:
+        return VoidRunner
 
 
 class PytestStructure:
@@ -262,9 +285,14 @@ class PytestRunner(Runner):
         re_filter: str = r".*",
         timeout=DEFAULT_TIMEOUT,
         set_python_path: bool = False,
+        thread_support: bool = False,
     ):
-        super().__init__(re_filter, timeout)
+        super().__init__(re_filter, timeout, thread_support=thread_support)
         self.set_python_path = set_python_path
+
+    @staticmethod
+    def use_parallel() -> Runner:
+        return ParallelPytestRunner
 
     @staticmethod
     def common_base(directory: Path, tests: List[str]) -> Path:
@@ -461,12 +489,17 @@ class InputRunner(Runner):
         access: os.PathLike,
         passing: List[str | List[str]],
         failing: List[str | List[str]],
+        thread_support: bool = False,
     ):
-        super().__init__()
+        super().__init__(thread_support=thread_support)
         self.access = access
         self.passing: Dict[str, List[str]] = self._prepare_tests(passing, "passing")
         self.failing: Dict[str, List[str]] = self._prepare_tests(failing, "failing")
         self.output: Dict[str, Tuple[str, str]] = dict()
+
+    @staticmethod
+    def use_parallel() -> Runner:
+        return ParallelInputRunner
 
     @staticmethod
     def split(s: str, sep: str = ",", esc: str = "\"'"):
@@ -527,3 +560,114 @@ class InputRunner(Runner):
             process.stderr.decode("utf8"),
         )
         return result
+
+
+class ParallelPytestRunner(PytestRunner):
+    def __init__(
+        self,
+        re_filter: str = r".*",
+        timeout=DEFAULT_TIMEOUT,
+        set_python_path: bool = False,
+        workers: int = 4,
+        thread_support: bool = False,
+    ):
+        super().__init__(
+            re_filter, timeout, set_python_path, thread_support=thread_support
+        )
+        self.workers = workers
+        self.is_parallel = True
+
+    @staticmethod
+    def use_parallel() -> Runner:
+        return ParallelPytestRunner
+
+    def run_tests(
+        self,
+        directory: Path,
+        output: Path,
+        tests: List[str],
+        environ: Environment = None,
+    ):
+        output.mkdir(parents=True, exist_ok=True)
+        for test_result in TestResult:
+            (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
+
+        def process_test(test: str):
+            if environ is None:
+                local_environ = os.environ.copy()
+            else:
+                local_environ = environ.copy()
+            events_path_name = f"EVENTS_PATH_{threading.get_ident()}"
+            local_environ["EVENTS_PATH"] = events_path_name
+            tr = self.run_test(directory, test, environ=local_environ)
+            self.tests[tr].add(test)
+            if os.path.exists(directory / events_path_name):
+                shutil.move(
+                    directory / events_path_name,
+                    output / tr.get_dir() / self.safe(test),
+                )
+            else:
+                LOGGER.warning(f"EVENTS_PATH not found for test {test}")
+
+        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+            # Consume the iterator to ensure all tasks complete
+            list(executor.map(process_test, tests))
+
+        # Ensure all files are flushed to disk (helps with race conditions in CI)
+        os.sync()
+
+
+class ParallelInputRunner(InputRunner):
+    def __init__(
+        self,
+        access: os.PathLike,
+        passing: List[str | List[str]],
+        failing: List[str | List[str]],
+        workers: int = 4,
+        thread_support: bool = False,
+    ):
+        super().__init__(access, passing, failing, thread_support=thread_support)
+        self.workers = workers
+        self.is_parallel = True
+
+    @staticmethod
+    def use_parallel() -> Runner:
+        return ParallelInputRunner
+
+    def run_tests(
+        self,
+        directory: Path,
+        output: Path,
+        tests: List[str],
+        environ: Environment = None,
+    ):
+        output.mkdir(parents=True, exist_ok=True)
+        for test_result in TestResult:
+            (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
+
+        lock = threading.Lock()
+
+        def process_test(test_name: str):
+            if environ is None:
+                local_environ = os.environ.copy()
+            else:
+                local_environ = environ.copy()
+            events_path_name = f"EVENTS_PATH_{threading.get_ident()}"
+            local_environ["EVENTS_PATH"] = events_path_name
+            tr = self.run_test(directory, test_name, environ=local_environ)
+            with lock:
+                self.tests[tr].add(test_name)
+            if os.path.exists(directory / events_path_name):
+                shutil.move(
+                    directory / events_path_name,
+                    output / tr.get_dir() / self.safe(test_name),
+                )
+            else:
+                LOGGER.warning(f"EVENTS_PATH not found for test {test_name}")
+
+        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+            # Consume the iterator to ensure all tasks complete
+            list(executor.map(process_test, tests))
+
+        # Ensure all files are flushed to disk (helps with race conditions in CI)
+        os.sync()
