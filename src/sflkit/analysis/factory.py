@@ -1,8 +1,8 @@
 import abc
-from abc import abstractmethod
 from typing import List, Type, Set
 
 from sflkitlib.events import EventType
+from sflkitlib.events.event import DefEvent
 
 from sflkit.analysis.analysis_type import AnalysisObject, AnalysisType
 from sflkit.analysis.predicate import (
@@ -21,25 +21,28 @@ from sflkit.analysis.predicate import (
     FunctionErrorPredicate,
 )
 from sflkit.analysis.spectra import Line, Function, Loop, DefUse, Length
+from sflkit.events.event_file import EventFile
 from sflkit.model.scope import Scope
 
 
-class AnalysisFactory:
+class AnalysisFactory(abc.ABC):
     def __init__(self):
         self.objects = dict()
 
-    @abstractmethod
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    @abc.abstractmethod
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         raise NotImplementedError()
 
-    def handle(self, event, scope: Scope = None):
-        analysis = self.get_analysis(event, scope=scope)
+    def handle(self, event, event_file: EventFile, scope: Scope = None):
+        analysis = self.get_analysis(event, event_file, scope=scope)
         if analysis:
             return analysis
         else:
             return self.default()
 
-    def reset(self):
+    def reset(self, event_file: EventFile):
         pass
 
     @staticmethod
@@ -55,25 +58,31 @@ class CombinationFactory(AnalysisFactory):
         super().__init__()
         self.factories = factories
 
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         return sum(
-            [factory.handle(event, scope) for factory in self.factories], start=list()
+            [factory.handle(event, event_file, scope) for factory in self.factories],
+            start=list(),
         )
 
-    def reset(self):
-        [f.reset() for f in self.factories]
+    def reset(self, event_file: EventFile):
+        [f.reset(event_file) for f in self.factories]
 
     def get_all(self) -> Set[AnalysisObject]:
         return set().union(*map(lambda f: f.get_all(), self.factories))
 
 
 class LineFactory(AnalysisFactory):
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.LINE:
             key = (Line.analysis_type(), event.file, event.line)
             if key not in self.objects:
                 self.objects[key] = Line(event)
             return [self.objects[key]]
+        return None
 
 
 class BranchFactory(AnalysisFactory):
@@ -81,7 +90,9 @@ class BranchFactory(AnalysisFactory):
         super().__init__()
         self.else_ = else_
 
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.BRANCH:
             key = (Branch.analysis_type(), event.file, event.line, event.then_id)
             then = event.then_id < event.else_id
@@ -99,14 +110,19 @@ class BranchFactory(AnalysisFactory):
                 return [self.objects[key], self.objects[else_key]]
             return [self.objects[key]]
 
+        return None
+
 
 class FunctionFactory(AnalysisFactory):
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.FUNCTION_ENTER:
             key = (Function.analysis_type(), event.file, event.line, event.function_id)
             if key not in self.objects:
                 self.objects[key] = Function(event)
             return [self.objects[key]]
+        return None
 
 
 class LoopFactory(AnalysisFactory):
@@ -119,7 +135,9 @@ class LoopFactory(AnalysisFactory):
     def get_all(self) -> Set[AnalysisObject]:
         return set(obj for value in self.objects.values() for obj in value)
 
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type in (
             EventType.LOOP_BEGIN,
             EventType.LOOP_HIT,
@@ -141,38 +159,44 @@ class LoopFactory(AnalysisFactory):
             elif event.event_type == EventType.LOOP_END:
                 return self.objects[key][:]
             return list()
+        return None
 
 
 class DefUseFactory(AnalysisFactory):
     def __init__(self):
         super().__init__()
-        self.id_to_def = dict()
+        self.id_to_def: dict[EventFile, dict[tuple[str, int], DefEvent]] = dict()
 
-    def reset(self):
-        self.id_to_def = dict()
+    def reset(self, event_file: EventFile):
+        self.id_to_def[event_file] = dict()
 
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.DEF:
-            self.id_to_def[(event.var, event.var_id)] = event
+            self.id_to_def[event_file][(event.var, event.var_id)] = event
         elif event.event_type == EventType.USE:
-            if (event.var, event.var_id) in self.id_to_def:
+            if (event.var, event.var_id) in self.id_to_def[event_file]:
                 key = (
                     DefUse.analysis_type(),
-                    self.id_to_def[(event.var, event.var_id)].file,
-                    self.id_to_def[(event.var, event.var_id)].line,
+                    self.id_to_def[event_file][(event.var, event.var_id)].file,
+                    self.id_to_def[event_file][(event.var, event.var_id)].line,
                     event.file,
                     event.line,
                     event.var,
                 )
                 if key not in self.objects:
                     self.objects[key] = DefUse(
-                        self.id_to_def[(event.var, event.var_id)], event
+                        self.id_to_def[event_file][(event.var, event.var_id)], event
                     )
                 return [self.objects[key]]
+        return None
 
 
 class ConditionFactory(AnalysisFactory):
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         objects = list()
         if event.event_type == EventType.CONDITION:
             for negate in (True, False):
@@ -218,7 +242,9 @@ class ComparisonFactory(AnalysisFactory, abc.ABC):
 
 
 class ScalarPairFactory(ComparisonFactory):
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.DEF:
             variables = scope.get_all_vars()
             objects = list()
@@ -263,10 +289,13 @@ class ScalarPairFactory(ComparisonFactory):
                                     )
                                 objects.append(self.objects[key])
             return objects
+        return None
 
 
 class VariableFactory(ComparisonFactory):
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.DEF and event.type_ in [
             "int",
             "float",
@@ -286,10 +315,13 @@ class VariableFactory(ComparisonFactory):
                     self.objects[key] = VariablePredicate(event, comp)
                 objects.append(self.objects[key])
             return objects
+        return None
 
 
 class ReturnFactory(ComparisonFactory):
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.FUNCTION_EXIT:
             objects = list()
             if event.type_ in ("int", "float", "bool", "str", "bytes"):
@@ -343,6 +375,7 @@ class ReturnFactory(ComparisonFactory):
                         if key in self.objects:
                             objects.append(self.objects[key])
             return objects
+        return None
 
 
 class ConstantCompFactory(AnalysisFactory):
@@ -350,7 +383,9 @@ class ConstantCompFactory(AnalysisFactory):
         super().__init__()
         self.class_ = class_
 
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.DEF:
             objects = list()
             for comp in Comp.EQ, Comp.NE:
@@ -362,9 +397,11 @@ class ConstantCompFactory(AnalysisFactory):
                     comp,
                 )
                 if key not in self.objects:
+                    # noinspection PyArgumentList
                     self.objects[key] = self.class_(event)
                 objects.append(self.objects[key])
             return objects
+        return None
 
 
 class NoneFactory(ConstantCompFactory):
@@ -387,7 +424,9 @@ class PredicateFunctionFactory(AnalysisFactory):
         super().__init__()
         self.class_ = class_
 
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.DEF:
             key = (
                 self.class_.analysis_type(),
@@ -396,8 +435,10 @@ class PredicateFunctionFactory(AnalysisFactory):
                 event.var,
             )
             if key not in self.objects:
+                # noinspection PyArgumentList
                 self.objects[key] = self.class_(event)
             return [self.objects[key]]
+        return None
 
 
 class IsAsciiFactory(PredicateFunctionFactory):
@@ -427,7 +468,9 @@ class LengthFactory(AnalysisFactory):
     def get_all(self) -> Set[AnalysisObject]:
         return set(obj for value in self.objects.values() for obj in value)
 
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.LEN:
             key = (Length.analysis_type(), event.file, event.line, event.var)
             if key not in self.objects:
@@ -441,6 +484,7 @@ class LengthFactory(AnalysisFactory):
                         Length(event, Length.evaluate_length_more)
                     ),
             return self.objects[key][:]
+        return None
 
 
 class FunctionErrorFactory(AnalysisFactory):
@@ -448,7 +492,9 @@ class FunctionErrorFactory(AnalysisFactory):
         super().__init__()
         self.function_mapping = dict()
 
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.FUNCTION_ENTER:
             self.function_mapping[event.function_id] = event.line
         if event.event_type in (EventType.FUNCTION_ERROR, EventType.FUNCTION_EXIT):
@@ -464,6 +510,7 @@ class FunctionErrorFactory(AnalysisFactory):
                     event.file, line, event.function
                 )
             return [self.objects[key]]
+        return None
 
 
 analysis_factory_mapping = {

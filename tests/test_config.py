@@ -130,8 +130,8 @@ class UtilizeConfigTest(BaseTest):
             language="python",
             events="line",
             predicates="line",
-            passing="test_dir/EVENTS_PATH_0",
-            failing="test_dir/EVENTS_PATH_1",
+            passing=os.path.join(BaseTest.TEST_DIR, "EVENTS_PATH_0"),
+            failing=os.path.join(BaseTest.TEST_DIR, "EVENTS_PATH_1"),
             working=BaseTest.TEST_DIR,
         )
         write_config(config, self.config_path)

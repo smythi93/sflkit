@@ -1,5 +1,6 @@
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Callable, Set, Dict, Optional, Any, Type
 
 from sflkit.analysis.analysis_type import AnalysisType, AnalysisObject
@@ -42,6 +43,7 @@ class Analyzer:
         meta_model: Optional[MetaModel] = None,
         model_class: Type[Model] = None,
         parallel: bool = False,
+        workers: int = 4,
     ):
         if (
             relevant_event_files is None
@@ -64,6 +66,7 @@ class Analyzer:
                 else:
                     model_class = Model
             self.model = model_class(factory)
+        self.workers = workers
         self.paths: Dict[int, os.PathLike] = dict()
         self.max_suspiciousness = 0
         self.min_suspiciousness = 0
@@ -76,7 +79,7 @@ class Analyzer:
         self.model.prepare(event_file)
         with event_file:
             for event in event_file.load():
-                event.handle(self.model)
+                event.handle(self.model, event_file)
         self.model.follow_up(event_file)
 
     def _finalize(self):
@@ -87,9 +90,16 @@ class Analyzer:
     def analyze(self):
         if self.meta:
             raise NotImplementedError("Not implemented for meta/loaded analyzer")
-        for event_file in self.relevant_event_files + self.irrelevant_event_files:
-            self.paths[event_file.run_id] = event_file.path
-            self._analyze(event_file)
+        if self.workers > 1:
+            event_files = self.relevant_event_files + self.irrelevant_event_files
+            for event_file in event_files:
+                self.paths[event_file.run_id] = event_file.path
+            with ThreadPoolExecutor(max_workers=self.workers) as executor:
+                list(executor.map(self._analyze, event_files))
+        else:
+            for event_file in self.relevant_event_files + self.irrelevant_event_files:
+                self.paths[event_file.run_id] = event_file.path
+                self._analyze(event_file)
         self._finalize()
 
     def dump(self, path: os.PathLike, indent: Optional[int] = None):

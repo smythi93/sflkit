@@ -6,10 +6,9 @@ import re
 import shutil
 import string
 import subprocess
-import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Optional, Set
 
 from sflkit.logger import LOGGER
 
@@ -495,7 +494,6 @@ class InputRunner(Runner):
         self.access = access
         self.passing: Dict[str, List[str]] = self._prepare_tests(passing, "passing")
         self.failing: Dict[str, List[str]] = self._prepare_tests(failing, "failing")
-        self.output: Dict[str, Tuple[str, str]] = dict()
 
     @staticmethod
     def use_parallel() -> Runner:
@@ -545,7 +543,7 @@ class InputRunner(Runner):
             test = self.failing[test_name]
             result = TestResult.FAILING
         try:
-            process = subprocess.run(
+            subprocess.run(
                 ["python3", self.access] + test,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -555,10 +553,6 @@ class InputRunner(Runner):
             )
         except subprocess.TimeoutExpired:
             return TestResult.UNDEFINED
-        self.output[test_name] = (
-            process.stdout.decode("utf8"),
-            process.stderr.decode("utf8"),
-        )
         return result
 
 
@@ -574,12 +568,29 @@ class ParallelPytestRunner(PytestRunner):
         super().__init__(
             re_filter, timeout, set_python_path, thread_support=thread_support
         )
-        self.workers = workers
+        self.workers = max(min(workers, os.cpu_count() or float("inf")), 1)
         self.is_parallel = True
+        self.environ = None
+        self.directory = None
+        self.output = None
 
     @staticmethod
     def use_parallel() -> Runner:
         return ParallelPytestRunner
+
+    def process_test(self, test: str):
+        local_environ = self.environ.copy()
+        events_path_name = f"EVENTS_PATH_{os.getpid()}"
+        local_environ["EVENTS_PATH"] = events_path_name
+        tr = self.run_test(self.directory, test, environ=local_environ)
+        self.tests[tr].add(test)
+        if os.path.exists(self.directory / events_path_name):
+            shutil.move(
+                self.directory / events_path_name,
+                self.output / tr.get_dir() / self.safe(test),
+            )
+        else:
+            LOGGER.warning(f"EVENTS_PATH not found for test {test}")
 
     def run_tests(
         self,
@@ -592,26 +603,13 @@ class ParallelPytestRunner(PytestRunner):
         for test_result in TestResult:
             (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
 
-        def process_test(test: str):
-            if environ is None:
-                local_environ = os.environ.copy()
-            else:
-                local_environ = environ.copy()
-            events_path_name = f"EVENTS_PATH_{threading.get_ident()}"
-            local_environ["EVENTS_PATH"] = events_path_name
-            tr = self.run_test(directory, test, environ=local_environ)
-            self.tests[tr].add(test)
-            if os.path.exists(directory / events_path_name):
-                shutil.move(
-                    directory / events_path_name,
-                    output / tr.get_dir() / self.safe(test),
-                )
-            else:
-                LOGGER.warning(f"EVENTS_PATH not found for test {test}")
+        self.directory = directory
+        self.output = output
+        self.environ = environ or os.environ.copy()
 
-        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+        with ProcessPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
-            list(executor.map(process_test, tests))
+            list(executor.map(self.process_test, tests))
 
         # Ensure all files are flushed to disk (helps with race conditions in CI)
         os.sync()
@@ -627,12 +625,29 @@ class ParallelInputRunner(InputRunner):
         thread_support: bool = False,
     ):
         super().__init__(access, passing, failing, thread_support=thread_support)
-        self.workers = workers
+        self.workers = max(min(workers, os.cpu_count() or float("inf")), 1)
         self.is_parallel = True
+        self.environ = None
+        self.directory: Path = None
+        self.output: Path = None
 
     @staticmethod
     def use_parallel() -> Runner:
         return ParallelInputRunner
+
+    def process_test(self, test_name: str):
+        local_environ = self.environ.copy()
+        events_path_name = f"EVENTS_PATH_{os.getpid()}"
+        local_environ["EVENTS_PATH"] = events_path_name
+        tr = self.run_test(self.directory, test_name, environ=local_environ)
+        self.tests[tr].add(test_name)
+        if os.path.exists(self.directory / events_path_name):
+            shutil.move(
+                self.directory / events_path_name,
+                self.output / tr.get_dir() / self.safe(test_name),
+            )
+        else:
+            LOGGER.warning(f"EVENTS_PATH not found for test {test_name}")
 
     def run_tests(
         self,
@@ -645,29 +660,13 @@ class ParallelInputRunner(InputRunner):
         for test_result in TestResult:
             (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
 
-        lock = threading.Lock()
+        self.directory = directory
+        self.output = output
+        self.environ = environ or os.environ.copy()
 
-        def process_test(test_name: str):
-            if environ is None:
-                local_environ = os.environ.copy()
-            else:
-                local_environ = environ.copy()
-            events_path_name = f"EVENTS_PATH_{threading.get_ident()}"
-            local_environ["EVENTS_PATH"] = events_path_name
-            tr = self.run_test(directory, test_name, environ=local_environ)
-            with lock:
-                self.tests[tr].add(test_name)
-            if os.path.exists(directory / events_path_name):
-                shutil.move(
-                    directory / events_path_name,
-                    output / tr.get_dir() / self.safe(test_name),
-                )
-            else:
-                LOGGER.warning(f"EVENTS_PATH not found for test {test_name}")
-
-        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+        with ProcessPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
-            list(executor.map(process_test, tests))
+            executor.map(self.process_test, tests)
 
         # Ensure all files are flushed to disk (helps with race conditions in CI)
         os.sync()

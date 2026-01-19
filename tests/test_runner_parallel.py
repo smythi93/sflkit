@@ -1,5 +1,4 @@
 import os
-import time
 from pathlib import Path
 
 from sflkit import Config, instrument_config, Analyzer
@@ -63,6 +62,7 @@ class ParallelRunnerTests(BaseTest):
                 for run_id, path in enumerate(os.listdir(output / "passing"), start=1)
             ],
             config.factory,
+            workers=4,
         )
         analyzer.analyze()
         predicates = analyzer.get_analysis_by_type(AnalysisType.LINE)
@@ -79,6 +79,7 @@ class ParallelRunnerTests(BaseTest):
             predicates="line",
             working=BaseTest.TEST_DIR,
             exclude="tests",
+            mapping_path=BaseTest.TEST_MAPPING,
         )
         instrument_config(config)
         runner = ParallelInputRunner(
@@ -108,6 +109,7 @@ class ParallelRunnerTests(BaseTest):
                 for run_id, path in enumerate(os.listdir(output / "passing"), start=1)
             ],
             config.factory,
+            workers=4,
         )
         analyzer.analyze()
         predicates = analyzer.get_analysis_by_type(AnalysisType.LINE)

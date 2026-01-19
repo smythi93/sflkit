@@ -358,8 +358,10 @@ class TestTimeWeights(BaseTest):
             )
             analyzer.analyze()
             model = analyzer.model
-            distances = model.get_distances()
+            distances = model.get_distances(analyzer.relevant_event_files[0])
             for line, distance in zip(lines, distances):
                 self.assertEqual(
-                    expected.pop(0), distances[distance], f"Failed for {line}"
+                    expected.pop(0),
+                    distances[distance],
+                    f"Failed for {line} with {model_class}",
                 )
