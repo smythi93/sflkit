@@ -44,7 +44,7 @@ class Spectrum(AnalysisObject, ABC):
         self.failed = failed_observed + failed_not_observed
         self.failed_observed = failed_observed
         self.failed_not_observed = failed_not_observed
-        self.last_evaluation: dict[int, dict[int, EvaluationResult]] = dict()
+        self.last_evaluation: dict[EventFile, dict[int, EvaluationResult]] = dict()
         self.weights: Dict[int, float] = dict()
         self.weight: float = 1
 
@@ -91,7 +91,7 @@ class Spectrum(AnalysisObject, ABC):
         return EvaluationResult.FALSE
 
     def get_last_evaluation(
-        self, id_: int, thread_id: Optional[int] = None
+        self, id_: EventFile, thread_id: Optional[int] = None
     ) -> EvaluationResult:
         if id_ in self.last_evaluation and thread_id in self.last_evaluation[id_]:
             return self.last_evaluation[id_][thread_id]

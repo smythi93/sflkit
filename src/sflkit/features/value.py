@@ -13,7 +13,7 @@ class FeatureValue(enum.Enum):
         return self.name
 
     def __or__(self, other):
-        if isinstance(other, Feature):
+        if isinstance(other, FeatureValue):
             if other == FeatureValue.TRUE or self == FeatureValue.UNDEFINED:
                 return other
             else:
@@ -22,14 +22,19 @@ class FeatureValue(enum.Enum):
             if other:
                 return FeatureValue.TRUE
             elif self == FeatureValue.UNDEFINED:
-                if other is None:
-                    return FeatureValue.UNDEFINED
-                else:
-                    return FeatureValue.FALSE
+                return FeatureValue.FALSE
             else:
                 return self
         else:
             return self
+
+    def __neg__(self):
+        if self == FeatureValue.UNDEFINED:
+            return FeatureValue.UNDEFINED
+        elif self == FeatureValue.TRUE:
+            return FeatureValue.FALSE
+        else:
+            return FeatureValue.TRUE
 
 
 class Feature(ABC):
@@ -59,6 +64,14 @@ class Feature(ABC):
         else:
             raise TypeError(
                 f"'<' not supported between instances of '{type(self)}' and '{type(other)}'"
+            )
+
+    def __gt__(self, other):
+        if hasattr(other, "name"):
+            return self.name > other.name
+        else:
+            raise TypeError(
+                f"'>' not supported between instances of '{type(self)}' and '{type(other)}'"
             )
 
 
