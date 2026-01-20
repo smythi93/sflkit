@@ -1,6 +1,4 @@
 import os
-import json
-from os.path import join
 
 from sflkit.analysis.analysis_type import AnalysisType
 from sflkit.analysis.spectra import Spectrum
@@ -72,20 +70,6 @@ class SuggestionsFromPredicatesTest(BaseTest):
 
     def test_branch_suggestions(self):
         predicates = self.analyzer.get_analysis_by_type(AnalysisType.BRANCH)
-        for predicate in predicates:
-            print()
-            print(predicate.file, predicate.line, predicate.then)
-            print(
-                json.dumps(
-                    {str(ef): predicate.hits[ef] for ef in predicate.hits}, indent=2
-                )
-            )
-            print(
-                json.dumps(
-                    {str(ef): predicate.total_hits[ef] for ef in predicate.total_hits},
-                    indent=2,
-                )
-            )
         suggestions = sorted(
             map(lambda p: p.get_suggestion(base_dir=self.original_dir), predicates)
         )
