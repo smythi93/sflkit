@@ -51,6 +51,11 @@ class ValueTest(unittest.TestCase):
         self.assertEqual(self.undefined_val | False, self.false_val)
         self.assertEqual(self.undefined_val | None, self.undefined_val)
 
+    def test_not_operation(self):
+        self.assertEqual(~self.true_val, self.false_val)
+        self.assertEqual(~self.false_val, self.true_val)
+        self.assertEqual(~self.undefined_val, self.undefined_val)
+
 
 class FeatureTest(unittest.TestCase):
     @classmethod
@@ -302,8 +307,8 @@ class ThreadVectorTest(unittest.TestCase):
                 else (FeatureValue.TRUE if n % 3 == 0 else FeatureValue.FALSE)
             )
             if n % 20 - 10 >= 0:
-                bin_value = not bin_value
-                ter_value = not ter_value
+                bin_value = ~bin_value
+                ter_value = ~ter_value
             features_values.append((bin_feature, bin_value))
             features_values.append((ter_feature, ter_value))
 

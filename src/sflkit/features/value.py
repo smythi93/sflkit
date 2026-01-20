@@ -28,6 +28,14 @@ class FeatureValue(enum.Enum):
         else:
             return self
 
+    def __invert__(self):
+        if self == FeatureValue.UNDEFINED:
+            return FeatureValue.UNDEFINED
+        elif self == FeatureValue.TRUE:
+            return FeatureValue.FALSE
+        else:
+            return FeatureValue.TRUE
+
     def __neg__(self):
         if self == FeatureValue.UNDEFINED:
             return FeatureValue.UNDEFINED
