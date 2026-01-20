@@ -103,6 +103,7 @@ class BaseTest(unittest.TestCase):
             events=events,
             predicates=predicates,
             working=BaseTest.TEST_DIR,
+            mapping_path=BaseTest.TEST_MAPPING,
         )
         instrument_config(config)
 

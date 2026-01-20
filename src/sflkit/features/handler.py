@@ -11,6 +11,7 @@ from sflkit.events.event_file import EventFile
 from sflkit.features.value import Feature, FeatureValue, BinaryFeature, TertiaryFeature
 from sflkit.features.vector import FeatureVector
 from sflkit.model.model import Model
+from sflkit.model.parallel import ParallelModel
 from sflkit.model.scope import Scope
 from sflkit.runners.run import TestResult
 from sflkitlib.events.event import Event
@@ -113,9 +114,13 @@ class FeatureBuilder(CombinationFactory):
 
 
 class EventHandler:
-    def __init__(self):
+    def __init__(self, thread_support: bool = False):
         self.builder = FeatureBuilder()
-        self.model = Model(self.builder)
+        self.thread_support = thread_support
+        if thread_support:
+            self.builder = ParallelModel(self.builder)
+        else:
+            self.model = Model(self.builder)
 
     @staticmethod
     def map_result(failing: bool):
@@ -141,7 +146,11 @@ class EventHandler:
     def copy(self):
         new_handler = EventHandler()
         new_handler.feature_builder = self.builder.copy()
-        new_handler.model = Model(new_handler.feature_builder)
+        new_handler.thread_support = self.thread_support
+        if self.thread_support:
+            new_handler.builder = ParallelModel(new_handler.feature_builder)
+        else:
+            new_handler.model = Model(new_handler.feature_builder)
         return new_handler
 
     def to_df(self, features: List[Feature]):

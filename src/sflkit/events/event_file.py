@@ -23,6 +23,14 @@ class EventFile(object):
         self._csv_reader = None
         self._file_pointer = None
 
+    def __hash__(self):
+        return hash(self.run_id)
+
+    def __eq__(self, other):
+        if not isinstance(other, EventFile):
+            return False
+        return self.run_id == other.run_id
+
     def __enter__(self):
         self._file_pointer = open(self.path, "rb")
         return self

@@ -18,8 +18,9 @@ class TestCli(BaseTest):
             language="python",
             events="line",
             predicates="line",
-            failing=os.path.join("test_dir", "EVENTS_PATH_0"),
+            failing=os.path.join(BaseTest.TEST_DIR, "EVENTS_PATH_0"),
             working=BaseTest.TEST_DIR,
+            mapping_path=BaseTest.TEST_MAPPING,
         )
         Config.write(config, self.config_path)
 
