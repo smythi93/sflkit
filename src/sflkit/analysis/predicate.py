@@ -170,9 +170,12 @@ class Predicate(Spectrum, ABC):
 
 
 class Branch(Predicate):
-    def __init__(self, event: BranchEvent, then: bool = True):
+    def __init__(self, event: BranchEvent, then: bool = True, then_id: int = None):
         super().__init__(event.file, event.line)
-        self.then_id = event.then_id if then else event.else_id
+        if then_id is not None:
+            self.then_id = then_id
+        else:
+            self.then_id = event.then_id if then else event.else_id
         self.then = then
 
     def __hash__(self):
@@ -228,10 +231,11 @@ class Branch(Predicate):
             MetaEvent(
                 s["file"],
                 s["line"],
-                then_id=s["then_id"] if s["then"] else None,
-                else_id=s["then_id"] if not s["then"] else None,
+                then_id=s["then_id"],
+                else_id=None,
             ),
             then=s["then"],
+            then_id=s["then_id"],
         )
         analysis_object._deserialize(s)
         return analysis_object
