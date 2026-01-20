@@ -49,7 +49,7 @@ class FeatureBuilder(CombinationFactory):
         self.analysis: List[AnalysisObject] = list()
         self.feature_vectors: Dict[EventFile, FeatureVector] = dict()
         self.all_features: Set[Feature] = set()
-        self.name_map: Dict[int, str] = dict()
+        self.name_map: Dict[EventFile, str] = dict()
 
     def get_analysis(
         self, event, event_file: EventFile, scope: Scope = None
