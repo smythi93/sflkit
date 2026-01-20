@@ -1,4 +1,5 @@
 import abc
+from threading import Lock
 from typing import List, Type, Set
 
 from sflkitlib.events import EventType
@@ -28,6 +29,7 @@ from sflkit.model.scope import Scope
 class AnalysisFactory(abc.ABC):
     def __init__(self):
         self.objects = dict()
+        self._lock = Lock()
 
     @abc.abstractmethod
     def get_analysis(
@@ -79,8 +81,9 @@ class LineFactory(AnalysisFactory):
     ) -> List[AnalysisObject]:
         if event.event_type == EventType.LINE:
             key = (Line.analysis_type(), event.file, event.line)
-            if key not in self.objects:
-                self.objects[key] = Line(event)
+            with self._lock:
+                if key not in self.objects:
+                    self.objects[key] = Line(event)
             return [self.objects[key]]
         return None
 
@@ -96,8 +99,9 @@ class BranchFactory(AnalysisFactory):
         if event.event_type == EventType.BRANCH:
             key = (Branch.analysis_type(), event.file, event.line, event.then_id)
             then = event.then_id < event.else_id
-            if key not in self.objects:
-                self.objects[key] = Branch(event, then=then, then_id=event.then_id)
+            with self._lock:
+                if key not in self.objects:
+                    self.objects[key] = Branch(event, then=then, then_id=event.then_id)
             if self.else_ and event.else_id >= 0:
                 else_key = (
                     Branch.analysis_type(),
@@ -105,10 +109,11 @@ class BranchFactory(AnalysisFactory):
                     event.line,
                     event.else_id,
                 )
-                if else_key not in self.objects:
-                    self.objects[else_key] = Branch(
-                        event, then=not then, then_id=event.else_id
-                    )
+                with self._lock:
+                    if else_key not in self.objects:
+                        self.objects[else_key] = Branch(
+                            event, then=not then, then_id=event.else_id
+                        )
                 return [self.objects[key], self.objects[else_key]]
             return [self.objects[key]]
 
@@ -121,8 +126,9 @@ class FunctionFactory(AnalysisFactory):
     ) -> List[AnalysisObject]:
         if event.event_type == EventType.FUNCTION_ENTER:
             key = (Function.analysis_type(), event.file, event.line, event.function_id)
-            if key not in self.objects:
-                self.objects[key] = Function(event)
+            with self._lock:
+                if key not in self.objects:
+                    self.objects[key] = Function(event)
             return [self.objects[key]]
         return None
 
@@ -146,14 +152,15 @@ class LoopFactory(AnalysisFactory):
             EventType.LOOP_END,
         ):
             key = (Loop.analysis_type(), event.file, event.line, event.loop_id)
-            if key not in self.objects:
-                self.objects[key] = []
-                if self.hit_0:
-                    self.objects[key].append(Loop(event, Loop.evaluate_hit_0)),
-                if self.hit_1:
-                    self.objects[key].append(Loop(event, Loop.evaluate_hit_1)),
-                if self.hit_more:
-                    self.objects[key].append(Loop(event, Loop.evaluate_hit_more)),
+            with self._lock:
+                if key not in self.objects:
+                    self.objects[key] = []
+                    if self.hit_0:
+                        self.objects[key].append(Loop(event, Loop.evaluate_hit_0)),
+                    if self.hit_1:
+                        self.objects[key].append(Loop(event, Loop.evaluate_hit_1)),
+                    if self.hit_more:
+                        self.objects[key].append(Loop(event, Loop.evaluate_hit_more)),
             if event.event_type == EventType.LOOP_BEGIN:
                 for obj in self.objects[key]:
                     obj.start_loop(thread_id=event.thread_id)
@@ -189,10 +196,11 @@ class DefUseFactory(AnalysisFactory):
                     event.line,
                     event.var,
                 )
-                if key not in self.objects:
-                    self.objects[key] = DefUse(
-                        self.id_to_def[event_file][(event.var, event.var_id)], event
-                    )
+                with self._lock:
+                    if key not in self.objects:
+                        self.objects[key] = DefUse(
+                            self.id_to_def[event_file][(event.var, event.var_id)], event
+                        )
                 return [self.objects[key]]
         return None
 
@@ -211,10 +219,11 @@ class ConditionFactory(AnalysisFactory):
                     event.condition,
                     negate,
                 )
-                if key not in self.objects:
-                    self.objects[key] = Condition(
-                        event.file, event.line, event.condition, negate=negate
-                    )
+                with self._lock:
+                    if key not in self.objects:
+                        self.objects[key] = Condition(
+                            event.file, event.line, event.condition, negate=negate
+                        )
                 objects.append(self.objects[key])
         return objects
 
@@ -268,10 +277,11 @@ class ScalarPairFactory(ComparisonFactory):
                                             comp,
                                             types[0],
                                         )
-                                        if key not in self.objects:
-                                            self.objects[key] = ScalarPair(
-                                                event, comp, variable.var
-                                            )
+                                        with self._lock:
+                                            if key not in self.objects:
+                                                self.objects[key] = ScalarPair(
+                                                    event, comp, variable.var
+                                                )
                                         objects.append(self.objects[key])
             else:
                 for variable in variables:
@@ -287,10 +297,11 @@ class ScalarPairFactory(ComparisonFactory):
                                     comp,
                                     event.type_,
                                 )
-                                if key not in self.objects:
-                                    self.objects[key] = ScalarPair(
-                                        event, comp, variable.var
-                                    )
+                                with self._lock:
+                                    if key not in self.objects:
+                                        self.objects[key] = ScalarPair(
+                                            event, comp, variable.var
+                                        )
                                 objects.append(self.objects[key])
             return objects
         return None
@@ -315,8 +326,9 @@ class VariableFactory(ComparisonFactory):
                     comp,
                     "int",
                 )
-                if key not in self.objects:
-                    self.objects[key] = VariablePredicate(event, comp)
+                with self._lock:
+                    if key not in self.objects:
+                        self.objects[key] = VariablePredicate(event, comp)
                 objects.append(self.objects[key])
             return objects
         return None
@@ -348,8 +360,11 @@ class ReturnFactory(ComparisonFactory):
                             comp,
                             type_,
                         )
-                        if key not in self.objects:
-                            self.objects[key] = ReturnPredicate(event, comp, value=tr)
+                        with self._lock:
+                            if key not in self.objects:
+                                self.objects[key] = ReturnPredicate(
+                                    event, comp, value=tr
+                                )
                         objects.append(self.objects[key])
             if event.type_ == "NoneType":
                 for comp in Comp.EQ, Comp.NE:
@@ -362,8 +377,11 @@ class ReturnFactory(ComparisonFactory):
                             comp,
                             event.type_,
                         )
-                        if key not in self.objects:
-                            self.objects[key] = ReturnPredicate(event, comp, value=None)
+                        with self._lock:
+                            if key not in self.objects:
+                                self.objects[key] = ReturnPredicate(
+                                    event, comp, value=None
+                                )
                         objects.append(self.objects[key])
             else:
                 for comp in Comp.EQ, Comp.NE:
@@ -400,9 +418,10 @@ class ConstantCompFactory(AnalysisFactory):
                     event.var,
                     comp,
                 )
-                if key not in self.objects:
-                    # noinspection PyArgumentList
-                    self.objects[key] = self.class_(event)
+                with self._lock:
+                    if key not in self.objects:
+                        # noinspection PyArgumentList
+                        self.objects[key] = self.class_(event)
                 objects.append(self.objects[key])
             return objects
         return None
@@ -438,9 +457,10 @@ class PredicateFunctionFactory(AnalysisFactory):
                 event.line,
                 event.var,
             )
-            if key not in self.objects:
-                # noinspection PyArgumentList
-                self.objects[key] = self.class_(event)
+            with self._lock:
+                if key not in self.objects:
+                    # noinspection PyArgumentList
+                    self.objects[key] = self.class_(event)
             return [self.objects[key]]
         return None
 
@@ -477,16 +497,21 @@ class LengthFactory(AnalysisFactory):
     ) -> List[AnalysisObject]:
         if event.event_type == EventType.LEN:
             key = (Length.analysis_type(), event.file, event.line, event.var)
-            if key not in self.objects:
-                self.objects[key] = []
-                if self.length_0:
-                    self.objects[key].append(Length(event, Length.evaluate_length_0)),
-                if self.length_1:
-                    self.objects[key].append(Length(event, Length.evaluate_length_1)),
-                if self.length_more:
-                    self.objects[key].append(
-                        Length(event, Length.evaluate_length_more)
-                    ),
+            with self._lock:
+                if key not in self.objects:
+                    self.objects[key] = []
+                    if self.length_0:
+                        self.objects[key].append(
+                            Length(event, Length.evaluate_length_0)
+                        ),
+                    if self.length_1:
+                        self.objects[key].append(
+                            Length(event, Length.evaluate_length_1)
+                        ),
+                    if self.length_more:
+                        self.objects[key].append(
+                            Length(event, Length.evaluate_length_more)
+                        )
             return self.objects[key][:]
         return None
 
@@ -509,10 +534,11 @@ class FunctionErrorFactory(AnalysisFactory):
                 line,
                 event.function_id,
             )
-            if key not in self.objects:
-                self.objects[key] = FunctionErrorPredicate(
-                    event.file, line, event.function
-                )
+            with self._lock:
+                if key not in self.objects:
+                    self.objects[key] = FunctionErrorPredicate(
+                        event.file, line, event.function
+                    )
             return [self.objects[key]]
         return None
 
