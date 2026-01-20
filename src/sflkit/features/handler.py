@@ -59,7 +59,7 @@ class FeatureBuilder(CombinationFactory):
         return self.analysis
 
     @staticmethod
-    def map_evaluation(analysis: Spectrum, id_: int, thread_id: Optional[int] = None):
+    def map_evaluation(analysis: Spectrum, id_: EventFile, thread_id: Optional[int] = None):
         match analysis.get_last_evaluation(id_, thread_id):
             case EvaluationResult.TRUE:
                 return FeatureValue.TRUE
