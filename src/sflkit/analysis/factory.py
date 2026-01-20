@@ -97,7 +97,7 @@ class BranchFactory(AnalysisFactory):
             key = (Branch.analysis_type(), event.file, event.line, event.then_id)
             then = event.then_id < event.else_id
             if key not in self.objects:
-                self.objects[key] = Branch(event, then=then)
+                self.objects[key] = Branch(event, then=then, then_id=event.then_id)
             if self.else_ and event.else_id >= 0:
                 else_key = (
                     Branch.analysis_type(),
@@ -106,7 +106,9 @@ class BranchFactory(AnalysisFactory):
                     event.else_id,
                 )
                 if else_key not in self.objects:
-                    self.objects[else_key] = Branch(event, then=not then)
+                    self.objects[else_key] = Branch(
+                        event, then=not then, then_id=event.else_id
+                    )
                 return [self.objects[key], self.objects[else_key]]
             return [self.objects[key]]
 
@@ -153,9 +155,11 @@ class LoopFactory(AnalysisFactory):
                 if self.hit_more:
                     self.objects[key].append(Loop(event, Loop.evaluate_hit_more)),
             if event.event_type == EventType.LOOP_BEGIN:
-                list(map(Loop.start_loop, self.objects[key]))
+                for obj in self.objects[key]:
+                    obj.start_loop(thread_id=event.thread_id)
             elif event.event_type == EventType.LOOP_HIT:
-                list(map(Loop.hit_loop, self.objects[key]))
+                for obj in self.objects[key]:
+                    obj.hit_loop(thread_id=event.thread_id)
             elif event.event_type == EventType.LOOP_END:
                 return self.objects[key][:]
             return list()

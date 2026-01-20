@@ -1,6 +1,6 @@
 import enum
 from abc import ABC
-from typing import Tuple, Callable, Optional, List, Type
+from typing import Tuple, Callable, Optional, List, Type, Any
 
 from sflkitlib.events import EventType
 from sflkitlib.events.event import (
@@ -19,7 +19,8 @@ from sflkit.analysis.analysis_type import (
 )
 from sflkit.analysis.spectra import Spectrum
 from sflkit.analysis.suggestion import Suggestion, Location
-from sflkit.model import scope
+from sflkit.events.event_file import EventFile
+from sflkit.model.scope import Scope
 
 
 class Predicate(Spectrum, ABC):
@@ -35,7 +36,6 @@ class Predicate(Spectrum, ABC):
         self.increase_true = 0
         self.increase_false = 0
         self.total_hits = dict()
-        self.last_evaluation = EvaluationResult.UNOBSERVED
 
     def serialize(self):
         default = super().serialize()
@@ -66,45 +66,51 @@ class Predicate(Spectrum, ABC):
     def default_evaluation() -> EvaluationResult:
         return EvaluationResult.UNOBSERVED
 
-    def get_last_evaluation(self, id_: int) -> EvaluationResult:
-        if id_ not in self.hits:
-            return self.default_evaluation()
-        else:
-            return self.last_evaluation
+    def get_last_evaluation(
+        self, id_: int, thread_id: Optional[int] = None
+    ) -> EvaluationResult:
+        if id_ in self.last_evaluation and thread_id in self.last_evaluation[id_]:
+            return self.last_evaluation[id_][thread_id]
+        return self.default_evaluation()
 
-    def finalize(self, passed: list, failed: list):
+    def finalize(self, passed: list[EventFile], failed: list[EventFile]):
         super().finalize(passed, failed)
         for p in passed:
             if p in self.hits:
-                if self.hits[p] > 0:
+                if self._check_hits(p):
                     self.true_irrelevant_observed()
                 else:
                     self.false_irrelevant_observed()
         for f in failed:
             if f in self.hits:
-                if self.hits[f] > 0:
+                if self._check_hits(f):
                     self.true_relevant_observed()
                 else:
                     self.false_relevant_observed()
 
-    def hit(self, id_, event: Event, scope_: scope.Scope = None):
+    def hit(self, id_, event: Event, scope: Scope = None):
         if id_ not in self.total_hits:
-            self.total_hits[id_] = 0
+            self.total_hits[id_] = dict()
+        if event.thread_id not in self.total_hits[id_]:
+            self.total_hits[id_][event.thread_id] = 0
         if id_ not in self.hits:
-            self.hits[id_] = 0
-        self.total_hits[id_] += 1
-        if self._evaluate_predicate(event, scope_):
-            self.hits[id_] += 1
-            self.last_evaluation = EvaluationResult.TRUE
+            self.hits[id_] = dict()
+            self.last_evaluation[id_] = dict()
+        if event.thread_id not in self.hits[id_]:
+            self.hits[id_][event.thread_id] = 0
+        self.total_hits[id_][event.thread_id] += 1
+        if self._evaluate_predicate(event, scope):
+            self.hits[id_][event.thread_id] += 1
+            self.last_evaluation[id_][event.thread_id] = EvaluationResult.TRUE
         else:
-            self.last_evaluation = EvaluationResult.FALSE
+            self.last_evaluation[id_][event.thread_id] = EvaluationResult.FALSE
 
     def get_metric(self, metric: Callable = None, use_weight: bool = False):
         if metric is None:
             metric = Predicate.IncreaseTrue
         return super().get_metric(metric, use_weight=use_weight)
 
-    def _evaluate_predicate(self, event: Event, scope_: scope.Scope):
+    def _evaluate_predicate(self, event: Event, scope: Scope):
         return False
 
     def true_relevant_observed(self):
@@ -164,9 +170,12 @@ class Predicate(Spectrum, ABC):
 
 
 class Branch(Predicate):
-    def __init__(self, event: BranchEvent, then: bool = True):
+    def __init__(self, event: BranchEvent, then: bool = True, then_id: int = None):
         super().__init__(event.file, event.line)
-        self.then_id = event.then_id if then else event.else_id
+        if then_id is not None:
+            self.then_id = then_id
+        else:
+            self.then_id = event.then_id if then else event.else_id
         self.then = then
 
     def __hash__(self):
@@ -222,10 +231,11 @@ class Branch(Predicate):
             MetaEvent(
                 s["file"],
                 s["line"],
-                then_id=s["then_id"] if s["then"] else None,
-                else_id=s["then_id"] if not s["then"] else None,
+                then_id=s["then_id"],
+                else_id=None,
             ),
             then=s["then"],
+            then_id=s["then_id"],
         )
         analysis_object._deserialize(s)
         return analysis_object
@@ -238,17 +248,22 @@ class Branch(Predicate):
     def events():
         return [EventType.BRANCH]
 
-    def hit(self, id_, event: BranchEvent, scope_: scope.Scope = None):
+    def hit(self, id_, event: BranchEvent, scope: Scope = None):
         if id_ not in self.total_hits:
-            self.total_hits[id_] = 0
+            self.total_hits[id_] = dict()
+        if event.thread_id not in self.total_hits[id_]:
+            self.total_hits[id_][event.thread_id] = 0
         if id_ not in self.hits:
-            self.hits[id_] = 0
+            self.hits[id_] = dict()
+            self.last_evaluation[id_] = dict()
+        if event.thread_id not in self.hits[id_]:
+            self.hits[id_][event.thread_id] = 0
+        self.total_hits[id_][event.thread_id] += 1
         if event.then_id == self.then_id:
-            self.total_hits[id_] += 1
-            self.hits[id_] += 1
-            self.last_evaluation = EvaluationResult.TRUE
+            self.hits[id_][event.thread_id] += 1
+            self.last_evaluation[id_][event.thread_id] = EvaluationResult.TRUE
         else:
-            self.last_evaluation = EvaluationResult.FALSE
+            self.last_evaluation[id_][event.thread_id] = EvaluationResult.FALSE
 
     def get_suggestion(
         self, metric: Callable = None, base_dir: str = "", use_weight: bool = False
@@ -287,6 +302,8 @@ class Comp(enum.Enum):
             return x > y
         elif self == Comp.NE:
             return x != y
+        else:
+            raise ValueError(f"Unknown comparison operator: {self}")
 
     def __repr__(self):
         return self.name
@@ -314,16 +331,16 @@ class Comparison(Predicate, ABC):
             EventType.FUNCTION_ERROR,
         ]
 
-    def _evaluate_predicate(self, event: Event, scope_: scope.Scope) -> bool:
+    def _evaluate_predicate(self, event: Event, scope_: Scope) -> bool:
         return self._compare(self._get_first(scope_), self._get_second(scope_))
 
     def _compare(self, first, second) -> bool:
         return self.op.evaluate(first, second)
 
-    def _get_first(self, scope_: scope.Scope):
+    def _get_first(self, scope_: Scope):
         return 0
 
-    def _get_second(self, scope_: scope.Scope):
+    def _get_second(self, scope_: Scope):
         return 0
 
 
@@ -396,10 +413,10 @@ class ScalarPair(Comparison):
     def analysis_type():
         return AnalysisType.SCALAR_PAIR
 
-    def _get_first(self, scope_: scope.Scope):
+    def _get_first(self, scope_: Scope):
         return scope_.value(self.var1)
 
-    def _get_second(self, scope_: scope.Scope):
+    def _get_second(self, scope_: Scope):
         return scope_.value(self.var2)
 
     def __str__(self):
@@ -474,8 +491,8 @@ class VariablePredicate(Comparison):
             EventType.DEF,
         ]
 
-    def _get_first(self, scope_: scope.Scope):
-        return scope_.value(self.var)
+    def _get_first(self, scope: Scope):
+        return scope.value(self.var)
 
     def __str__(self):
         return f"{self.analysis_type()}:{self.file}:{self.line}:{self.var}{self.op}0"
@@ -545,10 +562,10 @@ class NonePredicate(Comparison):
             EventType.DEF,
         ]
 
-    def _get_first(self, scope_: scope.Scope):
-        return scope_.value(self.var)
+    def _get_first(self, scope: Scope):
+        return scope.value(self.var)
 
-    def _get_second(self, scope_: scope.Scope):
+    def _get_second(self, scope: Scope):
         return None
 
     def __str__(self):
@@ -645,10 +662,10 @@ class ReturnPredicate(Comparison):
             EventType.FUNCTION_ERROR,
         ]
 
-    def _get_first(self, scope_: scope.Scope):
-        return scope_.value(self.function)
+    def _get_first(self, scope: Scope):
+        return scope.value(self.function)
 
-    def _get_second(self, scope_: scope.Scope):
+    def _get_second(self, scope: Scope):
         return self.value
 
     def __str__(self):
@@ -721,10 +738,10 @@ class EmptyStringPredicate(Comparison):
             EventType.DEF,
         ]
 
-    def _get_first(self, scope_: scope.Scope):
-        return scope_.value(self.var)
+    def _get_first(self, scope: Scope):
+        return scope.value(self.var)
 
-    def _get_second(self, scope_: scope.Scope):
+    def _get_second(self, scope: Scope):
         return ""
 
     def __str__(self):
@@ -797,10 +814,10 @@ class EmptyBytesPredicate(Comparison):
             EventType.DEF,
         ]
 
-    def _get_first(self, scope_: scope.Scope):
-        return scope_.value(self.var)
+    def _get_first(self, scope: Scope):
+        return scope.value(self.var)
 
-    def _get_second(self, scope_: scope.Scope):
+    def _get_second(self, scope: Scope):
         return b""
 
     def __str__(self):
@@ -808,7 +825,7 @@ class EmptyBytesPredicate(Comparison):
 
 
 class FunctionPredicate(Predicate, ABC):
-    def __init__(self, file, line, var: str, predicate: callable):
+    def __init__(self, file, line, var: str, predicate: Callable[[Any], bool]):
         super().__init__(file, line)
         self.var = var
         self.predicate = predicate
@@ -824,9 +841,9 @@ class FunctionPredicate(Predicate, ABC):
             EventType.DEF,
         ]
 
-    def _evaluate_predicate(self, event: Event, scope_: scope.Scope):
-        value = scope_.value(self.var)
-        return isinstance(value, str) and self.predicate(scope_.value(self.var))
+    def _evaluate_predicate(self, event: Event, scope: Scope):
+        value = scope.value(self.var)
+        return isinstance(value, str) and self.predicate(scope.value(self.var))
 
 
 class IsAsciiPredicate(FunctionPredicate):
@@ -1075,17 +1092,23 @@ class Condition(Predicate):
     def events():
         return [EventType.CONDITION]
 
-    def hit(self, id_, event: ConditionEvent, scope_: scope.Scope = None):
-        if id_ not in self.hits:
-            self.hits[id_] = 0
+    def hit(self, id_, event: ConditionEvent, scope: Scope = None):
         if id_ not in self.total_hits:
-            self.total_hits[id_] = 0
-        self.total_hits[id_] += 1
+            self.total_hits[id_] = dict()
+        if event.thread_id not in self.total_hits[id_]:
+            self.total_hits[id_][event.thread_id] = 0
+        if id_ not in self.hits:
+            self.hits[id_] = dict()
+            self.last_evaluation[id_] = dict()
+        if event.thread_id not in self.hits[id_]:
+            self.hits[id_][event.thread_id] = 0
+            self.last_evaluation[id_][event.thread_id] = EvaluationResult.TRUE
+        self.total_hits[id_][event.thread_id] += 1
         if (self.negate and not event.value) or (not self.negate and event.value):
-            self.hits[id_] += 1
-            self.last_evaluation = EvaluationResult.TRUE
+            self.hits[id_][event.thread_id] += 1
+            self.last_evaluation[id_][event.thread_id] = EvaluationResult.TRUE
         else:
-            self.last_evaluation = EvaluationResult.FALSE
+            self.last_evaluation[id_][event.thread_id] = EvaluationResult.FALSE
 
     def __str__(self):
         return f"{self.analysis_type()}:{self.file}:{self.line}:{self.condition}"
@@ -1156,7 +1179,7 @@ class FunctionErrorPredicate(Predicate):
             EventType.FUNCTION_EXIT,
         ]
 
-    def _evaluate_predicate(self, event: Event, scope_: scope.Scope):
+    def _evaluate_predicate(self, event: Event, scope: Scope):
         return event.event_type == EventType.FUNCTION_ERROR
 
     def get_suggestion(

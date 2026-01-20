@@ -1,11 +1,15 @@
+from typing import Optional, Set
+
 from sflkitlib.events.event import (
     FunctionEnterEvent,
     FunctionExitEvent,
     FunctionErrorEvent,
     DefEvent,
     UseEvent,
+    Event,
 )
 
+from sflkit.analysis.analysis_type import AnalysisObject
 from sflkit.events.event_file import EventFile
 from sflkit.model.model import Model
 from sflkit.model.scope import Scope
@@ -13,7 +17,7 @@ from sflkit.model.scope import Scope
 
 class ParallelModel(Model):
     def __init__(self, factory, workers: int = 4):
-        super().__init__(factory)
+        super().__init__(factory, workers)
         self.variables_map: dict[EventFile, dict[int, Scope]] = dict()
         self.returns_map: dict[EventFile, dict[int, Scope]] = dict()
 
