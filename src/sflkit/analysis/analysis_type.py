@@ -1,6 +1,6 @@
+import abc
 import enum
-from abc import abstractmethod
-from typing import List, Type, Optional
+from typing import List, Type, Optional, Any
 
 from sflkit.events.event_file import EventFile
 from sflkit.model.scope import Scope
@@ -43,7 +43,7 @@ If you want to add new spectra or predicates, please register them here and in s
 """
 
 
-class AnalysisObject:
+class AnalysisObject(abc.ABC):
     function_finder = None
     loop_finder = None
     branch_finder = None
@@ -58,17 +58,17 @@ class AnalysisObject:
     def __init__(self):
         self.suspiciousness: float = 0
         self.last_evaluation: EvaluationResult = EvaluationResult.UNOBSERVED
-        self.hits = dict()
+        self.hits: dict[EventFile, dict[Optional[int], Any]] = dict()
 
     def adjust_weight(self, event_file: EventFile, weight: float):
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def serialize(self) -> dict:
         pass
 
     @staticmethod
-    @abstractmethod
+    @abc.abstractmethod
     def deserialize(s: dict) -> "AnalysisObject":
         pass
 
@@ -82,7 +82,7 @@ class AnalysisObject:
         return f"{self.analysis_type()}"
 
     @staticmethod
-    @abstractmethod
+    @abc.abstractmethod
     def analysis_type() -> AnalysisType:
         raise NotImplementedError()
 
@@ -93,19 +93,19 @@ class AnalysisObject:
     def calculate(self):
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def finalize(self, passed: List, failed: List):
         raise NotImplementedError()
 
-    @abstractmethod
-    def hit(self, id_, event, scope_: Scope = None):
+    @abc.abstractmethod
+    def hit(self, id_: EventFile, event, scope: Scope = None):
         raise NotImplementedError()
 
-    @abstractmethod
+    @abc.abstractmethod
     def get_suggestion(self):
         raise NotImplementedError()
 
-    @abstractmethod
+    @abc.abstractmethod
     def assign_suspiciousness(self):
         raise NotImplementedError()
 
@@ -114,7 +114,7 @@ class AnalysisObject:
         return any(map(lambda e: isinstance(event, e), events))
 
     @staticmethod
-    @abstractmethod
+    @abc.abstractmethod
     def events() -> List[Type]:
         raise NotImplementedError()
 

@@ -1,4 +1,6 @@
 import os
+import json
+from os.path import join
 
 from sflkit.analysis.analysis_type import AnalysisType
 from sflkit.analysis.spectra import Spectrum

@@ -1,10 +1,17 @@
 from typing import List, Optional, Set, Dict, Tuple
 
+from sflkitlib.events.event import (
+    TestDefEvent,
+    TestUseEvent,
+    Event,
+    TestLineEvent,
+    TestStartEvent,
+)
+
 from sflkit.analysis.spectra import Spectrum
 from sflkit.events.event_file import EventFile
-from sflkit.model.model import Model
+from sflkit.model.parallel import ParallelModel
 from sflkit.model.scope import Scope
-from sflkitlib.events.event import TestDefEvent, TestUseEvent, Event
 
 
 class WeightedAnalyses:
@@ -31,112 +38,125 @@ class WeightedAnalyses:
             analysis.adjust_weight(event_file, self.weight)
 
 
-class TestTimeModel(Model):
+class TestTimeModel(ParallelModel):
     def __init__(self, factory):
         super().__init__(factory)
-        self.parts = list()
-        self.current_analysis = list()
-        self.last_test_event: Optional[Event] = None
-        self.current_test_failing = False
+        self.parts: dict[EventFile, list] = dict()
+        self.current_analysis: dict[EventFile, list] = dict()
+        self.last_test_event: dict[EventFile, Optional[Event]] = dict()
+        self.current_test_failing: dict[EventFile, bool] = dict()
 
     # noinspection PyUnresolvedReferences
-    def handle_event(self, event, scope: Scope = None) -> Set["AnalysisObject"]:
-        analysis = super().handle_event(event, scope)
-        self.current_analysis.extend(analysis)
+    def handle_event(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> Set["AnalysisObject"]:
+        analysis = super().handle_event(event, event_file, scope)
+        self.current_analysis[event_file].extend(analysis)
         return analysis
 
-    def add(self, event, force: bool = False) -> Optional[WeightedAnalyses]:
-        if self.last_test_event and (
+    def add(
+        self, event, event_file: EventFile, force: bool = False
+    ) -> Optional[WeightedAnalyses]:
+        if self.last_test_event[event_file] and (
             force
             or (
                 event
                 and (
-                    self.last_test_event.line != event.line
-                    or self.last_test_event.file != event.file
+                    self.last_test_event[event_file].line != event.line
+                    or self.last_test_event[event_file].file != event.file
                 )
             )
         ):
             weighted_analyses = WeightedAnalyses(
-                self.last_test_event.file,
-                self.last_test_event.line,
-                self.current_analysis,
+                self.last_test_event[event_file].file,
+                self.last_test_event[event_file].line,
+                self.current_analysis[event_file],
             )
-            self.parts.append(weighted_analyses)
-            self.current_analysis = list()
-            self.last_test_event = event
+            self.parts[event_file].append(weighted_analyses)
+            self.current_analysis[event_file] = list()
+            self.last_test_event[event_file] = event
             return weighted_analyses
         if event:
-            self.last_test_event = event
+            self.last_test_event[event_file] = event
+        return None
 
     def prepare(self, event_file: EventFile):
         super().prepare(event_file)
-        self.last_test_event = None
-        self.parts = list()
-        self.current_analysis = list()
-        self.current_test_failing = event_file.failing
+        self.last_test_event[event_file] = None
+        self.parts[event_file] = list()
+        self.current_analysis[event_file] = list()
+        self.current_test_failing[event_file] = event_file.failing
 
     def follow_up(self, event_file):
-        self.add(None, force=True)
+        self.add(None, event_file, force=True)
 
-    def handle_test_line_event(self, event):
+    def handle_test_line_event(self, event: TestLineEvent, event_file: EventFile):
         if self.current_test_failing:
-            self.add(event)
+            self.add(event, event_file)
 
 
 class TestFunctionModel(TestTimeModel):
     def __init__(self, factory):
         super().__init__(factory)
-        self.test_start_capture = False
-        self.test_end_capture = False
-        self.closest_analyses: Optional[WeightedAnalyses] = None
-        self.before_analyses: Set[WeightedAnalyses] = set()
-        self.actual_analyses: Set[WeightedAnalyses] = set()
+        self.test_start_capture: dict[EventFile, bool] = dict()
+        self.test_end_capture: dict[EventFile, bool] = dict()
+        self.closest_analyses: dict[EventFile, Optional[WeightedAnalyses]] = dict()
+        self.before_analyses: dict[EventFile, Set[WeightedAnalyses]] = dict()
+        self.actual_analyses: dict[EventFile, Set[WeightedAnalyses]] = dict()
 
     def prepare(self, event_file):
         super().prepare(event_file)
-        self.before_analyses = set()
-        self.actual_analyses = set()
-        self.closest_analyses = None
+        self.test_start_capture[event_file] = False
+        self.test_end_capture[event_file] = False
+        self.before_analyses[event_file] = set()
+        self.actual_analyses[event_file] = set()
+        self.closest_analyses[event_file] = None
 
-    def handle_test_start_event(self, event):
-        if self.current_test_failing:
-            self.add(event)
-            if not self.test_start_capture:
-                self.before_analyses = set(self.parts)
-                self.test_start_capture = True
+    def handle_test_start_event(self, event: TestStartEvent, event_file: EventFile):
+        if self.current_test_failing[event_file]:
+            self.add(event, event_file)
+            if not self.test_start_capture[event_file]:
+                self.before_analyses[event_file] = set(self.parts[event_file])
+                self.test_start_capture[event_file] = True
 
-    def handle_test_end_event(self, event):
-        if self.current_test_failing:
-            weighted_analyses = self.add(event, force=True)
+    def handle_test_end_event(self, event: Event, event_file: EventFile):
+        if self.current_test_failing[event_file]:
+            weighted_analyses = self.add(event, event_file, force=True)
             if weighted_analyses:
-                self.closest_analyses = weighted_analyses
-            self.actual_analyses = set(self.parts) - self.before_analyses
-            self.test_end_capture = True
+                self.closest_analyses[event_file] = weighted_analyses
+            self.actual_analyses[event_file] = (
+                set(self.parts[event_file]) - self.before_analyses[event_file]
+            )
+            self.test_end_capture[event_file] = True
 
-    def get_distances(self) -> Dict[WeightedAnalyses, int]:
+    def get_distances(self, event_file: EventFile) -> Dict[WeightedAnalyses, int]:
         distances: Dict[WeightedAnalyses, int] = dict()
-        if self.closest_analyses:
-            closest = self.parts.index(self.closest_analyses)
-            for distance, analyses in enumerate(reversed(self.parts[:closest])):
+        if self.closest_analyses[event_file]:
+            closest = self.parts[event_file].index(self.closest_analyses[event_file])
+            for distance, analyses in enumerate(
+                reversed(self.parts[event_file][:closest])
+            ):
                 distances[analyses] = distance
-            for distance, analyses in enumerate(self.parts[closest:], start=1):
+            for distance, analyses in enumerate(
+                self.parts[event_file][closest:], start=1
+            ):
                 distances[analyses] = distance
         else:
-            for distance, analyses in enumerate(reversed(self.parts)):
+            for distance, analyses in enumerate(reversed(self.parts[event_file])):
                 distances[analyses] = distance
         return distances
 
     def adjust_weights_for_tests(self, event_file):
         if event_file.failing:
-            if self.test_end_capture:
-                for analyses in self.parts:
-                    if analyses in self.actual_analyses:
+            if self.test_end_capture[event_file]:
+                for analyses in self.parts[event_file]:
+                    if analyses in self.actual_analyses[event_file]:
                         analyses.weight = 1
                     else:
                         analyses.weight = 0.5
             else:
-                for analyses in self.parts:
-                    if analyses in self.before_analyses:
+                for analyses in self.parts[event_file]:
+                    if analyses in self.before_analyses[event_file]:
                         analyses.weight = 0.5
                     else:
                         analyses.weight = 1
@@ -145,7 +165,7 @@ class TestFunctionModel(TestTimeModel):
         super().follow_up(event_file)
         if event_file.failing:
             self.adjust_weights_for_tests(event_file)
-            for analyses in self.parts:
+            for analyses in self.parts[event_file]:
                 analyses.set_weight(event_file)
 
 
@@ -153,14 +173,11 @@ class TestLineModel(TestFunctionModel):
     def __init__(self, factory):
         super().__init__(factory)
 
-    def prepare(self, event_file):
-        super().prepare(event_file)
-
     def follow_up(self, event_file):
         TestTimeModel.follow_up(self, event_file)
         self.adjust_weights_for_tests(event_file)
         if event_file.failing:
-            distances = self.get_distances()
+            distances = self.get_distances(event_file)
             max_distance = max(max(distances.values()), 0) + 1
             for analyses in distances:
                 analyses.weight *= 1 - distances[analyses] / max_distance
@@ -170,49 +187,55 @@ class TestLineModel(TestFunctionModel):
 class TestDefUseModel(TestFunctionModel):
     def __init__(self, factory):
         super().__init__(factory)
-        self.current_defs = list()
-        self.current_uses = list()
-        self.def_analyses: Dict[int, WeightedAnalyses] = dict()
-        self.use_def_analyses: Dict[WeightedAnalyses, List[WeightedAnalyses]] = dict()
+        self.current_defs: dict[EventFile, list] = dict()
+        self.current_uses: dict[EventFile, list] = dict()
+        self.def_analyses: dict[EventFile, dict[int, WeightedAnalyses]] = dict()
+        self.use_def_analyses: dict[
+            EventFile, dict[WeightedAnalyses, List[WeightedAnalyses]]
+        ] = dict()
 
     def prepare(self, event_file):
         super().prepare(event_file)
-        self.current_defs = list()
-        self.current_uses = list()
-        self.def_analyses = dict()
-        self.use_def_analyses = dict()
+        self.current_defs[event_file] = list()
+        self.current_uses[event_file] = list()
+        self.def_analyses[event_file] = dict()
+        self.use_def_analyses[event_file] = dict()
 
-    def add(self, event, force=False) -> Optional[WeightedAnalyses]:
+    def add(
+        self, event: Event, event_file: EventFile, force=False
+    ) -> Optional[WeightedAnalyses]:
         if event or force:
-            analyses = super().add(event, force=force)
+            analyses = super().add(event, event_file, force=force)
             if analyses:
-                for def_ in self.current_defs:
-                    self.def_analyses[(def_.var, def_.var_id)] = analyses
+                for def_ in self.current_defs[event_file]:
+                    self.def_analyses[event_file][(def_.var, def_.var_id)] = analyses
                 def_uses = list()
-                for use in self.current_uses:
-                    if (use.var, use.var_id) in self.def_analyses:
-                        def_uses.append(self.def_analyses[(use.var, use.var_id)])
-                self.use_def_analyses[analyses] = def_uses
-                self.current_defs = list()
-                self.current_uses = list()
+                for use in self.current_uses[event_file]:
+                    if (use.var, use.var_id) in self.def_analyses[event_file]:
+                        def_uses.append(
+                            self.def_analyses[event_file][(use.var, use.var_id)]
+                        )
+                self.use_def_analyses[event_file][analyses] = def_uses
+                self.current_defs[event_file] = list()
+                self.current_uses[event_file] = list()
 
-    def handle_test_def_event(self, event: TestDefEvent):
-        if self.current_test_failing:
-            self.add(event)
-            self.current_defs.append(event)
+    def handle_test_def_event(self, event: TestDefEvent, event_file: EventFile):
+        if self.current_test_failing[event_file]:
+            self.add(event, event_file)
+            self.current_defs[event_file].append(event)
 
-    def handle_test_use_event(self, event: TestUseEvent):
-        if self.current_test_failing:
-            self.add(event)
-            self.current_uses.append(event)
+    def handle_test_use_event(self, event: TestUseEvent, event_file: EventFile):
+        if self.current_test_failing[event_file]:
+            self.add(event, event_file)
+            self.current_uses[event_file].append(event)
 
-    def get_distances(self) -> Dict[WeightedAnalyses, int]:
-        distances = super().get_distances()
-        sorted_analyses = sorted(self.parts, key=lambda s: distances[s])
+    def get_distances(self, event_file: EventFile) -> Dict[WeightedAnalyses, int]:
+        distances = super().get_distances(event_file)
+        sorted_analyses = sorted(self.parts[event_file], key=lambda s: distances[s])
         for analyses in sorted_analyses:
-            if analyses in self.use_def_analyses:
-                if self.use_def_analyses[analyses]:
-                    for def_analyses in self.use_def_analyses[analyses]:
+            if analyses in self.use_def_analyses[event_file]:
+                if self.use_def_analyses[event_file][analyses]:
+                    for def_analyses in self.use_def_analyses[event_file][analyses]:
                         distances[def_analyses] = min(
                             distances[def_analyses], distances[analyses] + 1
                         )
@@ -222,7 +245,7 @@ class TestDefUseModel(TestFunctionModel):
         TestTimeModel.follow_up(self, event_file)
         self.adjust_weights_for_tests(event_file)
         if event_file.failing:
-            distances = self.get_distances()
+            distances = self.get_distances(event_file)
             max_distance = max(max(distances.values()), 0) + 1
             for analyses in distances:
                 analyses.weight *= 1 - distances[analyses] / max_distance
@@ -230,52 +253,56 @@ class TestDefUseModel(TestFunctionModel):
 
 
 class TestDefUsesModel(TestDefUseModel):
-    def add(self, event, force=False) -> Optional[WeightedAnalyses]:
+    def add(
+        self, event, event_file: EventFile, force=False
+    ) -> Optional[WeightedAnalyses]:
         if event or force:
-            analyses = TestFunctionModel.add(self, event, force=force)
+            analyses = TestFunctionModel.add(self, event, event_file, force=force)
             if analyses:
-                for def_ in self.current_defs:
-                    self.def_analyses[(def_.var, def_.var_id)] = analyses
+                for def_ in self.current_defs[event_file]:
+                    self.def_analyses[event_file][(def_.var, def_.var_id)] = analyses
                 def_uses = list()
-                for use in self.current_uses:
-                    if (use.var, use.var_id) in self.def_analyses:
-                        def_uses.append(self.def_analyses[(use.var, use.var_id)])
-                self.use_def_analyses[analyses] = def_uses
-                for use in self.current_uses:
-                    if (use.var, use.var_id) in self.def_analyses:
-                        self.def_analyses[(use.var, use.var_id)] = analyses
-                self.current_defs = list()
-                self.current_uses = list()
+                for use in self.current_uses[event_file]:
+                    if (use.var, use.var_id) in self.def_analyses[event_file]:
+                        def_uses.append(
+                            self.def_analyses[event_file][(use.var, use.var_id)]
+                        )
+                self.use_def_analyses[event_file][analyses] = def_uses
+                for use in self.current_uses[event_file]:
+                    if (use.var, use.var_id) in self.def_analyses[event_file]:
+                        self.def_analyses[event_file][(use.var, use.var_id)] = analyses
+                self.current_defs[event_file] = list()
+                self.current_uses[event_file] = list()
 
 
 class TestAssertDefUseModel(TestDefUseModel):
     def __init__(self, factory):
         super().__init__(factory)
-        self.asserts: Set[Tuple[str, int]] = set()
+        self.asserts: dict[EventFile, Set[Tuple[str, int]]] = dict()
 
     def prepare(self, event_file):
         super().prepare(event_file)
-        self.asserts = set()
+        self.asserts[event_file] = set()
 
-    def handle_test_assert_event(self, event):
-        if self.current_test_failing:
-            self.add(event)
-            self.asserts.add((event.file, event.line))
+    def handle_test_assert_event(self, event: TestDefEvent, event_file: EventFile):
+        if self.current_test_failing[event_file]:
+            self.add(event, event_file)
+            self.asserts[event_file].add((event.file, event.line))
 
-    def get_distances(self) -> Dict[WeightedAnalyses, int]:
-        distances = super().get_distances()
-        sorted_analyses = sorted(self.parts, key=lambda s: distances[s])
+    def get_distances(self, event_file: EventFile) -> Dict[WeightedAnalyses, int]:
+        distances = super().get_distances(event_file)
+        sorted_analyses = sorted(self.parts[event_file], key=lambda s: distances[s])
         assert_analyses = set()
         for analyses in sorted_analyses:
             if (
                 distances[analyses] > 0
-                and (analyses.file, analyses.line) in self.asserts
+                and (analyses.file, analyses.line) in self.asserts[event_file]
             ):
                 distances[analyses] += 1
                 assert_analyses.add(analyses)
-            if analyses in self.use_def_analyses:
-                if self.use_def_analyses[analyses]:
-                    for def_analyses in self.use_def_analyses[analyses]:
+            if analyses in self.use_def_analyses[event_file]:
+                if self.use_def_analyses[event_file][analyses]:
+                    for def_analyses in self.use_def_analyses[event_file][analyses]:
                         distances[def_analyses] = min(
                             distances[def_analyses], distances[analyses] + 1
                         )
@@ -288,7 +315,7 @@ class TestAssertDefUseModel(TestDefUseModel):
         TestTimeModel.follow_up(self, event_file)
         self.adjust_weights_for_tests(event_file)
         if event_file.failing:
-            distances = self.get_distances()
+            distances = self.get_distances(event_file)
             max_distance = max(max(distances.values()), 0) + 1
             for analyses in distances:
                 analyses.weight *= 1 - distances[analyses] / max_distance
@@ -296,5 +323,7 @@ class TestAssertDefUseModel(TestDefUseModel):
 
 
 class TestAssertDefUsesModel(TestAssertDefUseModel):
-    def add(self, event, force=False) -> Optional[WeightedAnalyses]:
-        TestDefUsesModel.add(self, event, force=force)
+    def add(
+        self, event, event_file: EventFile, force=False
+    ) -> Optional[WeightedAnalyses]:
+        TestDefUsesModel.add(self, event, event_file, force=force)

@@ -44,7 +44,7 @@ class Spectrum(AnalysisObject, ABC):
         self.failed = failed_observed + failed_not_observed
         self.failed_observed = failed_observed
         self.failed_not_observed = failed_not_observed
-        self.last_evaluation: EvaluationResult = EvaluationResult.FALSE
+        self.last_evaluation: dict[EventFile, dict[int, EvaluationResult]] = dict()
         self.weights: Dict[int, float] = dict()
         self.weight: float = 1
 
@@ -90,11 +90,12 @@ class Spectrum(AnalysisObject, ABC):
     def default_evaluation() -> EvaluationResult:
         return EvaluationResult.FALSE
 
-    def get_last_evaluation(self, id_: int) -> EvaluationResult:
-        if id_ not in self.hits:
-            return self.default_evaluation()
-        else:
-            return self.last_evaluation
+    def get_last_evaluation(
+        self, id_: EventFile, thread_id: Optional[int] = None
+    ) -> EvaluationResult:
+        if id_ in self.last_evaluation and thread_id in self.last_evaluation[id_]:
+            return self.last_evaluation[id_][thread_id]
+        return self.default_evaluation()
 
     def get_metric(self, metric: Callable = None, use_weight: bool = False):
         if metric is None:
@@ -118,12 +119,16 @@ class Spectrum(AnalysisObject, ABC):
     def assign_suspiciousness(self, metric: Callable = None, use_weight: bool = False):
         self.suspiciousness = self.get_metric(metric, use_weight=use_weight)
 
-    def hit(self, id_, event, scope_: Scope = None):
-        self.last_evaluation = EvaluationResult.TRUE
-        if id_ not in self.hits:
-            self.hits[id_] = 1
+    def hit(self, id_, event, scope: Scope = None):
+        if id_ in self.hits:
+            if event.thread_id in self.hits[id_]:
+                self.hits[id_][event.thread_id] += 1
+            else:
+                self.hits[id_][event.thread_id] = 1
+            self.last_evaluation[id_][event.thread_id] = EvaluationResult.TRUE
         else:
-            self.hits[id_] += 1
+            self.hits[id_] = {event.thread_id: 1}
+            self.last_evaluation[id_] = {event.thread_id: EvaluationResult.TRUE}
 
     def pass_observed(self):
         self.passed_observed += 1
@@ -150,12 +155,17 @@ class Spectrum(AnalysisObject, ABC):
             sum(self.weights.values()) / len(self.weights) if self.weights else 0
         )
 
-    def finalize(self, passed: list, failed: list):
+    def _check_hits(self, event_file: EventFile):
+        if event_file in self.hits:
+            return sum(self.hits[event_file].values()) > 0
+        return False
+
+    def finalize(self, passed: list[EventFile], failed: list[EventFile]):
         for event_file in failed:
-            if event_file in self.hits and self.hits[event_file] > 0:
+            if self._check_hits(event_file):
                 self.fail_observed()
         for event_file in passed:
-            if event_file in self.hits and self.hits[event_file] > 0:
+            if self._check_hits(event_file):
                 self.pass_observed()
         self.set_passed(len(passed))
         self.set_failed(len(failed))
@@ -507,9 +517,11 @@ class Spectrum(AnalysisObject, ABC):
         return self.failed_observed - (
             self.passed_observed
             if self.passed_observed <= 2
-            else 2 + 0.1 * (self.passed_observed - 2)
-            if self.passed_observed <= 10
-            else 2.8 + 0.001 * (self.passed_observed - 10)
+            else (
+                2 + 0.1 * (self.passed_observed - 2)
+                if self.passed_observed <= 10
+                else 2.8 + 0.001 * (self.passed_observed - 10)
+            )
         )
 
     def Zoltar(self):
@@ -521,6 +533,20 @@ class Spectrum(AnalysisObject, ABC):
             * self.passed_observed
             / self.failed_observed
         )
+
+
+class DummySpectrum(Spectrum):
+    @staticmethod
+    def deserialize(s: dict):
+        return DummySpectrum("", 0)
+
+    @staticmethod
+    def analysis_type():
+        pass
+
+    @staticmethod
+    def events():
+        return []
 
 
 class Line(Spectrum):
@@ -711,15 +737,7 @@ class DefUse(Spectrum):
 
 
 class ModifiableSpectrum(Spectrum, ABC):
-    def finalize_evaluation(self, evaluate: Callable, passed: list, failed: list):
-        for event_file in failed:
-            if event_file in self.hits and any(map(evaluate, self.hits[event_file])):
-                self.fail_observed()
-        for event_file in passed:
-            if event_file in self.hits and any(map(evaluate, self.hits[event_file])):
-                self.pass_observed()
-        self.set_passed(len(passed))
-        self.set_failed(len(failed))
+    pass
 
 
 class Loop(ModifiableSpectrum):
@@ -729,7 +747,7 @@ class Loop(ModifiableSpectrum):
         evaluate_hit: Optional[Callable] = None,
     ):
         super().__init__(event.file, event.line)
-        self.loop_stack = list()
+        self.loop_stack = dict()
         self.evaluate_hit = evaluate_hit if evaluate_hit else self.evaluate_hit_0
 
     def __hash__(self):
@@ -795,27 +813,46 @@ class Loop(ModifiableSpectrum):
     def events():
         return [EventType.LOOP_BEGIN, EventType.LOOP_HIT, EventType.LOOP_END]
 
-    def start_loop(self):
-        self.loop_stack.append(0)
+    def start_loop(self, thread_id: Optional[int] = None):
+        self.loop_stack.setdefault(thread_id, []).append(0)
 
-    def hit_loop(self):
-        if self.loop_stack:
-            self.loop_stack[-1] += 1
+    def hit_loop(self, thread_id: Optional[int] = None):
+        if thread_id in self.loop_stack:
+            if self.loop_stack[thread_id]:
+                self.loop_stack[thread_id][-1] += 1
+            else:
+                self.loop_stack[thread_id].append(1)
         else:
-            self.loop_stack.append(1)
+            self.loop_stack[thread_id] = [1]
 
-    def hit(self, id_, event, scope_: Scope = None):
-        if self.loop_stack:
-            hits = self.loop_stack.pop()
+    def hit(self, id_, event, scope: Scope = None):
+        if (
+            self.loop_stack
+            and event.thread_id in self.loop_stack
+            and self.loop_stack[event.thread_id]
+        ):
+            hits = self.loop_stack[event.thread_id].pop()
         else:
             hits = 0
-        if id_ not in self.hits:
-            self.hits[id_] = [hits]
+        result = (
+            EvaluationResult.TRUE if self.evaluate_hit(hits) else EvaluationResult.FALSE
+        )
+        if id_ in self.hits:
+            if event.thread_id in self.hits[id_]:
+                self.hits[id_][event.thread_id].append(hits)
+            else:
+                self.hits[id_][event.thread_id] = [hits]
+            self.last_evaluation[id_][event.thread_id] = result
         else:
-            self.hits[id_].append(hits)
+            self.hits[id_] = {event.thread_id: [hits]}
+            self.last_evaluation[id_] = {event.thread_id: result}
 
-    def finalize(self, passed: list, failed: list):
-        self.finalize_evaluation(self.evaluate_hit, passed, failed)
+    def _check_hits(self, event_file: EventFile):
+        if event_file in self.hits:
+            for thread_hits in self.hits[event_file].values():
+                if any(map(self.evaluate_hit, thread_hits)):
+                    return True
+        return False
 
     def get_suggestion(
         self, metric: Callable = None, base_dir: str = "", use_weight: bool = False
@@ -913,14 +950,28 @@ class Length(ModifiableSpectrum):
     def events():
         return [EventType.LEN]
 
-    def hit(self, id_, event, scope_: Scope = None):
-        if id_ not in self.hits:
-            self.hits[id_] = [event.length]
+    def hit(self, id_, event, scope: Scope = None):
+        result = (
+            EvaluationResult.TRUE
+            if self.evaluate_length(event.length)
+            else EvaluationResult.FALSE
+        )
+        if id_ in self.hits:
+            if event.thread_id in self.hits[id_]:
+                self.hits[id_][event.thread_id].appent(event.length)
+            else:
+                self.hits[id_][event.thread_id] = [event.length]
+            self.last_evaluation[id_][event.thread_id] = result
         else:
-            self.hits[id_].append(event.length)
+            self.hits[id_] = {event.thread_id: [event.length]}
+            self.last_evaluation[id_] = {event.thread_id: result}
 
-    def finalize(self, passed: list, failed: list):
-        self.finalize_evaluation(self.evaluate_length, passed, failed)
+    def _check_hits(self, event_file: EventFile):
+        if event_file in self.hits:
+            for thread_lengths in self.hits[event_file].values():
+                if any(map(self.evaluate_length, thread_lengths)):
+                    return True
+        return False
 
     def __str__(self):
         return f"{self.analysis_type()}:{self.file}:{self.line}:{self.var}:{self.evaluate_length.__name__}"

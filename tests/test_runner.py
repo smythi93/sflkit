@@ -80,6 +80,7 @@ class RunnerTests(BaseTest):
             predicates="line",
             working=BaseTest.TEST_DIR,
             exclude="tests",
+            mapping_path=BaseTest.TEST_MAPPING,
         )
         instrument_config(config)
         runner = InputRunner(

@@ -90,7 +90,7 @@ class BaseTest(unittest.TestCase):
         return path
 
     @staticmethod
-    def run_analysis(
+    def run_analysis_event_files(
         test: str,
         events: str,
         predicates: str,
@@ -103,6 +103,7 @@ class BaseTest(unittest.TestCase):
             events=events,
             predicates=predicates,
             working=BaseTest.TEST_DIR,
+            mapping_path=BaseTest.TEST_MAPPING,
         )
         instrument_config(config)
 
@@ -125,6 +126,21 @@ class BaseTest(unittest.TestCase):
                 EventFile(BaseTest.execute_subject(r, count), count, mapping, False)
             )
             count += 1
+        return config, relevant_event_files, irrelevant_event_files
+
+    @staticmethod
+    def run_analysis(
+        test: str,
+        events: str,
+        predicates: str,
+        relevant: List[List[str]] = None,
+        irrelevant: List[List[str]] = None,
+    ) -> Analyzer:
+        config, relevant_event_files, irrelevant_event_files = (
+            BaseTest.run_analysis_event_files(
+                test, events, predicates, relevant, irrelevant
+            )
+        )
 
         analyzer = Analyzer(
             relevant_event_files, irrelevant_event_files, config.factory
