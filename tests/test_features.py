@@ -4,6 +4,8 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from sflkit.analysis.analysis_type import MetaEvent
 from sflkit.analysis.predicate import Branch
 from sflkit.analysis.spectra import Line
+from sflkit.events.event_file import EventFile
+from sflkit.events.mapping import EventMapping
 from sflkit.features.handler import EventHandler
 from sflkit.features.value import FeatureValue, BinaryFeature, TertiaryFeature
 from sflkit.features.vector import FeatureVector
@@ -87,8 +89,12 @@ class VectorTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.vector_pass = FeatureVector(1, TestResult.PASSING)
-        cls.vector_fail = FeatureVector(2, TestResult.FAILING)
+        cls.vector_pass = FeatureVector(
+            EventFile("EVENTS", 1, EventMapping()), TestResult.PASSING
+        )
+        cls.vector_fail = FeatureVector(
+            EventFile("EVENTS", 2, EventMapping()), TestResult.FAILING
+        )
         cls.bin_feature_1 = BinaryFeature("line_1", Line(MetaEvent("test.py", 1)))
         cls.bin_feature_2 = BinaryFeature("line_2", Line(MetaEvent("test.py", 2)))
         cls.ter_feature_1 = TertiaryFeature(
@@ -312,7 +318,9 @@ class ThreadVectorTest(unittest.TestCase):
             features_values.append((bin_feature, bin_value))
             features_values.append((ter_feature, ter_value))
 
-        vector = FeatureVector(0, TestResult.FAILING)
+        vector = FeatureVector(
+            EventFile("EVENTS", 0, EventMapping()), TestResult.FAILING
+        )
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
