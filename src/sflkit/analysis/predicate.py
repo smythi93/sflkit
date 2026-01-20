@@ -254,8 +254,8 @@ class Branch(Predicate):
             self.last_evaluation[id_] = dict()
         if event.thread_id not in self.hits[id_]:
             self.hits[id_][event.thread_id] = 0
+        self.total_hits[id_][event.thread_id] += 1
         if event.then_id == self.then_id:
-            self.total_hits[id_][event.thread_id] += 1
             self.hits[id_][event.thread_id] += 1
             self.last_evaluation[id_][event.thread_id] = EvaluationResult.TRUE
         else:
