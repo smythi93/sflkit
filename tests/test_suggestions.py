@@ -75,20 +75,6 @@ class SuggestionsFromPredicatesTest(BaseTest):
         suggestions = sorted(
             map(lambda p: p.get_suggestion(base_dir=self.original_dir), predicates)
         )
-        for predicate in predicates:
-            print()
-            print(predicate.file, predicate.line, predicate.then)
-            print(
-                json.dumps(
-                    {str(ef): predicate.hits[ef] for ef in predicate.hits}, indent=2
-                )
-            )
-            print(
-                json.dumps(
-                    {str(ef): predicate.total_hits[ef] for ef in predicate.total_hits},
-                    indent=2,
-                )
-            )
         self.assertEqual(0.5, suggestions[-1].suspiciousness)
         self.assertEqual(2, len(suggestions[-1].lines))
         self.assertIn(Location("main.py", 10), suggestions[-1].lines)
