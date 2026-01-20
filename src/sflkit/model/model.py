@@ -54,11 +54,14 @@ class Model:
 
     # noinspection PyUnresolvedReferences
     def handle_event(
-        self, event: Event, event_file: EventFile, scope: Scope = None
+        self,
+        event: Event,
+        event_file: EventFile,
+        scope: Scope = None,
     ) -> Set[AnalysisObject]:
         analysis = self.factory.handle(event, event_file, scope=scope)
         for a in analysis:
-            a.hit(event_file, event, scope)
+            a.hit(event_file, event, scope=scope)
         return set(analysis)
 
     def handle_line_event(self, event: LineEvent, event_file: EventFile):

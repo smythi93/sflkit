@@ -153,9 +153,11 @@ class LoopFactory(AnalysisFactory):
                 if self.hit_more:
                     self.objects[key].append(Loop(event, Loop.evaluate_hit_more)),
             if event.event_type == EventType.LOOP_BEGIN:
-                list(map(Loop.start_loop, self.objects[key]))
+                for obj in self.objects[key]:
+                    obj.start_loop(thread_id=event.thread_id)
             elif event.event_type == EventType.LOOP_HIT:
-                list(map(Loop.hit_loop, self.objects[key]))
+                for obj in self.objects[key]:
+                    obj.hit_loop(thread_id=event.thread_id)
             elif event.event_type == EventType.LOOP_END:
                 return self.objects[key][:]
             return list()

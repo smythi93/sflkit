@@ -50,7 +50,7 @@ class FeatureBuilder(CombinationFactory):
         self.all_features: Set[Feature] = set()
         self.name_map: Dict[int, str] = dict()
 
-    def get_analysis(self, event, scope: Scope = None) -> List[AnalysisObject]:
+    def get_analysis(self, event, event_file: Scope = None) -> List[AnalysisObject]:
         self.analysis = super().get_analysis(event, scope)
         self.analysis.append(self)
         return self.analysis
@@ -137,7 +137,9 @@ class EventHandler:
         self.builder.prepare(event_file, self.map_result(event_file.failing))
         with event_file:
             for event in event_file.load():
-                event.handle(self.model)
+                event.handle(
+                    self.model,
+                )
 
     def handle_files(self, event_files: List[EventFile]):
         for e in event_files:
