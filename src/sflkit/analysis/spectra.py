@@ -958,7 +958,7 @@ class Length(ModifiableSpectrum):
         )
         if id_ in self.hits:
             if event.thread_id in self.hits[id_]:
-                self.hits[id_][event.thread_id].appent(event.length)
+                self.hits[id_][event.thread_id].append(event.length)
             else:
                 self.hits[id_][event.thread_id] = [event.length]
             self.last_evaluation[id_][event.thread_id] = result
