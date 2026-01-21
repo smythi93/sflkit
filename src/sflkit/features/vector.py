@@ -9,7 +9,7 @@ from sflkit.runners.run import TestResult
 class FeatureVector:
     def __init__(
         self,
-        run_id: EventFile,
+        run_id: EventFile | int,
         result: TestResult,
     ):
         self.run_id = run_id
