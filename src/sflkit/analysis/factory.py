@@ -267,24 +267,23 @@ class ScalarPairFactory(ComparisonFactory):
                 for types in (["int", "float", "bool"], ["str"], ["bytes"]):
                     if event.type_ in types:
                         for variable in variables:
-                            if variable.var != event.var:
-                                if variable.type_ in types:
-                                    for comp in self.comparators:
-                                        key = (
-                                            ScalarPair.analysis_type(),
-                                            event.file,
-                                            event.line,
-                                            event.var,
-                                            variable.var,
-                                            comp,
-                                            types[0],
-                                        )
-                                        with self._lock:
-                                            if key not in self.objects:
-                                                self.objects[key] = ScalarPair(
-                                                    event, comp, variable.var
-                                                )
-                                        objects.append(self.objects[key])
+                            if variable.type_ in types:
+                                for comp in self.comparators:
+                                    key = (
+                                        ScalarPair.analysis_type(),
+                                        event.file,
+                                        event.line,
+                                        event.var,
+                                        variable.var,
+                                        comp,
+                                        types[0],
+                                    )
+                                    with self._lock:
+                                        if key not in self.objects:
+                                            self.objects[key] = ScalarPair(
+                                                event, comp, variable.var
+                                            )
+                                    objects.append(self.objects[key])
             else:
                 for variable in variables:
                     if variable.type_ == event.type_:

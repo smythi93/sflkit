@@ -42,7 +42,7 @@ class ParallelModel(Model):
             self.returns[event_file].add(
                 event.function, event.return_value, event.type_
             )
-            self.handle_event(event, event_file, self.returns)
+            self.handle_event(event, event_file, self.returns[event_file])
         else:
             self.returns_map[event_file].setdefault(event.thread_id, Scope()).add(
                 event.function, event.return_value, event.type_
@@ -66,15 +66,15 @@ class ParallelModel(Model):
 
     def handle_def_event(self, event: DefEvent, event_file: EventFile):
         if event.thread_id is None:
+            self.handle_event(event, event_file, self.variables[event_file])
             self.variables[event_file].add(event.var, event.value, event.type_)
-            self.handle_event(event, event_file, self.variables)
         else:
-            self.variables_map[event_file].setdefault(
-                event.thread_id, self.variables
-            ).add(event.var, event.value, event.type_)
             self.handle_event(
                 event, event_file, self.variables_map[event_file][event.thread_id]
             )
+            self.variables_map[event_file].setdefault(
+                event.thread_id, self.variables[event_file]
+            ).add(event.var, event.value, event.type_)
 
     def handle_use_event(self, event: UseEvent, event_file: EventFile):
         if event.thread_id is None:
@@ -83,7 +83,9 @@ class ParallelModel(Model):
             self.handle_event(
                 event,
                 event_file,
-                self.variables_map[event_file].get(event.thread_id, self.variables),
+                self.variables_map[event_file].get(
+                    event.thread_id, self.variables[event_file]
+                ),
             )
 
     def enter_parallel_scope(self, thread_id: int, event_file: EventFile):
