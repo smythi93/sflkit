@@ -90,8 +90,8 @@ class Model:
         self.exit_scope(event_file)
 
     def handle_def_event(self, event: DefEvent, event_file: EventFile):
-        self.variables[event_file].add(event.var, event.value, event.type_)
         self.handle_event(event, event_file, self.variables[event_file])
+        self.variables[event_file].add(event.var, event.value, event.type_)
 
     def handle_use_event(self, event: UseEvent, event_file: EventFile):
         self.handle_event(event, event_file, self.variables[event_file])
