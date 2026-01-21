@@ -66,15 +66,15 @@ class ParallelModel(Model):
 
     def handle_def_event(self, event: DefEvent, event_file: EventFile):
         if event.thread_id is None:
-            self.handle_event(event, event_file, self.variables[event_file])
             self.variables[event_file].add(event.var, event.value, event.type_)
+            self.handle_event(event, event_file, self.variables[event_file])
         else:
-            self.handle_event(
-                event, event_file, self.variables_map[event_file][event.thread_id]
-            )
             self.variables_map[event_file].setdefault(
                 event.thread_id, self.variables[event_file]
             ).add(event.var, event.value, event.type_)
+            self.handle_event(
+                event, event_file, self.variables_map[event_file][event.thread_id]
+            )
 
     def handle_use_event(self, event: UseEvent, event_file: EventFile):
         if event.thread_id is None:
