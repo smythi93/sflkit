@@ -367,8 +367,8 @@ class ReturnFactory(ComparisonFactory):
                                 self.objects[key] = ReturnPredicate(
                                     event, comp, value=tr
                                 )
-                        objects.append(self.objects[key])
-            if event.type_ == "NoneType":
+                            objects.append(self.objects[key])
+            elif event.type_ == "NoneType":
                 for comp in Comp.EQ, Comp.NE:
                     if comp in self.comparators:
                         key = (
@@ -397,8 +397,11 @@ class ReturnFactory(ComparisonFactory):
                             "NoneType",
                         )
                         with self._lock:
-                            if key in self.objects:
-                                objects.append(self.objects[key])
+                            if key not in self.objects:
+                                self.objects[key] = ReturnPredicate(
+                                    event, comp, value=None
+                                )
+                        objects.append(self.objects[key])
             return objects
         return None
 
