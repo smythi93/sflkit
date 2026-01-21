@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Set, Optional
 
 import pandas as pd
+from sflkitlib.events.event import Event
 
 from sflkit.analysis.analysis_type import AnalysisObject, EvaluationResult
 from sflkit.analysis.factory import CombinationFactory, analysis_factory_mapping
@@ -15,10 +16,16 @@ from sflkit.model.model import Model
 from sflkit.model.parallel import ParallelModel
 from sflkit.model.scope import Scope
 from sflkit.runners.run import TestResult
-from sflkitlib.events.event import Event
 
 
 class FeatureBuilder(CombinationFactory):
+    def __init__(self):
+        super().__init__(list(map(lambda f: f(), analysis_factory_mapping.values())))
+        self.analysis: dict[EventFile, list[AnalysisObject]] = dict()
+        self.feature_vectors: Dict[EventFile, FeatureVector] = dict()
+        self.all_features: Set[Feature] = set()
+        self.name_map: Dict[EventFile, str] = dict()
+
     def __iter__(self) -> FeatureVector:
         yield from self.feature_vectors.values()
 
@@ -44,22 +51,17 @@ class FeatureBuilder(CombinationFactory):
         if run_id in self.feature_vectors:
             del self.feature_vectors[run_id]
 
-    def __init__(self):
-        super().__init__(list(map(lambda f: f(), analysis_factory_mapping.values())))
-        self.analysis: List[AnalysisObject] = list()
-        self.feature_vectors: Dict[EventFile, FeatureVector] = dict()
-        self.all_features: Set[Feature] = set()
-        self.name_map: Dict[EventFile, str] = dict()
-
     def get_analysis(
         self, event, event_file: EventFile, scope: Scope = None
     ) -> List[AnalysisObject]:
-        self.analysis = super().get_analysis(event, event_file, scope)
-        self.analysis.append(self)
-        return self.analysis
+        self.analysis[event_file] = super().get_analysis(event, event_file, scope)
+        self.analysis[event_file].append(self)
+        return self.analysis[event_file]
 
     @staticmethod
-    def map_evaluation(analysis: Spectrum, id_: EventFile, thread_id: Optional[int] = None):
+    def map_evaluation(
+        analysis: Spectrum, id_: EventFile, thread_id: Optional[int] = None
+    ):
         match analysis.get_last_evaluation(id_, thread_id):
             case EvaluationResult.TRUE:
                 return FeatureValue.TRUE
@@ -73,12 +75,13 @@ class FeatureBuilder(CombinationFactory):
                 return FeatureValue.UNDEFINED
 
     def prepare(self, event_file: EventFile, test_result: TestResult):
+        self.analysis[event_file] = list()
         self.name_map[event_file] = os.path.basename(str(event_file.path))
         self.feature_vectors[event_file] = FeatureVector(event_file, test_result)
 
     # noinspection PyUnusedLocal
     def hit(self, id_: EventFile, event: Event, *args, **kwargs):
-        for a in self.analysis:
+        for a in self.analysis[id_]:
             if isinstance(a, Predicate):
                 feature = TertiaryFeature(str(a), a)
                 self.feature_vectors[id_].set_feature(

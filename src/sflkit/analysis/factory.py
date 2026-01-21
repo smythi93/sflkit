@@ -179,28 +179,30 @@ class DefUseFactory(AnalysisFactory):
         self.id_to_def: dict[EventFile, dict[tuple[str, int], DefEvent]] = dict()
 
     def reset(self, event_file: EventFile):
-        self.id_to_def[event_file] = dict()
+        with self._lock:
+            self.id_to_def[event_file] = dict()
 
     def get_analysis(
         self, event, event_file: EventFile, scope: Scope = None
     ) -> List[AnalysisObject]:
         if event.event_type == EventType.DEF:
-            self.id_to_def[event_file][(event.var, event.var_id)] = event
+            with self._lock:
+                self.id_to_def[event_file][(event.var, event.var_id)] = event
         elif event.event_type == EventType.USE:
-            if (event.var, event.var_id) in self.id_to_def[event_file]:
+            with self._lock:
+                def_event = self.id_to_def[event_file].get((event.var, event.var_id))
+            if def_event:
                 key = (
                     DefUse.analysis_type(),
-                    self.id_to_def[event_file][(event.var, event.var_id)].file,
-                    self.id_to_def[event_file][(event.var, event.var_id)].line,
+                    def_event.file,
+                    def_event.line,
                     event.file,
                     event.line,
                     event.var,
                 )
                 with self._lock:
                     if key not in self.objects:
-                        self.objects[key] = DefUse(
-                            self.id_to_def[event_file][(event.var, event.var_id)], event
-                        )
+                        self.objects[key] = DefUse(def_event, event)
                 return [self.objects[key]]
         return None
 
@@ -365,8 +367,8 @@ class ReturnFactory(ComparisonFactory):
                                 self.objects[key] = ReturnPredicate(
                                     event, comp, value=tr
                                 )
-                        objects.append(self.objects[key])
-            if event.type_ == "NoneType":
+                            objects.append(self.objects[key])
+            elif event.type_ == "NoneType":
                 for comp in Comp.EQ, Comp.NE:
                     if comp in self.comparators:
                         key = (
@@ -394,8 +396,12 @@ class ReturnFactory(ComparisonFactory):
                             comp,
                             "NoneType",
                         )
-                        if key in self.objects:
-                            objects.append(self.objects[key])
+                        with self._lock:
+                            if key not in self.objects:
+                                self.objects[key] = ReturnPredicate(
+                                    event, comp, value=None
+                                )
+                        objects.append(self.objects[key])
             return objects
         return None
 
@@ -525,9 +531,11 @@ class FunctionErrorFactory(AnalysisFactory):
         self, event, event_file: EventFile, scope: Scope = None
     ) -> List[AnalysisObject]:
         if event.event_type == EventType.FUNCTION_ENTER:
-            self.function_mapping[event.function_id] = event.line
+            with self._lock:
+                self.function_mapping[event.function_id] = event.line
         if event.event_type in (EventType.FUNCTION_ERROR, EventType.FUNCTION_EXIT):
-            line = self.function_mapping.get(event.function_id, event.line)
+            with self._lock:
+                line = self.function_mapping.get(event.function_id, event.line)
             key = (
                 FunctionErrorPredicate.analysis_type(),
                 event.file,
