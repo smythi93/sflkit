@@ -51,23 +51,31 @@ class Scope(object):
         else:
             return self
 
+    def __contains__(self, var: str) -> bool:
+        current = self
+        while current is not None:
+            if var in current.variables:
+                return True
+            current = current.parent
+        return False
+
     def value(self, var: str) -> Var:
-        if var in self.variables:
-            return self.variables[var].value
-        elif self.parent is not None:
-            return self.parent.value(var)
-        else:
-            return None
+        current = self
+        while current is not None:
+            if var in current.variables:
+                return current.variables[var].value
+            current = current.parent
+        return None
 
     def add(self, var, value, type_, id_: int = None):
         self.variables[var] = Var(var, value, type_, id_)
 
     def get_all_vars_dict(self):
-        if self.parent is not None:
-            variables = self.parent.get_all_vars_dict()
-        else:
-            variables = dict()
-        variables.update(self.variables)
+        current = self
+        variables = dict()
+        while current is not None:
+            variables = {**current.variables, **variables}
+            current = current.parent
         return variables
 
     def get_all_vars(self) -> List[Var]:
