@@ -85,7 +85,7 @@ class LineFactory(AnalysisFactory):
                 if key not in self.objects:
                     self.objects[key] = Line(event)
             return [self.objects[key]]
-        return None
+        return []
 
 
 class BranchFactory(AnalysisFactory):
@@ -117,7 +117,7 @@ class BranchFactory(AnalysisFactory):
                 return [self.objects[key], self.objects[else_key]]
             return [self.objects[key]]
 
-        return None
+        return []
 
 
 class FunctionFactory(AnalysisFactory):
@@ -130,7 +130,7 @@ class FunctionFactory(AnalysisFactory):
                 if key not in self.objects:
                     self.objects[key] = Function(event)
             return [self.objects[key]]
-        return None
+        return []
 
 
 class LoopFactory(AnalysisFactory):
@@ -170,7 +170,7 @@ class LoopFactory(AnalysisFactory):
             elif event.event_type == EventType.LOOP_END:
                 return self.objects[key][:]
             return list()
-        return None
+        return []
 
 
 class DefUseFactory(AnalysisFactory):
@@ -400,7 +400,7 @@ class ScalarPairFactory(ComparisonFactory):
                                         )
                                 objects.append(self.objects[key])
             return objects
-        return None
+        return []
 
 
 class VariableFactory(ComparisonFactory):
@@ -427,7 +427,7 @@ class VariableFactory(ComparisonFactory):
                         self.objects[key] = VariablePredicate(event, comp)
                 objects.append(self.objects[key])
             return objects
-        return None
+        return []
 
 
 class ReturnFactory(ComparisonFactory):
@@ -497,7 +497,7 @@ class ReturnFactory(ComparisonFactory):
                                 )
                         objects.append(self.objects[key])
             return objects
-        return None
+        return []
 
 
 class ConstantCompFactory(AnalysisFactory):
@@ -524,7 +524,7 @@ class ConstantCompFactory(AnalysisFactory):
                         self.objects[key] = self.class_(event)
                 objects.append(self.objects[key])
             return objects
-        return None
+        return []
 
 
 class NoneFactory(ConstantCompFactory):
@@ -562,7 +562,7 @@ class PredicateFunctionFactory(AnalysisFactory):
                     # noinspection PyArgumentList
                     self.objects[key] = self.class_(event)
             return [self.objects[key]]
-        return None
+        return []
 
 
 class IsAsciiFactory(PredicateFunctionFactory):
@@ -613,7 +613,7 @@ class LengthFactory(AnalysisFactory):
                             Length(event, Length.evaluate_length_more)
                         )
             return self.objects[key][:]
-        return None
+        return []
 
 
 class FunctionErrorFactory(AnalysisFactory):
@@ -640,7 +640,7 @@ class FunctionErrorFactory(AnalysisFactory):
                         event.file, line, event.function
                     )
             return [self.objects[key]]
-        return None
+        return []
 
 
 analysis_factory_mapping = {
