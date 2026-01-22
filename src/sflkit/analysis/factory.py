@@ -174,67 +174,34 @@ class LoopFactory(AnalysisFactory):
 
 
 class DefUseFactory(AnalysisFactory):
-    class DefScope:
-        def __init__(self, parent: "DefUseFactory.DefScope" = None):
-            self.parent: "DefUseFactory.DefScope" = parent
-            self.def_events: dict[tuple[str, int], DefEvent] = dict()
-
-        def enter(self):
-            return DefUseFactory.DefScope(self)
-
-        def exit(self):
-            return self.parent or self
-
-        def add(self, var_name: str, var_id: int, def_event: DefEvent):
-            self.def_events[(var_name, var_id)] = def_event
-
-        def event(self, var_name: str, var_id: int) -> DefEvent:
-            current = self
-            while current is not None:
-                if (var_name, var_id) in current.def_events:
-                    return current.def_events[(var_name, var_id)]
-                current = current.parent
-            return None
-
     def __init__(self):
         super().__init__()
         self.id_to_def: dict[EventFile, dict[tuple[str, int], DefEvent]] = dict()
-        self.id_to_def_thread: dict[
-            EventFile, dict[int, dict[tuple[str, int], DefEvent]]
-        ] = dict()
-        self.def_stack: dict[EventFile, dict[int, DefUseFactory.DefScope]] = dict()
+        self.def_stack: dict[EventFile, dict[int, dict[tuple[str, int], DefEvent]]] = (
+            dict()
+        )
 
     def reset(self, event_file: EventFile):
         if event_file in self.id_to_def:
             del self.id_to_def[event_file]
-        if event_file in self.id_to_def_thread:
-            del self.id_to_def_thread[event_file]
         if event_file in self.def_stack:
             del self.def_stack[event_file]
 
     def _find_def_event(
         self,
         event_file: EventFile,
-        thread_id: int,
+        scope_id: int,
         var_name: str,
         var_id: int,
     ) -> DefEvent:
-        # Strategy 1: Check in scope stack (from innermost to outermost)
+        # Strategy 1: Check in scope
         def_event = None
-        if event_file in self.def_stack and thread_id in self.def_stack[event_file]:
-            def_event = self.def_stack[event_file][thread_id].event(var_name, var_id)
+        if event_file in self.def_stack and scope_id in self.def_stack[event_file]:
+            def_event = self.def_stack[event_file][scope_id].get(
+                (var_name, var_id), None
+            )
 
-        # Strategy 2: Look up in the thread-specific DEF stack
-        if def_event is None:
-            if (
-                event_file in self.id_to_def_thread
-                and thread_id in self.id_to_def_thread[event_file]
-            ):
-                def_event = self.id_to_def_thread[event_file][thread_id].get(
-                    (var_name, var_id), None
-                )
-
-        # Strategy 3: Look up in the global DEF stack (other threads)
+        # Strategy 2: Look up in the global DEF stack (other threads)
         if def_event is None:
             if event_file in self.id_to_def:
                 def_event = self.id_to_def[event_file].get((var_name, var_id), None)
@@ -245,6 +212,7 @@ class DefUseFactory(AnalysisFactory):
         self, event, event_file: EventFile, scope: Scope = None
     ) -> List[AnalysisObject]:
         thread_id = event.thread_id
+        scope_id = scope.id if scope else 0
 
         if event.event_type == EventType.DEF:
             key = (event.var, event.var_id)
@@ -252,23 +220,18 @@ class DefUseFactory(AnalysisFactory):
             # Initialize structures if needed
             if event_file not in self.id_to_def:
                 self.id_to_def[event_file] = dict()
-            if event_file not in self.id_to_def_thread:
-                self.id_to_def_thread[event_file] = dict()
-            if thread_id not in self.id_to_def_thread[event_file]:
-                self.id_to_def_thread[event_file][thread_id] = dict()
             if event_file not in self.def_stack:
                 self.def_stack[event_file] = dict()
-            if thread_id not in self.def_stack[event_file]:
-                self.def_stack[event_file][thread_id] = DefUseFactory.DefScope()
+            if scope_id not in self.def_stack[event_file]:
+                self.def_stack[event_file][scope_id] = dict()
 
             # Store the DEF event
             self.id_to_def[event_file][key] = event
-            self.id_to_def_thread[event_file][thread_id][key] = event
-            self.def_stack[event_file][thread_id].add(event.var, event.var_id, event)
+            self.def_stack[event_file][scope_id][key] = event
 
         elif event.event_type == EventType.USE:
             def_event = self._find_def_event(
-                event_file, thread_id, event.var, event.var_id
+                event_file, scope_id, event.var, event.var_id
             )
 
             if def_event:
@@ -284,23 +247,6 @@ class DefUseFactory(AnalysisFactory):
                     if key not in self.objects:
                         self.objects[key] = DefUse(def_event, event)
                 return [self.objects[key]]
-        elif event.event_type == EventType.FUNCTION_ENTER:
-            if event_file not in self.def_stack:
-                self.def_stack[event_file] = dict()
-            if thread_id not in self.def_stack[event_file]:
-                self.def_stack[event_file][thread_id] = DefUseFactory.DefScope()
-            else:
-                self.def_stack[event_file][thread_id] = self.def_stack[event_file][
-                    thread_id
-                ].enter()
-        elif (
-            event.event_type == EventType.FUNCTION_EXIT
-            or event.event_type == EventType.FUNCTION_ERROR
-        ):
-            if event_file in self.def_stack and thread_id in self.def_stack[event_file]:
-                self.def_stack[event_file][thread_id] = self.def_stack[event_file][
-                    thread_id
-                ].exit()
         return []
 
 
