@@ -290,7 +290,9 @@ class DefUseFactory(AnalysisFactory):
             if thread_id not in self.def_stack[event_file]:
                 self.def_stack[event_file][thread_id] = DefUseFactory.DefScope()
             else:
-                self.def_stack[event_file][thread_id].enter()
+                self.def_stack[event_file][thread_id] = self.def_stack[event_file][
+                    thread_id
+                ].enter()
         elif (
             event.event_type == EventType.FUNCTION_EXIT
             or event.event_type == EventType.FUNCTION_ERROR
