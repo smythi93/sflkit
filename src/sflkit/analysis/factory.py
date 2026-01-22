@@ -286,7 +286,7 @@ class DefUseFactory(AnalysisFactory):
                 return [self.objects[key]]
         elif event.event_type == EventType.FUNCTION_ENTER:
             if event_file not in self.def_stack:
-                self.def_stack_thread[event_file] = dict()
+                self.def_stack[event_file] = dict()
             if thread_id not in self.def_stack[event_file]:
                 self.def_stack[event_file][thread_id] = DefUseFactory.DefScope()
             else:
