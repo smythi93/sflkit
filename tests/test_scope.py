@@ -29,3 +29,15 @@ class TestScope(unittest.TestCase):
         scope.variables["x"] = Var("x", 10, int)
         self.assertIn("x", scope)
         self.assertNotIn("y", scope)
+
+    def test_scope_all_vars(self):
+        parent_scope = Scope()
+        parent_scope.variables["x"] = Var("x", 10, int)
+        child_scope = parent_scope.enter()
+        child_scope.variables["y"] = Var("y", 20, int)
+
+        all_vars = child_scope.get_all_vars_dict()
+        self.assertIn("x", all_vars)
+        self.assertIn("y", all_vars)
+        self.assertEqual(all_vars["x"].value, 10)
+        self.assertEqual(all_vars["y"].value, 20)
