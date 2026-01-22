@@ -196,11 +196,7 @@ class DefUseFactory(AnalysisFactory):
     ) -> DefEvent:
         # Strategy 1: Check in scope
         def_event = None
-        if (
-            event_file in self.def_stack
-            and scope_id in self.def_stack[event_file]
-            and (var_name, var_id) in self.def_stack[event_file][scope_id]
-        ):
+        if event_file in self.def_stack and scope_id in self.def_stack[event_file]:
             def_event = self.def_stack[event_file][scope_id].get(
                 (var_name, var_id), None
             )
