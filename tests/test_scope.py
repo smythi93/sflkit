@@ -18,3 +18,14 @@ class TestScope(unittest.TestCase):
     def test_scope_without_parent(self):
         scope = Scope()
         self.assertIs(scope, scope.exit())
+
+    def test_scope_with_parent(self):
+        parent_scope = Scope()
+        child_scope = parent_scope.enter()
+        self.assertIs(parent_scope, child_scope.exit())
+
+    def test_scope_contains(self):
+        scope = Scope()
+        scope.variables["x"] = Var("x", 10, int)
+        self.assertIn("x", scope)
+        self.assertNotIn("y", scope)
