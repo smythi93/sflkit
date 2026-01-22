@@ -1,5 +1,6 @@
 import random
 from abc import ABC
+from threading import Lock
 from typing import List, Type, Any
 
 from sflkitlib.events.event import Event
@@ -60,10 +61,12 @@ class Injection:
 class IDGenerator:
     def __init__(self):
         self.current_id = 0
+        self.lock = Lock()
 
     def get_next_id(self):
-        id_ = self.current_id
-        self.current_id += 1
+        with self.lock:
+            id_ = self.current_id
+            self.current_id += 1
         return id_
 
 

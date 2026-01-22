@@ -176,21 +176,75 @@ class LoopFactory(AnalysisFactory):
 class DefUseFactory(AnalysisFactory):
     def __init__(self):
         super().__init__()
-        self.id_to_def: dict[EventFile, dict[tuple[str, int], DefEvent]] = dict()
+        self.id_to_def: dict[EventFile, dict[tuple[str, int, int, int], DefEvent]] = (
+            dict()
+        )
+        self.def_stack: dict[
+            EventFile, dict[int, dict[tuple[str, int], list[tuple[int, DefEvent]]]]
+        ] = dict()
 
-    def reset(self, event_file: EventFile):
-        with self._lock:
-            self.id_to_def[event_file] = dict()
+    def _find_def_event(
+        self,
+        event_file: EventFile,
+        var_name: str,
+        var_id: int,
+        scope_id: int,
+        thread_id: int,
+    ) -> DefEvent:
+        # Strategy 1: Exact match in current thread and scope
+        exact_key = (var_name, var_id, scope_id, thread_id)
+        if exact_key in self.id_to_def.get(event_file, {}):
+            return self.id_to_def[event_file][exact_key]
+
+        # Strategy 2: Look up the scope stack in the current thread
+        thread_stack = self.def_stack.get(event_file, {}).get(thread_id, {})
+        var_key = (var_name, var_id)
+        if var_key in thread_stack and thread_stack[var_key]:
+            # Return the most recent (top of stack) DEF event
+            return thread_stack[var_key][-1][1]
+
+        # Strategy 3: Look for the same var_id in other threads (shared objects)
+        # This handles cross-thread variable sharing
+        for tid, thread_data in self.def_stack.get(event_file, {}).items():
+            if tid != thread_id and var_key in thread_data and thread_data[var_key]:
+                # Return the most recent DEF from another thread
+                return thread_data[var_key][-1][1]
+
+        return None
 
     def get_analysis(
         self, event, event_file: EventFile, scope: Scope = None
     ) -> List[AnalysisObject]:
+        thread_id = event.thread_id
+        scope_id = scope.id if scope else 0
+
         if event.event_type == EventType.DEF:
+            var_key = (event.var, event.var_id)
+            full_key = (event.var, event.var_id, scope_id, thread_id)
+
             with self._lock:
-                self.id_to_def[event_file][(event.var, event.var_id)] = event
+                # Initialize structures if needed
+                if event_file not in self.id_to_def:
+                    self.id_to_def[event_file] = dict()
+                if event_file not in self.def_stack:
+                    self.def_stack[event_file] = dict()
+                if thread_id not in self.def_stack[event_file]:
+                    self.def_stack[event_file][thread_id] = dict()
+                if var_key not in self.def_stack[event_file][thread_id]:
+                    self.def_stack[event_file][thread_id][var_key] = []
+
+                # Store the DEF event
+                self.id_to_def[event_file][full_key] = event
+
+                # Add to stack for this thread
+                self.def_stack[event_file][thread_id][var_key].append((scope_id, event))
+
         elif event.event_type == EventType.USE:
             with self._lock:
-                def_event = self.id_to_def[event_file].get((event.var, event.var_id))
+                def_event = self._find_def_event(
+                    event_file, event.var, event.var_id, scope_id, thread_id
+                )
+
             if def_event:
                 key = (
                     DefUse.analysis_type(),
