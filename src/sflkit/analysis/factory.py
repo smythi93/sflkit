@@ -230,8 +230,6 @@ class DefUseFactory(AnalysisFactory):
             self.def_stack[event_file][scope_id][key] = event
 
         elif event.event_type == EventType.USE:
-            if event_file.run_id == 8 and event.line == 45 and event.var == "term":
-                print(f"USE {event.var} at {event.file}:{event.line}, scope {scope_id}")
             def_event = self._find_def_event(
                 event_file, scope_id, event.var, event.var_id
             )
