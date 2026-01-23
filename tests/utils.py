@@ -18,7 +18,9 @@ class BaseTest(unittest.TestCase):
         os.path.join(PROJECT_DIR, "resources", "subjects", "tests")
     )
     TEST_MAPPING = "mapping.json"
+    TEST_MAPPING_2 = "mapping_2.json"
     TEST_DIR = os.path.join(PROJECT_DIR, "test_dir")
+    TEST_DIR_2 = os.path.join(PROJECT_DIR, "test_dir_2")
     TEST_EVENTS = "test_events.json"
     TEST_PATH = "EVENTS_PATH"
     PYTHON = "python3"
@@ -79,14 +81,20 @@ class BaseTest(unittest.TestCase):
             os.remove(cls.TEST_PATH)
 
     @staticmethod
-    def execute_subject(test: List[str], count: int):
+    def execute_subject(
+        test: List[str], count: int, access: str = None, test_dir: str = None
+    ) -> str:
         subprocess.run(
-            [BaseTest.PYTHON, BaseTest.ACCESS] + test,
-            cwd=BaseTest.TEST_DIR,
+            [BaseTest.PYTHON, access or BaseTest.ACCESS] + test,
+            cwd=test_dir or BaseTest.TEST_DIR,
             env=os.environ,
         )
-        path = os.path.join(BaseTest.TEST_DIR, BaseTest.TEST_PATH + f"_{count}")
-        shutil.move(os.path.join(BaseTest.TEST_DIR, BaseTest.TEST_PATH), path)
+        path = os.path.join(
+            test_dir or BaseTest.TEST_DIR, BaseTest.TEST_PATH + f"_{count}"
+        )
+        shutil.move(
+            os.path.join(test_dir or BaseTest.TEST_DIR, BaseTest.TEST_PATH), path
+        )
         return path
 
     @staticmethod
@@ -96,14 +104,17 @@ class BaseTest(unittest.TestCase):
         predicates: str,
         relevant: List[List[str]] = None,
         irrelevant: List[List[str]] = None,
+        access: str = None,
+        test_dir: str = None,
+        mapping_path: str = None,
     ) -> Analyzer:
         config = Config.create(
             path=os.path.join(BaseTest.TEST_RESOURCES, test),
             language="python",
             events=events,
             predicates=predicates,
-            working=BaseTest.TEST_DIR,
-            mapping_path=BaseTest.TEST_MAPPING,
+            working=test_dir or BaseTest.TEST_DIR,
+            mapping_path=mapping_path or BaseTest.TEST_MAPPING,
         )
         instrument_config(config)
 
@@ -118,12 +129,26 @@ class BaseTest(unittest.TestCase):
 
         for r in relevant:
             relevant_event_files.append(
-                EventFile(BaseTest.execute_subject(r, count), count, mapping, True)
+                EventFile(
+                    BaseTest.execute_subject(
+                        r, count, access=access, test_dir=test_dir
+                    ),
+                    count,
+                    mapping,
+                    True,
+                )
             )
             count += 1
         for r in irrelevant:
             irrelevant_event_files.append(
-                EventFile(BaseTest.execute_subject(r, count), count, mapping, False)
+                EventFile(
+                    BaseTest.execute_subject(
+                        r, count, access=access, test_dir=test_dir
+                    ),
+                    count,
+                    mapping,
+                    False,
+                )
             )
             count += 1
         return config, relevant_event_files, irrelevant_event_files
@@ -135,10 +160,20 @@ class BaseTest(unittest.TestCase):
         predicates: str,
         relevant: List[List[str]] = None,
         irrelevant: List[List[str]] = None,
+        access: str = None,
+        test_dir: str = None,
+        mapping_path: str = None,
     ) -> Analyzer:
         config, relevant_event_files, irrelevant_event_files = (
             BaseTest.run_analysis_event_files(
-                test, events, predicates, relevant, irrelevant
+                test,
+                events,
+                predicates,
+                relevant,
+                irrelevant,
+                access=access,
+                test_dir=test_dir,
+                mapping_path=mapping_path,
             )
         )
 

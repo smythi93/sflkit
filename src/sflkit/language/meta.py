@@ -88,6 +88,7 @@ class MetaVisitor(ABC):
         event_id_generator: IDGenerator,
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
+        order: int = 0,
         **kwargs,
     ):
         self.event_id_generator = event_id_generator
@@ -98,6 +99,27 @@ class MetaVisitor(ABC):
         self.condition_extract = language.condition_extract
         self.event_count = 0
         self.file = None
+        self.order = order
+
+    def __lt__(self, other):
+        if not isinstance(other, MetaVisitor):
+            raise TypeError(f"Cannot compare MetaVisitor with {type(other)}")
+        return self.order < other.order
+
+    def __gt__(self, other):
+        if not isinstance(other, MetaVisitor):
+            raise TypeError(f"Cannot compare MetaVisitor with {type(other)}")
+        return self.order > other.order
+
+    def __le__(self, other):
+        if not isinstance(other, MetaVisitor):
+            raise TypeError(f"Cannot compare MetaVisitor with {type(other)}")
+        return self.order <= other.order
+
+    def __ge__(self, other):
+        if not isinstance(other, MetaVisitor):
+            raise TypeError(f"Cannot compare MetaVisitor with {type(other)}")
+        return self.order >= other.order
 
     def get_event_call(self, event: Event):
         pass
@@ -148,26 +170,30 @@ class CombinationVisitor(MetaVisitor):
             tmp_generator,
         )
         if test:
-            self.visitors = [
-                visitor(
-                    language,
-                    event_id_generator,
-                    function_id_generator,
-                    tmp_generator,
-                    ignore_inner=ignore_inner,
-                )
-                for visitor in visitors
-            ]
+            self.visitors = sorted(
+                [
+                    visitor(
+                        language,
+                        event_id_generator,
+                        function_id_generator,
+                        tmp_generator,
+                        ignore_inner=ignore_inner,
+                    )
+                    for visitor in visitors
+                ],
+            )
         else:
-            self.visitors = [
-                visitor(
-                    language,
-                    event_id_generator,
-                    function_id_generator,
-                    tmp_generator,
-                )
-                for visitor in visitors
-            ]
+            self.visitors = sorted(
+                [
+                    visitor(
+                        language,
+                        event_id_generator,
+                        function_id_generator,
+                        tmp_generator,
+                    )
+                    for visitor in visitors
+                ],
+            )
 
     def visit_start(self, *args) -> Injection:
         injections = Injection()

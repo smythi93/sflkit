@@ -722,7 +722,13 @@ class DefUse(Spectrum):
 
     @staticmethod
     def events():
-        return [EventType.DEF, EventType.USE]
+        return [
+            EventType.DEF,
+            EventType.USE,
+            EventType.FUNCTION_ENTER,
+            EventType.FUNCTION_EXIT,
+            EventType.FUNCTION_ERROR,
+        ]
 
     def get_suggestion(
         self, metric: Callable = None, base_dir: str = "", use_weight: bool = False
