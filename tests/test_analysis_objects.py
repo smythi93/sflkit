@@ -86,9 +86,12 @@ class TestAnalysisObjects(BaseTest):
         self.assertEqual(2, obj.use_line)
         self.assertEqual("x", obj.var)
         self.assertEqual(AnalysisType.DEF_USE, obj.analysis_type())
-        self.assertEqual(2, len(obj.events()))
+        self.assertEqual(5, len(obj.events()))
         self.assertIn(EventType.DEF, obj.events())
         self.assertIn(EventType.USE, obj.events())
+        self.assertIn(EventType.FUNCTION_ENTER, obj.events())
+        self.assertIn(EventType.FUNCTION_EXIT, obj.events())
+        self.assertIn(EventType.FUNCTION_ERROR, obj.events())
 
     def test_condition(self):
         obj = Condition(self.ACCESS, 1, "x < y")

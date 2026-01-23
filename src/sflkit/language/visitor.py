@@ -1,3 +1,4 @@
+import os
 from abc import abstractmethod, ABC
 
 from sflkit.language.meta import MetaVisitor
@@ -22,7 +23,7 @@ class ASTVisitor(ABC):
     def start_visit(self, ast):
         raise NotImplementedError()
 
-    def instrument(self, src: str, dst: str, file: str = ""):
+    def instrument(self, src: os.PathLike, dst: os.PathLike, file: str = ""):
         self.file = file
         with open(src, "r") as fp:
             source = fp.read()

@@ -1,15 +1,11 @@
-from typing import Optional, Set
-
 from sflkitlib.events.event import (
     FunctionEnterEvent,
     FunctionExitEvent,
     FunctionErrorEvent,
     DefEvent,
     UseEvent,
-    Event,
 )
 
-from sflkit.analysis.analysis_type import AnalysisObject
 from sflkit.events.event_file import EventFile
 from sflkit.model.model import Model
 from sflkit.model.scope import Scope
@@ -89,11 +85,15 @@ class ParallelModel(Model):
             )
 
     def enter_parallel_scope(self, thread_id: int, event_file: EventFile):
-        self.variables_map[event_file][thread_id] = self.variables_map.get(
-            thread_id, self.variables
-        ).enter()
+        self.variables_map[event_file][thread_id] = (
+            self.variables_map[event_file]
+            .get(thread_id, self.variables[event_file])
+            .enter()
+        )
 
     def exit_parallel_scope(self, thread_id: int, event_file: EventFile):
-        self.variables_map[event_file][thread_id] = self.variables_map.get(
-            thread_id, self.variables
-        ).exit()
+        self.variables_map[event_file][thread_id] = (
+            self.variables_map[event_file]
+            .get(thread_id, self.variables[event_file])
+            .exit()
+        )
