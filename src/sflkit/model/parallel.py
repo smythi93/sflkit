@@ -1,15 +1,11 @@
-from typing import Optional, Set
-
 from sflkitlib.events.event import (
     FunctionEnterEvent,
     FunctionExitEvent,
     FunctionErrorEvent,
     DefEvent,
     UseEvent,
-    Event,
 )
 
-from sflkit.analysis.analysis_type import AnalysisObject
 from sflkit.events.event_file import EventFile
 from sflkit.model.model import Model
 from sflkit.model.scope import Scope
@@ -29,6 +25,8 @@ class ParallelModel(Model):
     def handle_function_enter_event(
         self, event: FunctionEnterEvent, event_file: EventFile
     ):
+        if event_file.run_id == 8:
+            print(f"Enter {event.function}:{event.line}")
         if event.thread_id is None:
             self.enter_scope(event_file)
         else:
@@ -38,6 +36,8 @@ class ParallelModel(Model):
     def handle_function_exit_event(
         self, event: FunctionExitEvent, event_file: EventFile
     ):
+        if event_file.run_id == 8:
+            print(f"Exit {event.function}:{event.line}")
         if event.thread_id is None:
             self.returns[event_file].add(
                 event.function, event.return_value, event.type_
@@ -58,6 +58,8 @@ class ParallelModel(Model):
     def handle_function_error_event(
         self, event: FunctionErrorEvent, event_file: EventFile
     ):
+        if event_file.run_id == 8:
+            print(f"Exit {event.function}:{event.line}")
         self.handle_event(event, event_file)
         if event.thread_id is None:
             self.exit_scope(event_file)
@@ -89,11 +91,11 @@ class ParallelModel(Model):
             )
 
     def enter_parallel_scope(self, thread_id: int, event_file: EventFile):
-        self.variables_map[event_file][thread_id] = self.variables_map.get(
-            thread_id, self.variables
-        ).enter()
+        self.variables_map[event_file][thread_id] = (
+            self.variables_map[event_file].get(thread_id, self.variables).enter()
+        )
 
     def exit_parallel_scope(self, thread_id: int, event_file: EventFile):
-        self.variables_map[event_file][thread_id] = self.variables_map.get(
-            thread_id, self.variables
-        ).exit()
+        self.variables_map[event_file][thread_id] = (
+            self.variables_map[event_file].get(thread_id, self.variables).exit()
+        )

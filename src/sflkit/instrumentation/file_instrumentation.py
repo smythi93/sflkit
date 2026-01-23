@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -11,7 +12,11 @@ class FileInstrumentation(Instrumentation):
         super().__init__(visitor, mapping_path)
 
     def instrument(
-        self, src: str, dst: str, suffixes: List[str] = None, file: str = ""
+        self,
+        src: os.PathLike,
+        dst: os.PathLike,
+        suffixes: List[str] = None,
+        file: str = "",
     ):
         self.visitor.instrument(src, dst, file)
         self.events = EventMapping(

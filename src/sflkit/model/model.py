@@ -74,6 +74,10 @@ class Model:
         self, event: FunctionEnterEvent, event_file: EventFile
     ):
         self.enter_scope(event_file)
+        if event_file.run_id == 8:
+            print(
+                f"Enter {event.function}:{event.line}:{self.variables[event_file].id}"
+            )
         self.handle_event(event, event_file)
 
     def handle_function_exit_event(
@@ -82,12 +86,16 @@ class Model:
         self.returns[event_file].add(event.function, event.return_value, event.type_)
         self.handle_event(event, event_file, self.returns[event_file])
         self.exit_scope(event_file)
+        if event_file.run_id == 8:
+            print(f"Exit {event.function}:{event.line}:{self.variables[event_file].id}")
 
     def handle_function_error_event(
         self, event: FunctionErrorEvent, event_file: EventFile
     ):
         self.handle_event(event, event_file)
         self.exit_scope(event_file)
+        if event_file.run_id == 8:
+            print(f"Exit {event.function}:{event.line}:{self.variables[event_file].id}")
 
     def handle_def_event(self, event: DefEvent, event_file: EventFile):
         self.variables[event_file].add(event.var, event.value, event.type_)

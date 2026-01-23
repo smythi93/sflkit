@@ -56,10 +56,15 @@ class PythonEventFactory(MetaVisitor, NodeVisitor):
         event_id_generator: IDGenerator,
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
+        order: int = 0,
         **kwargs,
     ):
         super().__init__(
-            language, event_id_generator, function_id_generator, tmp_generator
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=order,
         )
 
     def visit_start(self, *args) -> Injection:
@@ -291,7 +296,21 @@ class DefEventFactory(PythonEventFactory):
     def visit_AsyncFunctionDef(self, node: AsyncFunctionDef) -> Injection:
         return self.visit_function(node)
 
-    def get_event(self, node: typing.Union[Assign, AnnAssign, AugAssign], var: str):
+    def get_event(
+        self,
+        node: typing.Union[
+            Assign,
+            AnnAssign,
+            AugAssign,
+            FunctionDef,
+            AsyncFunctionDef,
+            For,
+            AsyncFor,
+            With,
+            AsyncWith,
+        ],
+        var: str,
+    ):
         return DefEvent(
             self.file, node.lineno, self.event_id_generator.get_next_id(), var
         )
@@ -369,18 +388,24 @@ class FunctionEventFactory(PythonEventFactory):
         event_id_generator: IDGenerator,
         function_id_generator: IDGenerator,
         tmp_generator: TmpGenerator,
+        order: int,
         **kwargs,
     ):
         super().__init__(
-            language, event_id_generator, function_id_generator, tmp_generator, **kwargs
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=order,
+            **kwargs,
         )
         self.function_stack = list()
 
     def get_function_id(self, node: AST) -> int:
         if node not in FunctionEventFactory.functions:
-            FunctionEventFactory.functions[
-                node
-            ] = self.function_id_generator.get_next_id()
+            FunctionEventFactory.functions[node] = (
+                self.function_id_generator.get_next_id()
+            )
         return FunctionEventFactory.functions[node]
 
     @staticmethod
@@ -403,6 +428,23 @@ class FunctionEventFactory(PythonEventFactory):
 
 
 class FunctionEnterEventFactory(FunctionEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        **kwargs,
+    ):
+        super().__init__(
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=-2,
+            **kwargs,
+        )
+
     def get_function(self):
         return "add_function_enter_event"
 
@@ -441,6 +483,23 @@ class FunctionEnterEventFactory(FunctionEventFactory):
 
 
 class FunctionExitEventFactor(FunctionEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        **kwargs,
+    ):
+        super().__init__(
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=2,
+            **kwargs,
+        )
+
     def get_function(self):
         return "add_function_exit_event"
 
@@ -521,6 +580,23 @@ class FunctionExitEventFactor(FunctionEventFactory):
 
 
 class FunctionErrorEventFactory(FunctionEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        **kwargs,
+    ):
+        super().__init__(
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=2,
+            **kwargs,
+        )
+
     def get_function(self):
         return "add_function_error_event"
 
@@ -550,6 +626,24 @@ class LoopEventFactory(PythonEventFactory):
     loops: typing.Dict[AST, int] = dict()
     loop_id: int = 0
 
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        order: int,
+        **kwargs,
+    ):
+        super().__init__(
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=order,
+            **kwargs,
+        )
+
     @staticmethod
     def get_loop_id(node: AST) -> int:
         if node not in LoopEventFactory.loops:
@@ -571,6 +665,23 @@ class LoopEventFactory(PythonEventFactory):
 
 
 class LoopBeginEventFactory(LoopEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        **kwargs,
+    ):
+        super().__init__(
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=-1,
+            **kwargs,
+        )
+
     def get_function(self):
         return "add_loop_begin_event"
 
@@ -587,6 +698,23 @@ class LoopBeginEventFactory(LoopEventFactory):
 
 
 class LoopHitEventFactory(LoopEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        **kwargs,
+    ):
+        super().__init__(
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=-1,
+            **kwargs,
+        )
+
     def get_function(self):
         return "add_loop_hit_event"
 
@@ -603,6 +731,23 @@ class LoopHitEventFactory(LoopEventFactory):
 
 
 class LoopEndEventFactory(LoopEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        **kwargs,
+    ):
+        super().__init__(
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=1,
+            **kwargs,
+        )
+
     def get_function(self):
         return "add_loop_end_event"
 
@@ -717,6 +862,7 @@ class UseEventFactory(PythonEventFactory):
         return self._get_try_wrapper(event)
 
     def get_event(self, node: AST, use: str) -> UseEvent:
+        # noinspection PyUnresolvedReferences
         return UseEvent(
             self.file, node.lineno, self.event_id_generator.get_next_id(), use
         )
@@ -894,6 +1040,23 @@ class LenEventFactory(DefEventFactory):
 
 
 class TestStartEventFactory(FunctionEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        **kwargs,
+    ):
+        super().__init__(
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=2,
+            **kwargs,
+        )
+
     def get_function(self):
         return "add_test_start_event"
 
@@ -924,6 +1087,23 @@ class TestStartEventFactory(FunctionEventFactory):
 
 
 class TestEndEventFactory(FunctionEventFactory):
+    def __init__(
+        self,
+        language,
+        event_id_generator: IDGenerator,
+        function_id_generator: IDGenerator,
+        tmp_generator: TmpGenerator,
+        **kwargs,
+    ):
+        super().__init__(
+            language,
+            event_id_generator,
+            function_id_generator,
+            tmp_generator,
+            order=2,
+            **kwargs,
+        )
+
     def get_function(self):
         return "add_test_end_event"
 
@@ -991,6 +1171,7 @@ class TestLineEventFactory(LineEventFactory):
         return "add_test_line_event"
 
     def visit_line(self, node: AST) -> Injection:
+        # noinspection PyUnresolvedReferences
         line_event = TestLineEvent(
             self.file, node.lineno, self.event_id_generator.get_next_id()
         )
@@ -1113,6 +1294,7 @@ class TestUseEventFactory(UseEventFactory):
         return "add_test_use_event"
 
     def get_event(self, node: AST, use: str) -> TestUseEvent:
+        # noinspection PyUnresolvedReferences
         return TestUseEvent(
             self.file, node.lineno, self.event_id_generator.get_next_id(), use
         )
