@@ -1,4 +1,4 @@
-from sflkit.weights.analyzer import TimeAnalyzer
+from sflkit.weights.analyzer import ProximityAnalyzer
 from sflkit.weights.models import (
     TestTimeModel,
     TestFunctionModel,
@@ -10,7 +10,7 @@ from sflkit.weights.models import (
 )
 
 __all__ = [
-    "TimeAnalyzer",
+    "ProximityAnalyzer",
     "TestTimeModel",
     "TestFunctionModel",
     "TestLineModel",
