@@ -80,13 +80,15 @@ class ParallelRunnerTests(BaseTest):
             working=BaseTest.TEST_DIR,
             exclude="tests",
             mapping_path=BaseTest.TEST_MAPPING,
+            thread_support=True,
         )
         instrument_config(config)
         runner = ParallelInputRunner(
-            "main.py",
+            Path("main.py"),
             failing=[["2", "1", "3"]],
             passing=[["3", "2", "1"], ["3", "1", "2"]],
             workers=4,
+            thread_support=True,
         )
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output)
