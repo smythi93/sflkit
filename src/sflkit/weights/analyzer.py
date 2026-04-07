@@ -12,7 +12,7 @@ from sflkit.events.event_file import EventFile
 from sflkit.model.model import MetaModel
 
 
-class TimeAnalyzer(Analyzer):
+class ProximityAnalyzer(Analyzer):
     def __init__(
         self,
         model_class: Type[TestTimeModel],
@@ -51,10 +51,12 @@ class TimeAnalyzer(Analyzer):
 
     @staticmethod
     def load_with_dependencies(path: os.PathLike, model_class: Type[TestTimeModel]):
-        return TimeAnalyzer(model_class, meta_model=MetaModel(load_analysis_json(path)))
+        return ProximityAnalyzer(
+            model_class, meta_model=MetaModel(load_analysis_json(path))
+        )
 
     @staticmethod
     def loads_with_dependencies(data: str, model_class: Type[TestTimeModel]):
-        return TimeAnalyzer(
+        return ProximityAnalyzer(
             model_class, meta_model=MetaModel(set(map(deserialize, json.loads(data))))
         )

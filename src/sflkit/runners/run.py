@@ -666,7 +666,7 @@ class ParallelInputRunner(InputRunner):
 
         with ProcessPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
-            executor.map(self.process_test, tests)
+            list(executor.map(self.process_test, tests))
 
         # Ensure all files are flushed to disk (helps with race conditions in CI)
         os.sync()

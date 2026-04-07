@@ -4,7 +4,7 @@ from pathlib import Path
 from sflkit import Config, instrument_config
 from sflkit.analysis.analysis_type import AnalysisType
 from sflkit.analysis.suggestion import Location
-from sflkit.weights.analyzer import TimeAnalyzer
+from sflkit.weights.analyzer import ProximityAnalyzer
 from sflkit.weights.models import (
     TestLineModel,
     TestDefUseModel,
@@ -39,7 +39,7 @@ class TestTimeWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = TimeAnalyzer(
+        analyzer = ProximityAnalyzer(
             TestFunctionModel,
             [
                 EventFile(
@@ -82,7 +82,7 @@ class TestTimeWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = TimeAnalyzer(
+        analyzer = ProximityAnalyzer(
             TestLineModel,
             [
                 EventFile(
@@ -130,7 +130,7 @@ class TestTimeWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = TimeAnalyzer(
+        analyzer = ProximityAnalyzer(
             TestDefUseModel,
             [
                 EventFile(
@@ -178,7 +178,7 @@ class TestTimeWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = TimeAnalyzer(
+        analyzer = ProximityAnalyzer(
             TestDefUsesModel,
             [
                 EventFile(
@@ -225,7 +225,7 @@ class TestTimeWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = TimeAnalyzer(
+        analyzer = ProximityAnalyzer(
             TestAssertDefUseModel,
             [
                 EventFile(
@@ -272,7 +272,7 @@ class TestTimeWeights(BaseTest):
         output = Path(BaseTest.TEST_DIR, "events").absolute()
         runner.run(Path(BaseTest.TEST_DIR), output, files=["test.py"])
         mapping = EventMapping.load(config)
-        analyzer = TimeAnalyzer(
+        analyzer = ProximityAnalyzer(
             TestAssertDefUsesModel,
             [
                 EventFile(
@@ -337,7 +337,7 @@ class TestTimeWeights(BaseTest):
             ],
             expectations,
         ):
-            analyzer = TimeAnalyzer(
+            analyzer = ProximityAnalyzer(
                 model_class,
                 [
                     EventFile(
