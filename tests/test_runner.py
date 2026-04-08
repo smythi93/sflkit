@@ -1,6 +1,6 @@
 import os
-import time
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 from sflkit import Config, instrument_config, Analyzer
 from sflkit.analysis.analysis_type import AnalysisType
@@ -180,3 +180,71 @@ class RunnerTests(BaseTest):
             os.path.join("structure", "tests", "test_a.py::test_c"),
             tests,
         )
+
+    def test_runner_python_interpreter(self):
+        """
+        Test that the python argument is correctly passed to subprocess calls.
+        This test verifies that pytest collection uses the specified python
+        interpreter instead of the default 'python3'.
+        """
+        custom_python = "python3.11"
+
+        # Create a mock for subprocess.run
+        with patch("sflkit.runners.run.subprocess.run") as mock_run:
+            # Create a mock return value that simulates pytest collection output
+            mock_process = MagicMock()
+            mock_process.returncode = 0
+            mock_process.stdout = (
+                b"<Package tests>\n"
+                b"  <Module test_a.py>\n"
+                b"    <Function test_sample>\n"
+            )
+            mock_process.stderr = b""
+            mock_run.return_value = mock_process
+
+            # Create a pytest runner
+            runner = PytestRunner(set_python_path=True)
+
+            # Create a temporary directory for testing
+            test_dir = Path(BaseTest.TEST_DIR)
+            output_dir = test_dir / "events_python_test"
+
+            # Call runner.run with custom python interpreter
+            runner.run(
+                test_dir,
+                output_dir,
+                python=custom_python,
+            )
+
+            # Verify that subprocess.run was called
+            self.assertTrue(mock_run.called, "subprocess.run should have been called")
+
+            # Collect all the calls made to subprocess.run
+            calls = mock_run.call_args_list
+            self.assertGreater(
+                len(calls), 0, "Expected at least one call to subprocess.run"
+            )
+
+            # Check that the first call (pytest collection) uses the custom python interpreter
+            first_call_args = calls[0][0][0]  # Get the command list from the first call
+            self.assertIsInstance(first_call_args, list, "Command should be a list")
+            self.assertEqual(
+                first_call_args[0],
+                custom_python,
+                f"First subprocess call should start with {custom_python}, got {first_call_args[0]}",
+            )
+            self.assertIn(
+                "-m",
+                first_call_args,
+                "pytest collection call should contain -m argument",
+            )
+            self.assertIn(
+                "pytest",
+                first_call_args,
+                "pytest collection call should contain pytest argument",
+            )
+            self.assertIn(
+                "--collect-only",
+                first_call_args,
+                "pytest collection call should contain --collect-only argument",
+            )
