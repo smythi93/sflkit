@@ -25,6 +25,8 @@ PYTEST_RESULT_PATTERN = re.compile(
 
 DEFAULT_TIMEOUT = 10
 
+DEFAULT_MAX_WORKERS = 64
+
 
 class TestResult(enum.Enum):
     PASSING = "PASSING"
@@ -57,7 +59,7 @@ class Runner(abc.ABC):
         self.thread_support = thread_support
 
     @staticmethod
-    def use_parallel() -> "Runner":
+    def use_parallel() -> type["Runner"]:
         raise NotImplementedError()
 
     def get_tests(
@@ -103,7 +105,7 @@ class Runner(abc.ABC):
         for test_result in TestResult:
             (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
         for event_file, test in enumerate(tests):
-            test_result = self.run_test(directory, test, environ=environ)
+            test_result = self.run_test(directory, test, environ=environ, python=python)
             self.tests[test_result].add(test)
             if os.path.exists(directory / "EVENTS_PATH"):
                 shutil.move(
@@ -135,7 +137,14 @@ class Runner(abc.ABC):
             directory,
             output,
             self.filter_tests(
-                self.get_tests(directory, files=files, base=base, environ=environ, k=k)
+                self.get_tests(
+                    directory,
+                    files=files,
+                    base=base,
+                    environ=environ,
+                    python=python,
+                    k=k,
+                )
             ),
             environ=environ,
             python=python,
@@ -579,7 +588,7 @@ class ParallelPytestRunner(PytestRunner):
         super().__init__(
             re_filter, timeout, set_python_path, thread_support=thread_support
         )
-        self.workers = max(min(workers, os.cpu_count() or 512), 1)
+        self.workers = max(min(workers, os.cpu_count() or DEFAULT_MAX_WORKERS), 1)
         self.is_parallel = True
         self.environ = None
         self.python = None
@@ -645,7 +654,7 @@ class ParallelInputRunner(InputRunner):
         thread_support: bool = False,
     ):
         super().__init__(access, passing, failing, thread_support=thread_support)
-        self.workers = max(min(workers, os.cpu_count() or 512), 1)
+        self.workers = max(min(workers, os.cpu_count() or DEFAULT_MAX_WORKERS), 1)
         self.is_parallel = True
         self.environ = None
         self.python = None
