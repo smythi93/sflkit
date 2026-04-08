@@ -66,24 +66,26 @@ class Runner(abc.ABC):
         files: Optional[List[os.PathLike] | os.PathLike] = None,
         base: Optional[os.PathLike] = None,
         environ: Environment = None,
+        python="python3",
         k: str = None,
     ) -> List[str]:
         return []
 
     def run_test(
-        self, directory: Path, test: str, environ: Environment = None
+        self, directory: Path, test: str, environ: Environment = None, python="python3"
     ) -> TestResult:
         return TestResult.UNDEFINED
 
     def filter_tests(self, tests: List[str]) -> List[str]:
+        # noinspection PyTypeChecker
         return list(filter(self.re_filter.search, tests))
 
     @staticmethod
     def safe(s: str):
-        s = s.encode("ascii", "ignore")
+        s: bytes = s.encode("ascii", "ignore")
         if len(s) > 255:
             return hashlib.md5(s).hexdigest()
-        s = s.decode("ascii")
+        s: str = s.decode("ascii")
         for c in string.punctuation:
             if c in s:
                 s = s.replace(c, "_")
@@ -95,6 +97,7 @@ class Runner(abc.ABC):
         output: Path,
         tests: List[str],
         environ: Environment = None,
+        python="python3",
     ):
         output.mkdir(parents=True, exist_ok=True)
         for test_result in TestResult:
@@ -119,6 +122,7 @@ class Runner(abc.ABC):
         files: Optional[List[os.PathLike] | os.PathLike] = None,
         base: Optional[os.PathLike] = None,
         environ: Environment = None,
+        python="python3",
         k: str = None,
     ):
         self.passing_tests.clear()
@@ -134,12 +138,13 @@ class Runner(abc.ABC):
                 self.get_tests(directory, files=files, base=base, environ=environ, k=k)
             ),
             environ=environ,
+            python=python,
         )
 
 
 class VoidRunner(Runner):
     @staticmethod
-    def use_parallel() -> Runner:
+    def use_parallel() -> type[Runner]:
         return VoidRunner
 
 
@@ -290,11 +295,11 @@ class PytestRunner(Runner):
         self.set_python_path = set_python_path
 
     @staticmethod
-    def use_parallel() -> Runner:
+    def use_parallel() -> type[Runner]:
         return ParallelPytestRunner
 
     @staticmethod
-    def common_base(directory: Path, tests: List[str]) -> Path:
+    def common_base(directory: Path, tests: List[str]) -> Path | None:
         parts = directory.parts
         common_bases = {Path(*parts[:i]) for i in range(1, len(parts) + 1)}
         leaves_paths = {Path(r.split("::", 1)[0] if "::" in r else r) for r in tests}
@@ -323,7 +328,7 @@ class PytestRunner(Runner):
         return None
 
     @staticmethod
-    def get_files(files: List[os.PathLike]) -> Set[str]:
+    def get_files(files: List[str | os.PathLike[str]]) -> Set[str]:
         paths = set()
         for f in files:
             f = str(f)
@@ -393,6 +398,7 @@ class PytestRunner(Runner):
         files: Optional[List[os.PathLike] | os.PathLike] = None,
         base: Optional[os.PathLike] = None,
         environ: Environment = None,
+        python="python3",
         k: str = None,
     ) -> List[str]:
         c = []
@@ -416,7 +422,7 @@ class PytestRunner(Runner):
             c += str_files
         process = subprocess.run(
             [
-                "python3",
+                python,
                 "-m",
                 "pytest",
                 "--collect-only",
@@ -451,11 +457,11 @@ class PytestRunner(Runner):
         return False, None, None
 
     def run_test(
-        self, directory: Path, test: str, environ: Environment = None
+        self, directory: Path, test: str, environ: Environment = None, python="python3"
     ) -> TestResult:
         try:
             output = subprocess.run(
-                ["python3", "-m", "pytest", test],
+                [python, "-m", "pytest", test],
                 stdout=subprocess.PIPE,
                 env=environ,
                 cwd=directory,
@@ -464,7 +470,7 @@ class PytestRunner(Runner):
         except subprocess.TimeoutExpired:
             return TestResult.UNDEFINED
         successful, passing, failing = self.__get_pytest_result__(output)
-        if successful:
+        if successful and passing is not None and failing is not None:
             if passing > 0 and failing == 0:
                 return TestResult.PASSING
             elif failing > 0 and passing == 0:
@@ -496,7 +502,7 @@ class InputRunner(Runner):
         self.failing: Dict[str, List[str]] = self._prepare_tests(failing, "failing")
 
     @staticmethod
-    def use_parallel() -> Runner:
+    def use_parallel() -> type[Runner]:
         return ParallelInputRunner
 
     @staticmethod
@@ -529,22 +535,27 @@ class InputRunner(Runner):
         files: Optional[List[os.PathLike] | os.PathLike] = None,
         base: Optional[os.PathLike] = None,
         environ: Environment = None,
+        python="python3",
         k: str = None,
     ) -> List[str]:
         return list(self.passing.keys()) + list(self.failing.keys())
 
     def run_test(
-        self, directory: Path, test_name: str, environ: Environment = None
+        self,
+        directory: Path | None,
+        test: str,
+        environ: Environment = None,
+        python="python3",
     ) -> TestResult:
-        if "passing" in test_name:
-            test = self.passing[test_name]
+        if "passing" in test:
+            test_args = self.passing[test]
             result = TestResult.PASSING
         else:
-            test = self.failing[test_name]
+            test_args = self.failing[test]
             result = TestResult.FAILING
         try:
             subprocess.run(
-                ["python3", self.access] + test,
+                [python, self.access] + test_args,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=environ,
@@ -568,21 +579,27 @@ class ParallelPytestRunner(PytestRunner):
         super().__init__(
             re_filter, timeout, set_python_path, thread_support=thread_support
         )
-        self.workers = max(min(workers, os.cpu_count() or float("inf")), 1)
+        self.workers = max(min(workers, os.cpu_count() or 512), 1)
         self.is_parallel = True
         self.environ = None
+        self.python = None
         self.directory = None
         self.output = None
 
     @staticmethod
-    def use_parallel() -> Runner:
+    def use_parallel() -> type[Runner]:
         return ParallelPytestRunner
 
-    def process_test(self, test: str):
+    def process_test(
+        self,
+        test: str,
+    ):
         local_environ = self.environ.copy()
         events_path_name = f"EVENTS_PATH_{os.getpid()}"
         local_environ["EVENTS_PATH"] = events_path_name
-        tr = self.run_test(self.directory, test, environ=local_environ)
+        tr = self.run_test(
+            self.directory, test, environ=local_environ, python=self.python
+        )
         self.tests[tr].add(test)
         if os.path.exists(self.directory / events_path_name):
             shutil.move(
@@ -598,6 +615,7 @@ class ParallelPytestRunner(PytestRunner):
         output: Path,
         tests: List[str],
         environ: Environment = None,
+        python="python3",
     ):
         output.mkdir(parents=True, exist_ok=True)
         for test_result in TestResult:
@@ -605,7 +623,9 @@ class ParallelPytestRunner(PytestRunner):
 
         self.directory = directory
         self.output = output
+        # noinspection PyUnresolvedReferences
         self.environ = environ or os.environ.copy()
+        self.python = python
 
         with ProcessPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
@@ -625,23 +645,28 @@ class ParallelInputRunner(InputRunner):
         thread_support: bool = False,
     ):
         super().__init__(access, passing, failing, thread_support=thread_support)
-        self.workers = max(min(workers, os.cpu_count() or float("inf")), 1)
+        self.workers = max(min(workers, os.cpu_count() or 512), 1)
         self.is_parallel = True
         self.environ = None
-        self.directory: Path = None
-        self.output: Path = None
+        self.python = None
+        self.directory: Path | None = None
+        self.output: Path | None = None
 
     @staticmethod
-    def use_parallel() -> Runner:
+    def use_parallel() -> type[Runner]:
         return ParallelInputRunner
 
     def process_test(self, test_name: str):
         local_environ = self.environ.copy()
         events_path_name = f"EVENTS_PATH_{os.getpid()}"
         local_environ["EVENTS_PATH"] = events_path_name
-        tr = self.run_test(self.directory, test_name, environ=local_environ)
+        tr = self.run_test(
+            self.directory, test_name, environ=local_environ, python=self.python
+        )
         self.tests[tr].add(test_name)
+        # noinspection PyUnresolvedReferences
         if os.path.exists(self.directory / events_path_name):
+            # noinspection PyUnresolvedReferences
             shutil.move(
                 self.directory / events_path_name,
                 self.output / tr.get_dir() / self.safe(test_name),
@@ -655,6 +680,7 @@ class ParallelInputRunner(InputRunner):
         output: Path,
         tests: List[str],
         environ: Environment = None,
+        python="python3",
     ):
         output.mkdir(parents=True, exist_ok=True)
         for test_result in TestResult:
@@ -662,7 +688,9 @@ class ParallelInputRunner(InputRunner):
 
         self.directory = directory
         self.output = output
+        # noinspection PyUnresolvedReferences
         self.environ = environ or os.environ.copy()
+        self.python = python
 
         with ProcessPoolExecutor(max_workers=self.workers) as executor:
             # Consume the iterator to ensure all tasks complete
