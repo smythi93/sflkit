@@ -692,12 +692,35 @@ class ConditionEventFactory(JavaEventFactory):
             )
         return Injection()
 
+    @staticmethod
+    def _to_reassignment(node):
+        """Turn tmp-var *declarations* in a condition setup into *assignments*.
+
+        The condition tmp var is declared once before the loop (``pre``); inside
+        the loop body it must be re-assigned rather than re-declared, otherwise
+        the declaration shadows the outer one (a Java compile error).
+        """
+        if isinstance(node, jast.Compound):
+            return jast.Compound(
+                body=[
+                    ConditionEventFactory._to_reassignment(s) for s in node.body
+                ]
+            )
+        if isinstance(node, jast.LocalVariable):
+            declarator = node.declarators[0]
+            return jast.Expr(
+                value=jast.Assign(
+                    target=jast.Name(id=declarator.id.id), value=declarator.init
+                )
+            )
+        return node
+
     def visit_If(self, node: jast.If):
         return self.visit_condition(node)
 
     def visit_While(self, node: jast.While):
         injection = self.visit_condition(node)
-        injection.body_last = injection.pre
+        injection.body_last = [self._to_reassignment(s) for s in injection.pre]
         return injection
 
     def visit_DoWhile(self, node: jast.DoWhile):
@@ -708,7 +731,7 @@ class ConditionEventFactory(JavaEventFactory):
 
     def visit_For(self, node: jast.For):
         injection = self.visit_condition(node)
-        injection.body_last = injection.pre
+        injection.body_last = [self._to_reassignment(s) for s in injection.pre]
         return injection
 
 

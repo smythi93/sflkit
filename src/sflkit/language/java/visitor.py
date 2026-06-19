@@ -212,8 +212,53 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
     def visit_If(self, node: jast.If) -> jast.JAST:
         return self.__visit_control(node)
 
+    @staticmethod
+    def __for_clause_stmts(clause):
+        """Normalize a for-loop init/update clause to a list of statements."""
+        if clause is None:
+            return []
+        items = clause if isinstance(clause, list) else [clause]
+        stmts = []
+        for item in items:
+            if isinstance(item, jast.stmt):
+                stmts.append(item)
+            else:
+                expr = jast.Expr(value=item)
+                expr.lineno = getattr(item, "lineno", None)
+                expr.end_lineno = getattr(item, "end_lineno", expr.lineno)
+                stmts.append(expr)
+        return stmts
+
     def visit_For(self, node: jast.For) -> jast.JAST:
-        return self.__visit_control(node)
+        # Desugar ``for (init; test; update) body`` into
+        # ``{ init; while (test) { body; update; } }`` so that variables declared
+        # in the for-init are in scope for every injected event (jast scopes them
+        # to the loop) and for-loops reuse the while-loop instrumentation path.
+        # NOTE: ``update`` runs at the end of the body, which differs from ``for``
+        # only under ``continue`` (a documented limitation).
+        init_stmts = self.__for_clause_stmts(node.init)
+        update_stmts = self.__for_clause_stmts(node.update)
+        if isinstance(node.body, jast.Block):
+            body_stmts = list(node.body.body)
+        elif node.body is not None:
+            body_stmts = [node.body]
+        else:
+            body_stmts = []
+        if node.test is not None:
+            test = node.test
+        else:
+            test = jast.Constant(jast.BoolLiteral(True))
+            test.lineno = node.lineno
+            test.end_lineno = node.end_lineno
+        while_node = jast.While(
+            test=test, body=jast.Block(body=body_stmts + update_stmts)
+        )
+        while_node.lineno = node.lineno
+        while_node.end_lineno = node.end_lineno
+        block = jast.Block(body=init_stmts + [while_node])
+        block.lineno = node.lineno
+        block.end_lineno = node.end_lineno
+        return self.visit(block)
 
     def visit_ForEach(self, node: jast.ForEach) -> jast.JAST:
         return self.__visit_control(node)

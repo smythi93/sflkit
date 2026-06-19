@@ -21,7 +21,6 @@ import unittest
 from sflkit import Config, instrument_config
 from sflkit.events.mapping import EventMapping
 from sflkit.language.language import Language
-from sflkit.language.meta import CombinationVisitor, IDGenerator, TmpGenerator
 from sflkit.language.java.finder import (
     JavaFunctionFinder,
     JavaLoopFinder,
@@ -388,61 +387,27 @@ class JavaEndToEndTest(unittest.TestCase):
         self.assertEqual(1, sum(isinstance(e, LoopBeginEvent) for e in events))
         self.assertEqual(4, sum(isinstance(e, LoopHitEvent) for e in events))
 
-
-@unittest.skipUnless(HAVE_JDK, "no JDK (javac/java) available")
-class JavaKnownLimitationsTest(unittest.TestCase):
-    """Documents reconciliation work that is still open (see task: reconcile
-    Java visitor/factory with jast).  These are ``expectedFailure`` so that they
-    flip to a hard failure once fixed, prompting their removal."""
-
-    def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="sflkit_java_lim_")
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
-
-    def _instrument_source(self, source, events):
-        src = os.path.join(self.tmp, "Sub.java")
-        dst = os.path.join(self.tmp, "out", "Sub.java")
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        with open(src, "w") as fp:
-            fp.write(source)
-        lang = Language.JAVA
-        lang.setup()
-        mv = CombinationVisitor(
-            lang,
-            IDGenerator(),
-            IDGenerator(),
-            TmpGenerator(),
-            [lang.meta_visitors[e] for e in events],
+    def test_for_loop_decode(self):
+        # `for (int i = 0; i < n; ...)` is desugared into a while loop so that
+        # the loop variable is in scope for the injected def/use/condition
+        # events; sum(4) iterates four times and tests its condition five times.
+        events = self._run(
+            "test_java_for",
+            "ForLoop",
+            [
+                EventType.LINE,
+                EventType.BRANCH,
+                EventType.DEF,
+                EventType.USE,
+                EventType.CONDITION,
+                EventType.FUNCTION_ENTER,
+                EventType.LOOP_BEGIN,
+                EventType.LOOP_HIT,
+            ],
         )
-        visitor = lang.visitor(mv)
-        visitor.instrument(src, dst, file="Sub.java")
-        return dst
-
-    @unittest.expectedFailure
-    def test_for_loop_def_use_scoping(self):
-        # KNOWN LIMITATION: the loop variable declared in a for-init is hoisted
-        # out of scope by the def/use factories, so the result does not compile.
-        source = (
-            "public class Sub {\n"
-            "  static int s(int n){\n"
-            "    int s = 0;\n"
-            "    for (int i = 0; i < n; i = i + 1) { s = s + i; }\n"
-            "    return s;\n"
-            "  }\n"
-            "}\n"
-        )
-        dst = self._instrument_source(
-            source, [EventType.LINE, EventType.DEF, EventType.USE]
-        )
-        jar = _ensure_jar()
-        out_bin = os.path.join(self.tmp, "bin")
-        os.makedirs(out_bin, exist_ok=True)
-        result = subprocess.run(
-            [JAVAC, "-cp", jar, "-d", out_bin, dst], capture_output=True, text=True
-        )
-        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(4, sum(isinstance(e, LoopHitEvent) for e in events))
+        self.assertEqual(5, sum(isinstance(e, ConditionEvent) for e in events))
+        self.assertTrue(any(isinstance(e, DefEvent) and e.var == "i" for e in events))
 
 
 if __name__ == "__main__":
