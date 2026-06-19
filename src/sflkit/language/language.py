@@ -15,6 +15,14 @@ from sflkit.language.python.finder import (
     PythonBranchFinder,
 )
 from sflkit.language.python.visitor import PythonInstrumentation
+import sflkit.language.java.factory as java_factory
+from sflkit.language.java.extract import JavaVarExtract, JavaConditionExtract
+from sflkit.language.java.finder import (
+    JavaFunctionFinder,
+    JavaLoopFinder,
+    JavaBranchFinder,
+)
+from sflkit.language.java.visitor import JavaInstrumentation
 from sflkit.language.visitor import ASTVisitor
 
 _PYTHON_FACTORIES = {
@@ -36,6 +44,27 @@ _PYTHON_FACTORIES = {
     EventType.TEST_DEF: python_factory.TestDefEventFactory,
     EventType.TEST_USE: python_factory.TestUseEventFactory,
     EventType.TEST_ASSERT: python_factory.TestAssertEventFactory,
+}
+
+_JAVA_FACTORIES = {
+    EventType.LINE: java_factory.LineEventFactory,
+    EventType.BRANCH: java_factory.BranchEventFactory,
+    EventType.DEF: java_factory.DefEventFactory,
+    EventType.USE: java_factory.UseEventFactory,
+    EventType.LOOP_BEGIN: java_factory.LoopBeginEventFactory,
+    EventType.LOOP_HIT: java_factory.LoopHitEventFactory,
+    EventType.LOOP_END: java_factory.LoopEndEventFactory,
+    EventType.FUNCTION_ENTER: java_factory.FunctionEnterEventFactory,
+    EventType.FUNCTION_EXIT: java_factory.FunctionExitEventFactory,
+    EventType.FUNCTION_ERROR: java_factory.FunctionErrorEventFactory,
+    EventType.CONDITION: java_factory.ConditionEventFactory,
+    EventType.LEN: java_factory.LenEventFactory,
+    EventType.TEST_START: java_factory.TestStartEventFactory,
+    EventType.TEST_END: java_factory.TestEndEventFactory,
+    EventType.TEST_LINE: java_factory.TestLineEventFactory,
+    EventType.TEST_DEF: java_factory.TestDefEventFactory,
+    EventType.TEST_USE: java_factory.TestUseEventFactory,
+    EventType.TEST_ASSERT: java_factory.TestAssertEventFactory,
 }
 
 
@@ -91,4 +120,14 @@ class Language(enum.Enum):
         ["py"],
     )
     C = (None, dict(), None, None, None, None, None, None, ["c", "h"])
-    JAVA = (None, dict(), None, None, None, None, None, None, ["java"])
+    JAVA = (
+        JavaInstrumentation,
+        _JAVA_FACTORIES,
+        JavaVarExtract(),
+        JavaVarExtract(use=True),
+        JavaConditionExtract(),
+        JavaFunctionFinder,
+        JavaLoopFinder,
+        JavaBranchFinder,
+        ["java"],
+    )

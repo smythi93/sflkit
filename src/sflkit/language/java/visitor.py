@@ -9,18 +9,60 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
         return jast.parse(source)
 
     def start_visit(self, ast):
-        return self.visit(ast)
+        result = self.visit(ast)
+        if isinstance(result, jast.CompilationUnit):
+            jlib_import = jast.Import(
+                name=jast.qname(
+                    [
+                        jast.identifier("de"),
+                        jast.identifier("cispa"),
+                        jast.identifier("sflkitlib"),
+                        jast.identifier("JLib"),
+                    ]
+                )
+            )
+            result.imports = [jlib_import] + (result.imports or [])
+        return result
 
     def unparse(self, ast):
         return jast.unparse(ast)
 
+    @staticmethod
+    def __stmt_list(node: jast.JAST):
+        """Return the mutable statement list of ``node.body``.
+
+        jast models method/if/loop bodies as ``Block`` nodes (with an inner
+        ``.body`` list), while class bodies are plain lists.  Normalize all of
+        these to a mutable list so that injections can be prepended/appended.
+        """
+        body = node.body
+        if isinstance(body, list):
+            return body
+        if isinstance(body, jast.Block):
+            return body.body
+        node.body = jast.Block(body=[] if body is None else [body])
+        return node.body.body
+
+    @staticmethod
+    def __prepend_orelse(node: jast.JAST, stmts):
+        orelse = node.orelse
+        if orelse is None:
+            node.orelse = jast.Block(body=list(stmts))
+        elif isinstance(orelse, jast.Block):
+            orelse.body[:0] = stmts
+        elif isinstance(orelse, list):
+            node.orelse = list(stmts) + orelse
+        else:
+            # e.g. an ``else if`` chain where orelse is an If statement.
+            node.orelse = jast.Block(body=list(stmts) + [orelse])
+
     def __create_node(self, injection: Injection, node: jast.JAST, body=False):
         if injection.body:
-            node.body = injection.body + node.body
+            self.__stmt_list(node)[:0] = injection.body
         if injection.body_last:
-            node.body += injection.body_last
+            self.__stmt_list(node).extend(injection.body_last)
         if injection.orelse:
-            node.orelse = injection.orelse + node.orelse
+            self.__prepend_orelse(node, injection.orelse)
         if injection.assign:
             if hasattr(node, "value"):
                 node.value = injection.assign
@@ -31,16 +73,20 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
                 node.final = injection.finalbody + node.final
             else:
                 if body:
-                    node.body = [
-                        jast.Try(
-                            body=node.body,
-                            final=injection.finalbody,
-                        )
-                    ]
+                    node.body = jast.Block(
+                        body=[
+                            jast.Try(
+                                body=node.body
+                                if isinstance(node.body, jast.Block)
+                                else jast.Block(body=self.__stmt_list(node)),
+                                final=jast.Block(body=injection.finalbody),
+                            )
+                        ]
+                    )
                 else:
                     node = jast.Try(
-                        body=[node],
-                        final=injection.finalbody,
+                        body=jast.Block(body=[node]),
+                        final=jast.Block(body=injection.finalbody),
                     )
         if injection.error:
             error_var = jast.identifier(self.meta_visitor.tmp_generator.get_var_name())
@@ -50,28 +96,20 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
                 )
             ]
             if body:
-                body = node.body
-                if isinstance(body, list):
-                    body = jast.Block(body)
+                inner = (
+                    node.body
+                    if isinstance(node.body, jast.Block)
+                    else jast.Block(body=self.__stmt_list(node))
+                )
             else:
-                body = jast.Block([node])
+                inner = jast.Block(body=[node])
             node = jast.Try(
-                body=body,
+                body=inner,
                 catches=[
                     jast.catch(
-                        excs=[
-                            jast.qname(
-                                [
-                                    jast.identifier(
-                                        "Exception",
-                                    )
-                                ],
-                                id=error_var,
-                                body=jast.Block(
-                                    body=injection.error + raise_stmt,
-                                ),
-                            )
-                        ],
+                        excs=[jast.qname([jast.identifier("Exception")])],
+                        id=error_var,
+                        body=jast.Block(body=injection.error + raise_stmt),
                     )
                 ],
             )
@@ -79,51 +117,44 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
             return jast.Compound(
                 body=injection.pre + [node] + injection.post,
             )
-        body = [node]
+        decls = [node]
         if injection.pre_block:
-            node = [
-                jast.Initializer(
-                    block=jast.Block(
-                        body=injection.pre_block,
-                    ),
-                )
-            ] + body
+            decls = [
+                jast.Initializer(block=jast.Block(body=injection.pre_block))
+            ] + decls
         if injection.post_block:
-            body += [
-                jast.Initializer(
-                    block=jast.Block(
-                        body=injection.post_block,
-                    ),
-                )
+            decls = decls + [
+                jast.Initializer(block=jast.Block(body=injection.post_block))
             ]
         if injection.static_pre_block:
-            node = [
+            decls = [
                 jast.Initializer(
-                    block=jast.Block(
-                        body=injection.static_pre_block,
-                    ),
-                    static=True,
+                    block=jast.Block(body=injection.static_pre_block), static=True
                 )
-            ] + node
+            ] + decls
         if injection.static_post_block:
-            body += [
+            decls = decls + [
                 jast.Initializer(
-                    block=jast.Block(
-                        body=injection.static_post_block,
-                    ),
-                    static=True,
+                    block=jast.Block(body=injection.static_post_block), static=True
                 )
             ]
-        if len(body) == 1:
-            return body[0]
-        return jast.CompoundDecl(
-            body=body,
-        )
+        if len(decls) == 1:
+            return decls[0]
+        return jast.CompoundDecl(body=decls)
 
-    def __visit_function(self, node: jast.Method | jast.Constructor) -> jast.JAST:
+    def visit_Block(self, node: jast.Block) -> jast.JAST:
+        # Recurse into the block's statements but do not instrument the block
+        # itself (Java has no statement-list bodies; a Block is a grouping node).
+        node.body = [self.visit(n) for n in node.body]
+        return node
+
+    def __visit_function(self, node) -> jast.JAST:
+        if node.body is None:
+            return node
         self.meta_visitor.enter_function(node)
         injection = self.meta_visitor.visit_start(node)
-        node.body = [self.visit(n) for n in node.body]
+        stmts = self.__stmt_list(node)
+        stmts[:] = [self.visit(n) for n in list(stmts)]
         self.meta_visitor.exit_function(node)
         self.events += injection.events
         return self.__create_node(injection, node, body=True)
@@ -134,14 +165,7 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
     def visit_Constructor(self, node: jast.Constructor) -> jast.JAST:
         return self.__visit_function(node)
 
-    def __visit_class(
-        self,
-        node: jast.Class
-        | jast.Enum
-        | jast.Record
-        | jast.Interface
-        | jast.AnnotationDecl,
-    ):
+    def __visit_class(self, node):
         self.meta_visitor.enter_class(node)
         injection = self.meta_visitor.visit_start(node)
         node.body = [self.visit(n) for n in node.body]
@@ -164,8 +188,62 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
     def visit_AnnotationDecl(self, node: jast.AnnotationDecl) -> jast.JAST:
         return self.__visit_class(node)
 
+    def __visit_control(self, node) -> jast.JAST:
+        # Control-flow statements: the event factories derive their events from
+        # the condition/init/update clauses, so we must NOT recurse into those
+        # (an expression position cannot hold a wrapping Compound).  We only
+        # recurse into the statement bodies, normalizing brace-less bodies to
+        # Blocks so injected events stay scoped to the branch.
+        injection = self.meta_visitor.visit_start(node)
+        self.events += injection.events
+        body = getattr(node, "body", None)
+        if isinstance(body, jast.Block):
+            node.body = self.visit(body)
+        elif isinstance(body, jast.JAST):
+            node.body = jast.Block(body=[self.visit(body)])
+        orelse = getattr(node, "orelse", None)
+        if orelse is not None:
+            if isinstance(orelse, jast.Block):
+                node.orelse = self.visit(orelse)
+            else:
+                node.orelse = jast.Block(body=[self.visit(orelse)])
+        return self.__create_node(injection, node)
+
+    def visit_If(self, node: jast.If) -> jast.JAST:
+        return self.__visit_control(node)
+
+    def visit_For(self, node: jast.For) -> jast.JAST:
+        return self.__visit_control(node)
+
+    def visit_ForEach(self, node: jast.ForEach) -> jast.JAST:
+        return self.__visit_control(node)
+
+    def visit_While(self, node: jast.While) -> jast.JAST:
+        return self.__visit_control(node)
+
+    def visit_DoWhile(self, node: jast.DoWhile) -> jast.JAST:
+        return self.__visit_control(node)
+
     def generic_visit(self, node: jast.JAST) -> jast.JAST:
         injection = self.meta_visitor.visit_start(node)
         self.events += injection.events
-        super().generic_visit(node)
+        # Recurse only into statement/declaration positions, never into
+        # expressions: every value/condition/use event is produced by the
+        # factories at the statement level, and an expression slot cannot hold
+        # a wrapping Compound statement.
+        for field, value in list(node):
+            if isinstance(value, list):
+                setattr(
+                    node,
+                    field,
+                    [
+                        self.visit(item)
+                        if isinstance(item, jast.JAST)
+                        and not isinstance(item, jast.expr)
+                        else item
+                        for item in value
+                    ],
+                )
+            elif isinstance(value, jast.JAST) and not isinstance(value, jast.expr):
+                setattr(node, field, self.visit(value))
         return self.__create_node(injection, node)

@@ -9,6 +9,12 @@ repositories {
     mavenCentral()
 }
 
+// Target Java 8 bytecode so the runtime library loads on Defects4J's
+// Java 8 subjects, even when the Gradle build itself runs on a newer JDK.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 8
+}
+
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'

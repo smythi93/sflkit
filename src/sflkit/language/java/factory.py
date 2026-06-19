@@ -33,7 +33,7 @@ java_lib_name = jast.identifier("JLib")
 def get_call(function: jast.identifier, *args) -> jast.Expr:
     return jast.Expr(
         value=jast.Member(
-            value=jast.Name(value=java_lib_name),
+            value=jast.Name(id=java_lib_name),
             member=jast.Call(
                 func=jast.Name(id=function),
                 args=list(args),
@@ -43,7 +43,7 @@ def get_call(function: jast.identifier, *args) -> jast.Expr:
 
 
 def java_lib_get_id(*args) -> jast.expr:
-    return get_call(jast.identifier("getId"), *args).value
+    return get_call(jast.identifier("getID"), *args).value
 
 
 def java_lib_get_type(*args) -> jast.expr:
@@ -221,7 +221,6 @@ class DefEventFactory(JavaEventFactory):
         assert isinstance(call.value.member, jast.Call)
         call.value.member.args.append(java_lib_get_id(jast.Name(id=event.var)))
         call.value.member.args.append(jast.Name(id=event.var))
-        call.value.member.args.append(java_lib_get_type(jast.Name(id=event.var)))
         return call
 
     def visit_Method(self, node: jast.Method):
@@ -855,7 +854,7 @@ class TestUseEventFactory(UseEventFactory, TestEventFactory):
         )
 
 
-class TestAssertEventFactory(JavaEventFactory, TestEventFactory):
+class TestAssertEventFactory(TestEventFactory):
     def get_function(self) -> jast.identifier:
         return jast.identifier("addTestAssertEvent")
 

@@ -59,7 +59,7 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def visit_variabledeclaratorid(self, node: jast.variabledeclaratorid):
         if self.subscript:
             return self.default_result()
-        return OrderedSet(str(node.id))
+        return OrderedSet([str(node.id)])
 
     def visit_Lambda(self, node: jast.Lambda):
         if self.subscript:
@@ -107,7 +107,7 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def visit_Name(self, node: jast.Name):
         if self.subscript:
             return self.default_result()
-        return OrderedSet(str(node.id))
+        return OrderedSet([str(node.id)])
 
     def visit_ClassExpr(self, node):
         return self.default_result()
@@ -175,7 +175,7 @@ class JavaConditionExtract(jast.JNodeVisitor, ConditionExtract):
             jast.Compound(
                 body=[
                     jast.LocalVariable(
-                        type=jast.Boolean,
+                        type=jast.Boolean(),
                         declarators=[
                             jast.declarator(
                                 id=jast.variabledeclaratorid(id=var),
