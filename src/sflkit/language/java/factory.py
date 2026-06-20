@@ -72,7 +72,9 @@ class JavaEventFactory(MetaVisitor, jast.JNodeVisitor, abc.ABC):
         )
 
     def visit_start(self, *args) -> Injection:
-        return self.visit(*args)
+        # A visit_* method may fall through and return None (e.g. an assignment
+        # whose target is not a simple variable); treat that as no injection.
+        return self.visit(*args) or Injection()
 
     def generic_visit(self, node):
         return Injection()

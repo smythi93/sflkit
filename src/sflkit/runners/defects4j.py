@@ -233,6 +233,7 @@ class Defects4JRunner(Runner):
 
     def _recompile(self, instrumented_src, original_src, out_dir, cp_compile):
         sources = self._java_files(instrumented_src)
+        reverted_total = 0
         for _ in range(self.max_compile_retries):
             result = subprocess.run(
                 [
@@ -247,6 +248,11 @@ class Defects4JRunner(Runner):
                 text=True,
             )
             if result.returncode == 0:
+                if reverted_total:
+                    LOGGER.info(
+                        f"Reverted {reverted_total} file(s) whose instrumentation "
+                        f"did not compile"
+                    )
                 return
             bad_files = set(_JAVAC_ERROR.findall(result.stderr))
             reverted = False
@@ -256,6 +262,7 @@ class Defects4JRunner(Runner):
                 if os.path.exists(original) and not _same_file(bad, original):
                     shutil.copy(original, bad)
                     reverted = True
+                    reverted_total += 1
             if not reverted:
                 raise Defects4JError(
                     f"Could not compile instrumented sources:\n{result.stderr}"
