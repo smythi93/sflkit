@@ -322,9 +322,9 @@ class DefEventFactory(JavaEventFactory):
 
 
 class FunctionEventFactory(JavaEventFactory):
+    # node -> logical function id; shared across the enter/exit/error factories
+    # (via the shared function_id_generator) so they agree on a function's id.
     functions: Dict[jast.Method, int] = dict()
-    functions_exit_id: Dict[jast.Method, int] = dict()
-    function_var: Dict[jast.Method, jast.identifier] = dict()
     return_visitor: ReturnFinder = ReturnFinder()
 
     def __init__(
@@ -339,6 +339,11 @@ class FunctionEventFactory(JavaEventFactory):
             language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.function_stack: List[jast.Method] = list()
+        # per-factory (instance) so that, e.g., the exit and the error factory do
+        # NOT share event ids for the same function, and so state does not leak
+        # across instrumentation runs.
+        self.functions_exit_id: Dict[jast.Method, int] = dict()
+        self.function_var: Dict[jast.Method, jast.identifier] = dict()
 
     def get_function_id(self, node: jast.Method):
         if node in self.functions:
@@ -391,17 +396,41 @@ class FunctionExitEventFactory(FunctionEventFactory):
         call = super().get_event_call(event)
         assert isinstance(call.value, jast.Member)
         assert isinstance(call.value.member, jast.Call)
-        call.value.member.args.append(jast.Name(id=event.tmp_var))
-        call.value.member.args.append(java_lib_get_type(jast.Name(id=event.tmp_var)))
+        # JLib.addFunctionExitEvent(eventID, returnValue); the type is derived
+        # from the value by JLib.  void methods report a null return value.
+        if event.tmp_var is not None:
+            call.value.member.args.append(jast.Name(id=event.tmp_var))
+        else:
+            call.value.member.args.append(jast.Constant(jast.NullLiteral()))
         return call
 
+    @staticmethod
+    def _is_void(return_type) -> bool:
+        return return_type is None or isinstance(return_type, jast.Void)
+
     def visit_Method(self, node: jast.Method):
+        if self._is_void(node.return_type):
+            # void method: no return value to capture; only record exit on
+            # fall-through (explicit `return;` are handled by visit_Return).
+            if self.return_visitor.visit(node):
+                return Injection()
+            function_exit_event = FunctionExitEvent(
+                self.file,
+                node.lineno,
+                self.get_function_event_id(node),
+                node.id.value,
+                self.get_function_id(node),
+                tmp_var=None,
+            )
+            return Injection(
+                body_last=[self.get_event_call(function_exit_event)],
+                events=[function_exit_event],
+            )
         function_var = self.get_function_var(node)
-        if isinstance(node.return_type, jast.primitivetype):
-            if isinstance(node.return_type, jast.Boolean):
-                value = jast.Constant(jast.BoolLiteral(False))
-            else:
-                value = jast.Constant(jast.IntLiteral(0))
+        if isinstance(node.return_type, jast.Boolean):
+            value = jast.Constant(jast.BoolLiteral(False))
+        elif isinstance(node.return_type, jast.primitivetype):
+            value = jast.Constant(jast.IntLiteral(0))
         else:
             value = jast.Constant(jast.NullLiteral())
         if not self.return_visitor.visit(node):
@@ -436,6 +465,20 @@ class FunctionExitEventFactory(FunctionEventFactory):
 
     def visit_Return(self, node):
         function = self.function_stack[-1]
+        if node.value is None:
+            # void `return;`: record the exit, leave the statement unchanged
+            function_exit_event = FunctionExitEvent(
+                self.file,
+                node.lineno,
+                self.get_function_event_id(node),
+                function.id.value,
+                self.get_function_id(function),
+                tmp_var=None,
+            )
+            return Injection(
+                pre=[self.get_event_call(function_exit_event)],
+                events=[function_exit_event],
+            )
         function_var = self.get_function_var(function)
         function_exit_event = FunctionExitEvent(
             self.file,
@@ -450,9 +493,7 @@ class FunctionExitEventFactory(FunctionEventFactory):
                 jast.Expr(
                     value=jast.Assign(
                         target=jast.Name(id=function_var),
-                        value=node.value
-                        if node.value
-                        else jast.Constant(jast.NullLiteral()),
+                        value=node.value,
                     )
                 ),
                 self.get_event_call(function_exit_event),
@@ -742,18 +783,18 @@ class LenEventFactory(DefEventFactory):
         return jast.identifier("addLenEvent")
 
     def get_event_call(self, event: LenEvent):
-        call = super().get_event_call(event)
+        # JLib.addLenEvent(eventID, varID, length), guarded by hasLen.  Build it
+        # from the base call (eventID) rather than the Def call, which would add
+        # the value/var arguments that addLenEvent does not take.
+        call = JavaEventFactory.get_event_call(self, event)
         assert isinstance(call.value, jast.Member)
         assert isinstance(call.value.member, jast.Call)
-        call.value.member.args.append(
-            java_lib_get_id(jast.Name(id=jast.identifier(event.var)))
-        )
-        call.value.member.args.append(
-            java_lib_get_len(jast.Name(id=jast.identifier(event.var)))
-        )
+        var = jast.Name(id=jast.identifier(event.var))
+        call.value.member.args.append(java_lib_get_id(var))
+        call.value.member.args.append(java_lib_get_len(var))
         return jast.If(
             test=java_lib_has_len(jast.Name(id=jast.identifier(event.var))),
-            body=[call],
+            body=jast.Block(body=[call]),
         )
 
     def get_event(self, node: jast.stmt | jast.declaration, var: str):

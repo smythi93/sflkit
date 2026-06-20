@@ -35,8 +35,12 @@ from sflkitlib.events.event import (
     UseEvent,
     ConditionEvent,
     FunctionEnterEvent,
+    FunctionExitEvent,
+    FunctionErrorEvent,
     LoopBeginEvent,
     LoopHitEvent,
+    LoopEndEvent,
+    LenEvent,
 )
 
 from utils import PROJECT_DIR
@@ -408,6 +412,42 @@ class JavaEndToEndTest(unittest.TestCase):
         self.assertEqual(4, sum(isinstance(e, LoopHitEvent) for e in events))
         self.assertEqual(5, sum(isinstance(e, ConditionEvent) for e in events))
         self.assertTrue(any(isinstance(e, DefEvent) and e.var == "i" for e in events))
+
+    def test_all_event_types_decode(self):
+        events = self._run(
+            "test_java_all",
+            "AllEv",
+            [
+                EventType.LINE,
+                EventType.BRANCH,
+                EventType.DEF,
+                EventType.USE,
+                EventType.CONDITION,
+                EventType.FUNCTION_ENTER,
+                EventType.FUNCTION_EXIT,
+                EventType.FUNCTION_ERROR,
+                EventType.LOOP_BEGIN,
+                EventType.LOOP_HIT,
+                EventType.LOOP_END,
+                EventType.LEN,
+            ],
+        )
+        present = {type(e).__name__ for e in events}
+        for expected in (
+            LineEvent, BranchEvent, DefEvent, UseEvent, ConditionEvent,
+            FunctionEnterEvent, FunctionExitEvent, FunctionErrorEvent,
+            LoopBeginEvent, LoopHitEvent, LoopEndEvent, LenEvent,
+        ):
+            self.assertIn(expected.__name__, present)
+        # return values are captured; void methods report None
+        exits = {(e.function, e.return_value) for e in events if isinstance(e, FunctionExitEvent)}
+        self.assertIn(("pick", 2), exits)
+        self.assertIn(("len", 5), exits)
+        self.assertIn(("noop", None), exits)
+        # the throwing method yields a function-error (and no exit)
+        self.assertTrue(
+            any(isinstance(e, FunctionErrorEvent) and e.function == "risky" for e in events)
+        )
 
 
 if __name__ == "__main__":

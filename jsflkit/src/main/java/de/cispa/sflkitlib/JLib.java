@@ -151,6 +151,13 @@ public class JLib {
         return object.length();
     }
 
+    // Catch-all so that getLen(...) type-checks for values without a length
+    // (e.g. primitives/plain objects); it is never reached at runtime because
+    // the instrumentation guards the call with hasLen(...), which is false here.
+    public static int getLen(Object ignored) {
+        return 0;
+    }
+
     public static boolean hasLen(Collection<?> ignored) {
         return true;
     }

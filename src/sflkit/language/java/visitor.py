@@ -104,24 +104,25 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
                     exc=jast.Name(id=error_var),
                 )
             ]
+            catch = jast.catch(
+                excs=[jast.qname([jast.identifier("Exception")])],
+                id=error_var,
+                body=jast.Block(body=injection.error + raise_stmt),
+            )
             if body:
-                inner = (
-                    node.body
-                    if isinstance(node.body, jast.Block)
-                    else jast.Block(body=self.__stmt_list(node))
+                # wrap the body in a try/catch, keeping the (method) node
+                node.body = jast.Block(
+                    body=[
+                        jast.Try(
+                            body=node.body
+                            if isinstance(node.body, jast.Block)
+                            else jast.Block(body=self.__stmt_list(node)),
+                            catches=[catch],
+                        )
+                    ]
                 )
             else:
-                inner = jast.Block(body=[node])
-            node = jast.Try(
-                body=inner,
-                catches=[
-                    jast.catch(
-                        excs=[jast.qname([jast.identifier("Exception")])],
-                        id=error_var,
-                        body=jast.Block(body=injection.error + raise_stmt),
-                    )
-                ],
-            )
+                node = jast.Try(body=jast.Block(body=[node]), catches=[catch])
         if injection.pre or injection.post:
             return jast.Compound(
                 body=injection.pre + [node] + injection.post,
