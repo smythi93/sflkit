@@ -166,8 +166,9 @@ class Defects4JRunner(Runner):
         events: Optional[List[EventType]] = None,
         timeout: int = 300,
         max_compile_retries: int = 50,
+        thread_support: bool = False,
     ):
-        super().__init__(timeout=timeout)
+        super().__init__(timeout=timeout, thread_support=thread_support)
         self.jlib_jar = str(jlib_jar)
         self.defects4j = defects4j or Defects4J()
         self.events = events or list(DEFAULT_EVENTS)
@@ -316,6 +317,8 @@ class Defects4JRunner(Runner):
         environ = dict(environ or self.defects4j.env)
         # Let JLib write to <directory>/EVENTS_PATH, which run_tests then moves.
         environ.pop("EVENTS_PATH", None)
+        # JLib prefixes every event with its thread id when this is set.
+        environ["EVENTS_THREADS"] = "1" if self.thread_support else "0"
         try:
             result = subprocess.run(
                 [self.defects4j.java, "-cp", self.run_classpath, "SflkitTestRunner",

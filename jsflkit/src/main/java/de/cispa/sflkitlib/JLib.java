@@ -15,6 +15,15 @@ public class JLib {
 
     private static FileOutputStream EVENT_TRACE_FILE;
 
+    // When EVENTS_THREADS is set, every event is prefixed with the id of the
+    // writing thread (matching the Python codec's optional thread_id prefix), so
+    // multi-threaded executions can be disentangled.  Writes are serialized so
+    // that a thread prefix and its event stay together.
+    private static final boolean THREAD_SUPPORT =
+            "1".equals(System.getenv("EVENTS_THREADS"))
+                    || "true".equalsIgnoreCase(System.getenv("EVENTS_THREADS"));
+    private static final Object LOCK = new Object();
+
     static {
         try {
             EVENT_TRACE_FILE = new FileOutputStream(EVENT_TRACE_FILE_PATH);
@@ -56,7 +65,13 @@ public class JLib {
 
     private static void write(byte[] encodedEvent) {
         try {
-            EVENT_TRACE_FILE.write(encodedEvent);
+            synchronized (LOCK) {
+                if (THREAD_SUPPORT) {
+                    EVENT_TRACE_FILE.write(
+                            JCodec.encodeThreadId((int) Thread.currentThread().getId()));
+                }
+                EVENT_TRACE_FILE.write(encodedEvent);
+            }
         } catch (IOException ignored) {
         }
     }

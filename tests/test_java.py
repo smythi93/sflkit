@@ -316,7 +316,7 @@ class JavaEndToEndTest(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def _run(self, subject, main_class, events):
+    def _run(self, subject, main_class, events, thread_support=False):
         config = Config.create(
             path=os.path.join(RESOURCES, subject),
             language="java",
@@ -338,11 +338,15 @@ class JavaEndToEndTest(unittest.TestCase):
         subprocess.run(
             [JAVA, "-cp", os.pathsep.join([out_bin, self.jar]), main_class],
             cwd=out_bin,
-            env={**os.environ, "EVENTS_PATH": trace},
+            env={
+                **os.environ,
+                "EVENTS_PATH": trace,
+                "EVENTS_THREADS": "1" if thread_support else "0",
+            },
         )
         self.assertTrue(os.path.isfile(trace))
         base = EventMapping.load(config).mapping
-        return eventlib.load(trace, base)
+        return eventlib.load(trace, base, with_thread_id=thread_support)
 
     def test_branches_def_use_conditions_decode(self):
         events = self._run(
@@ -448,6 +452,18 @@ class JavaEndToEndTest(unittest.TestCase):
         self.assertTrue(
             any(isinstance(e, FunctionErrorEvent) and e.function == "risky" for e in events)
         )
+
+    def test_thread_ids(self):
+        # With thread support, every event carries the writing thread's id, so a
+        # multi-threaded run is split across the main thread and the two workers.
+        events = self._run(
+            "test_java_threads",
+            "Threads",
+            [EventType.LINE, EventType.FUNCTION_ENTER, EventType.LOOP_HIT],
+            thread_support=True,
+        )
+        self.assertTrue(all(e.thread_id is not None for e in events))
+        self.assertGreaterEqual(len({e.thread_id for e in events}), 2)
 
 
 if __name__ == "__main__":
