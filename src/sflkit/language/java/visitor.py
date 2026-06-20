@@ -56,9 +56,18 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
             # e.g. an ``else if`` chain where orelse is an If statement.
             node.orelse = jast.Block(body=list(stmts) + [orelse])
 
-    def __create_node(self, injection: Injection, node: jast.JAST, body=False):
+    @staticmethod
+    def __is_explicit_constructor_call(stmt):
+        # `super(...)` / `this(...)` as a statement; must stay first in a ctor.
+        return (
+            isinstance(stmt, jast.Expr)
+            and isinstance(stmt.value, jast.Call)
+            and isinstance(stmt.value.func, (jast.Super, jast.This))
+        )
+
+    def __create_node(self, injection: Injection, node: jast.JAST, body=False, body_offset=0):
         if injection.body:
-            self.__stmt_list(node)[:0] = injection.body
+            self.__stmt_list(node)[body_offset:body_offset] = injection.body
         if injection.body_last:
             self.__stmt_list(node).extend(injection.body_last)
         if injection.orelse:
@@ -120,22 +129,22 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
         decls = [node]
         if injection.pre_block:
             decls = [
-                jast.Initializer(block=jast.Block(body=injection.pre_block))
+                jast.Initializer(body=jast.Block(body=injection.pre_block))
             ] + decls
         if injection.post_block:
             decls = decls + [
-                jast.Initializer(block=jast.Block(body=injection.post_block))
+                jast.Initializer(body=jast.Block(body=injection.post_block))
             ]
         if injection.static_pre_block:
             decls = [
                 jast.Initializer(
-                    block=jast.Block(body=injection.static_pre_block), static=True
+                    body=jast.Block(body=injection.static_pre_block), static=True
                 )
             ] + decls
         if injection.static_post_block:
             decls = decls + [
                 jast.Initializer(
-                    block=jast.Block(body=injection.static_post_block), static=True
+                    body=jast.Block(body=injection.static_post_block), static=True
                 )
             ]
         if len(decls) == 1:
@@ -154,10 +163,16 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
         self.meta_visitor.enter_function(node)
         injection = self.meta_visitor.visit_start(node)
         stmts = self.__stmt_list(node)
-        stmts[:] = [self.visit(n) for n in list(stmts)]
+        # An explicit super()/this() call must remain the first statement of a
+        # constructor, so keep it uninstrumented and inject everything after it.
+        leading = stmts[:1] if stmts and self.__is_explicit_constructor_call(stmts[0]) else []
+        rest = stmts[len(leading):]
+        stmts[:] = leading + [self.visit(n) for n in list(rest)]
         self.meta_visitor.exit_function(node)
         self.events += injection.events
-        return self.__create_node(injection, node, body=True)
+        return self.__create_node(
+            injection, node, body=True, body_offset=len(leading)
+        )
 
     def visit_Method(self, node: jast.Method) -> jast.JAST:
         return self.__visit_function(node)
