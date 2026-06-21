@@ -19,7 +19,13 @@ import tempfile
 import unittest
 
 from sflkit import Config, instrument_config
+from sflkit.analysis.analysis_type import AnalysisType
+from sflkit.analysis.analyzer import Analyzer
+from sflkit.analysis.suggestion import Location
+from sflkit.events.event_file import EventFile
 from sflkit.events.mapping import EventMapping
+from sflkit.features.handler import EventHandler
+from sflkit.runners.run import TestResult
 from sflkit.language.language import Language
 from sflkit.language.java.finder import (
     JavaFunctionFinder,
@@ -453,6 +459,36 @@ class JavaEndToEndTest(unittest.TestCase):
             any(isinstance(e, FunctionErrorEvent) and e.function == "risky" for e in events)
         )
 
+    def test_broad_java_syntax(self):
+        # A subject exercising generics, lambdas, enhanced-for, switch, varargs,
+        # try/catch/finally, ternary, instanceof/casts, enums, nested classes,
+        # arrays, do-while and autoboxing instruments, compiles, runs and decodes.
+        events = self._run(
+            "test_java_features",
+            "Features",
+            [
+                EventType.LINE,
+                EventType.BRANCH,
+                EventType.DEF,
+                EventType.USE,
+                EventType.CONDITION,
+                EventType.FUNCTION_ENTER,
+                EventType.FUNCTION_EXIT,
+                EventType.FUNCTION_ERROR,
+                EventType.LOOP_BEGIN,
+                EventType.LOOP_HIT,
+                EventType.LOOP_END,
+                EventType.LEN,
+            ],
+        )
+        present = {type(e).__name__ for e in events}
+        for expected in (
+            LineEvent, BranchEvent, DefEvent, UseEvent, ConditionEvent,
+            FunctionEnterEvent, FunctionExitEvent, LoopBeginEvent, LoopHitEvent,
+            LoopEndEvent, LenEvent,
+        ):
+            self.assertIn(expected.__name__, present)
+
     def test_thread_ids(self):
         # With thread support, every event carries the writing thread's id, so a
         # multi-threaded run is split across the main thread and the two workers.
@@ -464,6 +500,143 @@ class JavaEndToEndTest(unittest.TestCase):
         )
         self.assertTrue(all(e.thread_id is not None for e in events))
         self.assertGreaterEqual(len({e.thread_id for e in events}), 2)
+
+
+@unittest.skipUnless(HAVE_JDK, "no JDK (javac/java) available")
+class JavaAnalysisTest(unittest.TestCase):
+    """The downstream analysis on Java traces: instrument -> compile -> run
+    passing/failing inputs -> build event files -> feature creation and fault
+    localization.  ``Middle.java`` has a known bug on line 8 (``m = y`` where it
+    should be ``m = x``)."""
+
+    FAILING = [["2", "1", "3"]]
+    PASSING = [["5", "3", "4"], ["1", "2", "3"], ["5", "5", "5"]]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.jar = _ensure_jar()
+        if cls.jar is None:
+            raise unittest.SkipTest("could not obtain jsflkit.jar")
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sflkit_java_an_")
+        self.work = os.path.join(self.tmp, "work")
+        self.mapping_path = os.path.join(self.tmp, "mapping.json")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _collect(self, subject, main_class, predicates, failing, passing):
+        config = Config.create(
+            path=os.path.join(RESOURCES, subject),
+            language="java",
+            predicates=predicates,
+            working=self.work,
+            mapping_path=self.mapping_path,
+        )
+        instrument_config(config)
+        sources = glob.glob(os.path.join(self.work, "**", "*.java"), recursive=True)
+        out_bin = os.path.join(self.tmp, "bin")
+        os.makedirs(out_bin, exist_ok=True)
+        compiled = subprocess.run(
+            [JAVAC, "-cp", self.jar, "-d", out_bin] + sources,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, compiled.returncode, compiled.stderr)
+        mapping = EventMapping.load(config)
+        run_id = 0
+        event_files = {True: [], False: []}
+        for failing_flag, inputs in ((True, failing), (False, passing)):
+            for args in inputs:
+                trace = os.path.join(self.tmp, f"trace_{run_id}")
+                subprocess.run(
+                    [JAVA, "-cp", os.pathsep.join([out_bin, self.jar]), main_class]
+                    + args,
+                    cwd=out_bin,
+                    env={**os.environ, "EVENTS_PATH": trace, "EVENTS_THREADS": "0"},
+                )
+                self.assertTrue(os.path.isfile(trace))
+                event_files[failing_flag].append(
+                    EventFile(trace, run_id, mapping, failing=failing_flag)
+                )
+                run_id += 1
+        return config, event_files[True], event_files[False]
+
+    def _analyze(self, predicates="line,branch,def_use"):
+        config, failing, passing = self._collect(
+            "test_java_middle", "Middle", predicates, self.FAILING, self.PASSING
+        )
+        analyzer = Analyzer(failing, passing, config.factory, workers=1)
+        analyzer.analyze()
+        base = os.path.join(RESOURCES, "test_java_middle")
+        return analyzer, base
+
+    def test_fault_localization_line(self):
+        analyzer, base = self._analyze()
+        suggestions = analyzer.get_sorted_suggestions(
+            base_dir=base, type_=AnalysisType.LINE
+        )
+        # the buggy line is executed only by the failing run -> top suspiciousness
+        self.assertEqual(1.0, suggestions[0].suspiciousness)
+        self.assertIn(Location("Middle.java", 8), suggestions[0].lines)
+
+    def test_fault_localization_def_use(self):
+        analyzer, base = self._analyze()
+        suggestions = analyzer.get_sorted_suggestions(
+            base_dir=base, type_=AnalysisType.DEF_USE
+        )
+        # the faulty definition of m (line 8) flows into the returned value
+        self.assertEqual(1.0, suggestions[0].suspiciousness)
+        self.assertIn(Location("Middle.java", 8), suggestions[0].lines)
+
+    def test_fault_localization_metrics(self):
+        from sflkit.analysis.spectra import Spectrum
+
+        analyzer, base = self._analyze()
+        for metric in (Spectrum.Tarantula, Spectrum.Ochiai):
+            suggestions = analyzer.get_sorted_suggestions(
+                base_dir=base, metric=metric, type_=AnalysisType.LINE
+            )
+            self.assertIn(
+                Location("Middle.java", 8),
+                suggestions[0].lines,
+                f"{metric.__name__} did not rank the bug first",
+            )
+
+    def test_feature_creation(self):
+        config, failing, passing = self._collect(
+            "test_java_middle",
+            "Middle",
+            "line,branch,def_use,condition,scalar_pair,variable",
+            self.FAILING,
+            self.PASSING,
+        )
+        handler = EventHandler(workers=1)
+        handler.handle_files(failing + passing)
+        vectors = handler.get_vectors()
+        # one feature vector per run, labelled by outcome
+        self.assertEqual(len(self.FAILING) + len(self.PASSING), len(vectors))
+        self.assertEqual(1, sum(v.result == TestResult.FAILING for v in vectors))
+        # diverse features are derived from the Java trace
+        features = sorted(handler.builder.get_all_features())
+        self.assertGreater(len(features), 0)
+        kinds = {f.analysis.analysis_type() for f in features}
+        for expected in (
+            AnalysisType.LINE,
+            AnalysisType.DEF_USE,
+            AnalysisType.SCALAR_PAIR,
+        ):
+            self.assertIn(expected, kinds)
+        # the failing run's feature vector differs from every passing one
+        failing_vec = next(v for v in vectors if v.result == TestResult.FAILING)
+        passing_vecs = [v for v in vectors if v.result != TestResult.FAILING]
+        self.assertTrue(
+            all(
+                failing_vec.vector(features) != v.vector(features)
+                for v in passing_vecs
+            )
+        )
 
 
 if __name__ == "__main__":

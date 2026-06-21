@@ -254,9 +254,16 @@ class DefEventFactory(JavaEventFactory):
         )
 
     def visit_Field(self, node: jast.Field):
-        def_events = []
-        for var in node.declarators:
-            def_events.append(self.get_event(node, var.id.id.value))
+        # Only fields with an initializer define a value at their declaration.
+        # An uninitialized field (often final, assigned in a constructor) must
+        # not be read by an initializer block before it is assigned.
+        def_events = [
+            self.get_event(node, var.id.id.value)
+            for var in node.declarators
+            if var.init is not None
+        ]
+        if not def_events:
+            return Injection()
         is_static = any(isinstance(mod, jast.Static) for mod in node.modifiers)
         if is_static:
             return Injection(
@@ -749,7 +756,7 @@ class ConditionEventFactory(JavaEventFactory):
                     ConditionEventFactory._to_reassignment(s) for s in node.body
                 ]
             )
-        if isinstance(node, jast.LocalVariable):
+        if isinstance(node, jast.LocalVariable) and node.declarators[0].init is not None:
             declarator = node.declarators[0]
             return jast.Expr(
                 value=jast.Assign(
@@ -757,6 +764,32 @@ class ConditionEventFactory(JavaEventFactory):
                 )
             )
         return node
+
+    @staticmethod
+    def _bare_declarations(node):
+        """Bare ``boolean tmp;`` declarations for every tmp a condition setup
+        declares, so they can be hoisted before a do-while loop."""
+        decls = []
+        if isinstance(node, (jast.Compound, jast.Block)):
+            for stmt in node.body:
+                decls.extend(ConditionEventFactory._bare_declarations(stmt))
+        elif isinstance(node, jast.If):
+            decls.extend(ConditionEventFactory._bare_declarations(node.body))
+            if node.orelse is not None:
+                decls.extend(ConditionEventFactory._bare_declarations(node.orelse))
+        elif isinstance(node, jast.LocalVariable):
+            for declarator in node.declarators:
+                decls.append(
+                    jast.LocalVariable(
+                        type=jast.Boolean(),
+                        declarators=[
+                            jast.declarator(
+                                id=jast.variabledeclaratorid(id=declarator.id.id)
+                            )
+                        ],
+                    )
+                )
+        return decls
 
     def visit_If(self, node: jast.If):
         return self.visit_condition(node)
@@ -768,8 +801,12 @@ class ConditionEventFactory(JavaEventFactory):
 
     def visit_DoWhile(self, node: jast.DoWhile):
         injection = self.visit_condition(node)
-        injection.body_last = injection.pre
-        injection.pre = []
+        if injection.pre:
+            # do { ... } while (cond): the temp is used by the trailing `while`,
+            # so declare it before the loop and (re)assign it inside the body.
+            var_assign = injection.pre[0]
+            injection.pre = self._bare_declarations(var_assign)
+            injection.body_last = [self._to_reassignment(var_assign)]
         return injection
 
     def visit_For(self, node: jast.For):
