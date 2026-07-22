@@ -1,0 +1,134 @@
+import enum
+from typing import List, Dict, Type
+
+from sflkitlib.events import EventType
+
+import sflkit.language.python.factory as python_factory
+from sflkit.analysis.analysis_type import AnalysisObject
+from sflkit.language.extract import VariableExtract, ConditionExtract
+from sflkit.language.finder import BranchFinder, LoopFinder, FunctionFinder
+from sflkit.language.meta import MetaVisitor
+from sflkit.language.python.extract import PythonVarExtract, PythonConditionExtract
+from sflkit.language.python.finder import (
+    PythonFunctionFinder,
+    PythonLoopFinder,
+    PythonBranchFinder,
+)
+from sflkit.language.python.visitor import PythonInstrumentation
+import sflkit.language.java.factory as java_factory
+from sflkit.language.java.extract import JavaVarExtract, JavaConditionExtract
+from sflkit.language.java.finder import (
+    JavaFunctionFinder,
+    JavaLoopFinder,
+    JavaBranchFinder,
+)
+from sflkit.language.java.visitor import JavaInstrumentation
+from sflkit.language.visitor import ASTVisitor
+
+_PYTHON_FACTORIES = {
+    EventType.LINE: python_factory.LineEventFactory,
+    EventType.BRANCH: python_factory.BranchEventFactory,
+    EventType.DEF: python_factory.DefEventFactory,
+    EventType.USE: python_factory.UseEventFactory,
+    EventType.LOOP_BEGIN: python_factory.LoopBeginEventFactory,
+    EventType.LOOP_HIT: python_factory.LoopHitEventFactory,
+    EventType.LOOP_END: python_factory.LoopEndEventFactory,
+    EventType.FUNCTION_ENTER: python_factory.FunctionEnterEventFactory,
+    EventType.FUNCTION_EXIT: python_factory.FunctionExitEventFactor,
+    EventType.FUNCTION_ERROR: python_factory.FunctionErrorEventFactory,
+    EventType.CONDITION: python_factory.ConditionEventFactory,
+    EventType.CONDITION_VALUE: python_factory.ConditionValueEventFactory,
+    EventType.LEN: python_factory.LenEventFactory,
+    EventType.TEST_START: python_factory.TestStartEventFactory,
+    EventType.TEST_END: python_factory.TestEndEventFactory,
+    EventType.TEST_LINE: python_factory.TestLineEventFactory,
+    EventType.TEST_DEF: python_factory.TestDefEventFactory,
+    EventType.TEST_USE: python_factory.TestUseEventFactory,
+    EventType.TEST_ASSERT: python_factory.TestAssertEventFactory,
+}
+
+_JAVA_FACTORIES = {
+    EventType.LINE: java_factory.LineEventFactory,
+    EventType.BRANCH: java_factory.BranchEventFactory,
+    EventType.DEF: java_factory.DefEventFactory,
+    EventType.USE: java_factory.UseEventFactory,
+    EventType.LOOP_BEGIN: java_factory.LoopBeginEventFactory,
+    EventType.LOOP_HIT: java_factory.LoopHitEventFactory,
+    EventType.LOOP_END: java_factory.LoopEndEventFactory,
+    EventType.FUNCTION_ENTER: java_factory.FunctionEnterEventFactory,
+    EventType.FUNCTION_EXIT: java_factory.FunctionExitEventFactory,
+    EventType.FUNCTION_ERROR: java_factory.FunctionErrorEventFactory,
+    EventType.CONDITION: java_factory.ConditionEventFactory,
+    EventType.LEN: java_factory.LenEventFactory,
+    EventType.TEST_START: java_factory.TestStartEventFactory,
+    EventType.TEST_END: java_factory.TestEndEventFactory,
+    EventType.TEST_LINE: java_factory.TestLineEventFactory,
+    EventType.TEST_DEF: java_factory.TestDefEventFactory,
+    EventType.TEST_USE: java_factory.TestUseEventFactory,
+    EventType.TEST_ASSERT: java_factory.TestAssertEventFactory,
+}
+
+
+class Language(enum.Enum):
+    def __init__(
+        self,
+        ast_visitor: Type[ASTVisitor],
+        meta_visitors: Dict[EventType, Type[MetaVisitor]],
+        var_extract: VariableExtract,
+        use_extract: VariableExtract,
+        condition_extract: ConditionExtract,
+        function_finder: FunctionFinder,
+        loop_finder: LoopFinder,
+        branch_finder: BranchFinder,
+        suffixes: List[str],
+    ):
+        self.visitor = ast_visitor
+        self.meta_visitors = meta_visitors
+        self.var_extract = var_extract
+        self.use_extract = use_extract
+        self.condition_extract = condition_extract
+        self.function_finder = function_finder
+        self.loop_finder = loop_finder
+        self.branch_finder = branch_finder
+        self.suffixes = suffixes
+
+    def setup(self):
+        AnalysisObject.set_finder(
+            self.function_finder, self.loop_finder, self.branch_finder
+        )
+
+    PYTHON = (
+        PythonInstrumentation,
+        _PYTHON_FACTORIES,
+        PythonVarExtract(),
+        PythonVarExtract(use=True),
+        PythonConditionExtract(),
+        PythonFunctionFinder,
+        PythonLoopFinder,
+        PythonBranchFinder,
+        ["py"],
+    )  # Equals PYTHON3
+    PYTHON3 = PYTHON
+    PYTHON2 = (
+        None,
+        _PYTHON_FACTORIES,
+        PythonVarExtract(),
+        PythonVarExtract(use=True),
+        PythonConditionExtract(),
+        PythonFunctionFinder,
+        PythonLoopFinder,
+        PythonBranchFinder,
+        ["py"],
+    )
+    C = (None, dict(), None, None, None, None, None, None, ["c", "h"])
+    JAVA = (
+        JavaInstrumentation,
+        _JAVA_FACTORIES,
+        JavaVarExtract(),
+        JavaVarExtract(use=True),
+        JavaConditionExtract(),
+        JavaFunctionFinder,
+        JavaLoopFinder,
+        JavaBranchFinder,
+        ["java"],
+    )
