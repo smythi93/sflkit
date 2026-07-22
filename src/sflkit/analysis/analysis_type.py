@@ -1,0 +1,169 @@
+import abc
+import enum
+from typing import List, Type, Optional, Any
+
+from sflkit.events.event_file import EventFile
+from sflkit.model.scope import Scope
+
+
+class EvaluationResult(enum.Enum):
+    TRUE = 1
+    FALSE = 0
+    UNOBSERVED = -1
+
+
+class AnalysisType(enum.Enum):
+    LINE = 0
+    BRANCH = 1
+    FUNCTION = 2
+    LOOP = 3
+    DEF_USE = 4
+    CONDITION = 5
+    SCALAR_PAIR = 6
+    VARIABLE = 7
+    RETURN = 8
+    NONE = 9
+    EMPTY_STRING = 10
+    ASCII_STRING = 11
+    DIGIT_STRING = 12
+    SPECIAL_STRING = 13
+    EMPTY_BYTES = 14
+    LENGTH = 15
+    FUNCTION_ERROR = 16
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+
+"""
+If you want to add new spectra or predicates, please register them here and in sflkit/language/.py
+"""
+
+
+class AnalysisObject(abc.ABC):
+    function_finder = None
+    loop_finder = None
+    branch_finder = None
+
+    @staticmethod
+    def set_finder(function_finder, loop_finder, branch_finder):
+        AnalysisObject.function_finder = function_finder
+        AnalysisObject.loop_finder = loop_finder
+        AnalysisObject.branch_finder = branch_finder
+
+    # noinspection PyUnusedLocal
+    def __init__(self):
+        self.suspiciousness: float = 0
+        self.last_evaluation: EvaluationResult = EvaluationResult.UNOBSERVED
+        self.hits: dict[EventFile, dict[Optional[int], Any]] = dict()
+
+    def adjust_weight(self, event_file: EventFile, weight: float):
+        pass
+
+    @abc.abstractmethod
+    def serialize(self) -> dict:
+        pass
+
+    @staticmethod
+    @abc.abstractmethod
+    def deserialize(s: dict) -> "AnalysisObject":
+        pass
+
+    def get_last_evaluation(self, id_: int) -> EvaluationResult:
+        return self.last_evaluation
+
+    def __repr__(self):
+        return f"{self.analysis_type()}:{self.suspiciousness}"
+
+    def __str__(self):
+        return f"{self.analysis_type()}"
+
+    @staticmethod
+    @abc.abstractmethod
+    def analysis_type() -> AnalysisType:
+        raise NotImplementedError()
+
+    def analyze(self, passed: List, failed: List):
+        self.finalize(passed, failed)
+        self.calculate()
+
+    def calculate(self):
+        pass
+
+    @abc.abstractmethod
+    def finalize(self, passed: List, failed: List):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def hit(self, id_: EventFile, event, scope: Scope = None):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_suggestion(self):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def assign_suspiciousness(self):
+        raise NotImplementedError()
+
+    @staticmethod
+    def handle(event, events: List[Type]):
+        return any(map(lambda e: isinstance(event, e), events))
+
+    @staticmethod
+    @abc.abstractmethod
+    def events() -> List[Type]:
+        raise NotImplementedError()
+
+    def __gt__(self, other):
+        if hasattr(other, "suspiciousness"):
+            return self.suspiciousness > other.suspiciousness
+        elif isinstance(other, (int, float)):
+            return self.suspiciousness > other
+        else:
+            raise TypeError(f"> supported between {type(self)} and {type(other)}")
+
+    def __lt__(self, other):
+        if hasattr(other, "suspiciousness"):
+            return self.suspiciousness < other.suspiciousness
+        elif isinstance(other, (int, float)):
+            return self.suspiciousness < other
+        else:
+            raise TypeError(f"< supported between {type(self)} and {type(other)}")
+
+    def __ge__(self, other):
+        if hasattr(other, "suspiciousness"):
+            return self.suspiciousness >= other.suspiciousness
+        elif isinstance(other, (int, float)):
+            return self.suspiciousness >= other
+        else:
+            raise TypeError(f">= supported between {type(self)} and {type(other)}")
+
+    def __le__(self, other):
+        if hasattr(other, "suspiciousness"):
+            return self.suspiciousness <= other.suspiciousness
+        elif isinstance(other, (int, float)):
+            return self.suspiciousness <= other
+        else:
+            raise TypeError(f"<= supported between {type(self)} and {type(other)}")
+
+
+class MetaEvent:
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        function: Optional[str] = None,
+        var: Optional[str] = None,
+        then_id: Optional[int] = None,
+        else_id: Optional[int] = None,
+    ):
+        self.file = file
+        self.line = line
+        self.function = function
+        self.var = var
+        self.then_id = then_id
+        self.else_id = else_id
