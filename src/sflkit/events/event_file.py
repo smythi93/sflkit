@@ -1,9 +1,51 @@
+import io
 import os
 from pickle import PickleError
 
 from sflkitlib.events import event
 
 from sflkit.events.mapping import EventMapping
+
+GZIP_MAGIC = b"\x1f\x8b"
+ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
+
+
+def open_event_stream(path: os.PathLike) -> io.BufferedReader:
+    """
+    Open an event file for reading, transparently decompressing it.
+
+    The runtime tracer may write the event stream through gzip or zstd, so the
+    codec is detected from the leading magic bytes rather than the file name.
+    The returned object always supports ``peek``, which the event reader relies
+    on to detect the end of the stream.
+
+    :param path: Path of the event file.
+    :returns: A buffered binary reader over the decoded event stream.
+    """
+    raw = open(path, "rb")
+    try:
+        header = raw.read(4)
+        raw.seek(0)
+    except OSError:
+        return raw
+
+    if header.startswith(GZIP_MAGIC):
+        import gzip
+
+        return io.BufferedReader(gzip.GzipFile(fileobj=raw, mode="rb"))
+    if header.startswith(ZSTD_MAGIC):
+        try:
+            import zstandard
+        except ImportError as e:
+            raw.close()
+            raise ImportError(
+                f"{path} is zstd-compressed but the 'zstandard' package is not "
+                "installed. Run: pip install zstandard"
+            ) from e
+        return io.BufferedReader(
+            zstandard.ZstdDecompressor().stream_reader(raw)
+        )
+    return raw
 
 
 class EventFile(object):
@@ -32,7 +74,7 @@ class EventFile(object):
         return self.run_id == other.run_id
 
     def __enter__(self):
-        self._file_pointer = open(self.path, "rb")
+        self._file_pointer = open_event_stream(self.path)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -45,14 +87,20 @@ class EventFile(object):
         return repr(self)
 
     def load(self):
-        while self._file_pointer.peek(1):
+        # A trace can end mid-stream: the run may have been killed by a timeout
+        # or have exhausted its trace budget. Every decoding error therefore
+        # ends the stream cleanly instead of failing the analysis; events read
+        # up to that point stay valid because events are written whole.
+        while True:
             try:
+                if not self._file_pointer.peek(1):
+                    break
                 e = event.load_next_event(
                     self._file_pointer,
                     self.mapping.mapping,
                     with_thread_id=self.thread_support,
                 )
-                if self.mapping.is_valid(e):
-                    yield e
-            except (IndexError, ValueError, PickleError, KeyError):
+            except (IndexError, ValueError, PickleError, KeyError, EOFError, OSError):
                 break
+            if self.mapping.is_valid(e):
+                yield e
