@@ -81,6 +81,13 @@ class JavaVarExtractionTest(unittest.TestCase):
         )
         self._test_extract("x = f(y)", ["y"], ["x"])
 
+    def test_multichar_names(self):
+        # regression: identifiers must be kept whole, not split into characters
+        self._test_extract(
+            "foo = bar + baz", ["bar", "baz"], ["b", "a", "r", "z", "f", "o"]
+        )
+        self._test_extract("foo = bar", ["foo"], ["f", "o", "bar"], use=False)
+
     def test_assign(self):
         self._test_extract("x = y", ["y"], ["x"])
         self._test_extract("x = y + z", ["y", "z"], ["x"])

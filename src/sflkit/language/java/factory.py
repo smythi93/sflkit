@@ -33,7 +33,7 @@ java_lib_name = jast.identifier("JLib")
 def get_call(function: jast.identifier, *args) -> jast.Expr:
     return jast.Expr(
         value=jast.Member(
-            value=jast.Name(value=java_lib_name),
+            value=jast.Name(id=java_lib_name),
             member=jast.Call(
                 func=jast.Name(id=function),
                 args=list(args),
@@ -43,7 +43,7 @@ def get_call(function: jast.identifier, *args) -> jast.Expr:
 
 
 def java_lib_get_id(*args) -> jast.expr:
-    return get_call(jast.identifier("getId"), *args).value
+    return get_call(jast.identifier("getID"), *args).value
 
 
 def java_lib_get_type(*args) -> jast.expr:
@@ -72,7 +72,9 @@ class JavaEventFactory(MetaVisitor, jast.JNodeVisitor, abc.ABC):
         )
 
     def visit_start(self, *args) -> Injection:
-        return self.visit(*args)
+        # A visit_* method may fall through and return None (e.g. an assignment
+        # whose target is not a simple variable); treat that as no injection.
+        return self.visit(*args) or Injection()
 
     def generic_visit(self, node):
         return Injection()
@@ -221,7 +223,6 @@ class DefEventFactory(JavaEventFactory):
         assert isinstance(call.value.member, jast.Call)
         call.value.member.args.append(java_lib_get_id(jast.Name(id=event.var)))
         call.value.member.args.append(jast.Name(id=event.var))
-        call.value.member.args.append(java_lib_get_type(jast.Name(id=event.var)))
         return call
 
     def visit_Method(self, node: jast.Method):
@@ -253,9 +254,16 @@ class DefEventFactory(JavaEventFactory):
         )
 
     def visit_Field(self, node: jast.Field):
-        def_events = []
-        for var in node.declarators:
-            def_events.append(self.get_event(node, var.id.id.value))
+        # Only fields with an initializer define a value at their declaration.
+        # An uninitialized field (often final, assigned in a constructor) must
+        # not be read by an initializer block before it is assigned.
+        def_events = [
+            self.get_event(node, var.id.id.value)
+            for var in node.declarators
+            if var.init is not None
+        ]
+        if not def_events:
+            return Injection()
         is_static = any(isinstance(mod, jast.Static) for mod in node.modifiers)
         if is_static:
             return Injection(
@@ -321,9 +329,9 @@ class DefEventFactory(JavaEventFactory):
 
 
 class FunctionEventFactory(JavaEventFactory):
+    # node -> logical function id; shared across the enter/exit/error factories
+    # (via the shared function_id_generator) so they agree on a function's id.
     functions: Dict[jast.Method, int] = dict()
-    functions_exit_id: Dict[jast.Method, int] = dict()
-    function_var: Dict[jast.Method, jast.identifier] = dict()
     return_visitor: ReturnFinder = ReturnFinder()
 
     def __init__(
@@ -338,6 +346,11 @@ class FunctionEventFactory(JavaEventFactory):
             language, event_id_generator, function_id_generator, tmp_generator, **kwargs
         )
         self.function_stack: List[jast.Method] = list()
+        # per-factory (instance) so that, e.g., the exit and the error factory do
+        # NOT share event ids for the same function, and so state does not leak
+        # across instrumentation runs.
+        self.functions_exit_id: Dict[jast.Method, int] = dict()
+        self.function_var: Dict[jast.Method, jast.identifier] = dict()
 
     def get_function_id(self, node: jast.Method):
         if node in self.functions:
@@ -390,17 +403,41 @@ class FunctionExitEventFactory(FunctionEventFactory):
         call = super().get_event_call(event)
         assert isinstance(call.value, jast.Member)
         assert isinstance(call.value.member, jast.Call)
-        call.value.member.args.append(jast.Name(id=event.tmp_var))
-        call.value.member.args.append(java_lib_get_type(jast.Name(id=event.tmp_var)))
+        # JLib.addFunctionExitEvent(eventID, returnValue); the type is derived
+        # from the value by JLib.  void methods report a null return value.
+        if event.tmp_var is not None:
+            call.value.member.args.append(jast.Name(id=event.tmp_var))
+        else:
+            call.value.member.args.append(jast.Constant(jast.NullLiteral()))
         return call
 
+    @staticmethod
+    def _is_void(return_type) -> bool:
+        return return_type is None or isinstance(return_type, jast.Void)
+
     def visit_Method(self, node: jast.Method):
+        if self._is_void(node.return_type):
+            # void method: no return value to capture; only record exit on
+            # fall-through (explicit `return;` are handled by visit_Return).
+            if self.return_visitor.visit(node):
+                return Injection()
+            function_exit_event = FunctionExitEvent(
+                self.file,
+                node.lineno,
+                self.get_function_event_id(node),
+                node.id.value,
+                self.get_function_id(node),
+                tmp_var=None,
+            )
+            return Injection(
+                body_last=[self.get_event_call(function_exit_event)],
+                events=[function_exit_event],
+            )
         function_var = self.get_function_var(node)
-        if isinstance(node.return_type, jast.primitivetype):
-            if isinstance(node.return_type, jast.Boolean):
-                value = jast.Constant(jast.BoolLiteral(False))
-            else:
-                value = jast.Constant(jast.IntLiteral(0))
+        if isinstance(node.return_type, jast.Boolean):
+            value = jast.Constant(jast.BoolLiteral(False))
+        elif isinstance(node.return_type, jast.primitivetype):
+            value = jast.Constant(jast.IntLiteral(0))
         else:
             value = jast.Constant(jast.NullLiteral())
         if not self.return_visitor.visit(node):
@@ -435,6 +472,20 @@ class FunctionExitEventFactory(FunctionEventFactory):
 
     def visit_Return(self, node):
         function = self.function_stack[-1]
+        if node.value is None:
+            # void `return;`: record the exit, leave the statement unchanged
+            function_exit_event = FunctionExitEvent(
+                self.file,
+                node.lineno,
+                self.get_function_event_id(node),
+                function.id.value,
+                self.get_function_id(function),
+                tmp_var=None,
+            )
+            return Injection(
+                pre=[self.get_event_call(function_exit_event)],
+                events=[function_exit_event],
+            )
         function_var = self.get_function_var(function)
         function_exit_event = FunctionExitEvent(
             self.file,
@@ -449,9 +500,7 @@ class FunctionExitEventFactory(FunctionEventFactory):
                 jast.Expr(
                     value=jast.Assign(
                         target=jast.Name(id=function_var),
-                        value=node.value
-                        if node.value
-                        else jast.Constant(jast.NullLiteral()),
+                        value=node.value,
                     )
                 ),
                 self.get_event_call(function_exit_event),
@@ -693,23 +742,76 @@ class ConditionEventFactory(JavaEventFactory):
             )
         return Injection()
 
+    @staticmethod
+    def _to_reassignment(node):
+        """Turn tmp-var *declarations* in a condition setup into *assignments*.
+
+        The condition tmp var is declared once before the loop (``pre``); inside
+        the loop body it must be re-assigned rather than re-declared, otherwise
+        the declaration shadows the outer one (a Java compile error).
+        """
+        if isinstance(node, jast.Compound):
+            return jast.Compound(
+                body=[
+                    ConditionEventFactory._to_reassignment(s) for s in node.body
+                ]
+            )
+        if isinstance(node, jast.LocalVariable) and node.declarators[0].init is not None:
+            declarator = node.declarators[0]
+            return jast.Expr(
+                value=jast.Assign(
+                    target=jast.Name(id=declarator.id.id), value=declarator.init
+                )
+            )
+        return node
+
+    @staticmethod
+    def _bare_declarations(node):
+        """Bare ``boolean tmp;`` declarations for every tmp a condition setup
+        declares, so they can be hoisted before a do-while loop."""
+        decls = []
+        if isinstance(node, (jast.Compound, jast.Block)):
+            for stmt in node.body:
+                decls.extend(ConditionEventFactory._bare_declarations(stmt))
+        elif isinstance(node, jast.If):
+            decls.extend(ConditionEventFactory._bare_declarations(node.body))
+            if node.orelse is not None:
+                decls.extend(ConditionEventFactory._bare_declarations(node.orelse))
+        elif isinstance(node, jast.LocalVariable):
+            for declarator in node.declarators:
+                decls.append(
+                    jast.LocalVariable(
+                        type=jast.Boolean(),
+                        declarators=[
+                            jast.declarator(
+                                id=jast.variabledeclaratorid(id=declarator.id.id)
+                            )
+                        ],
+                    )
+                )
+        return decls
+
     def visit_If(self, node: jast.If):
         return self.visit_condition(node)
 
     def visit_While(self, node: jast.While):
         injection = self.visit_condition(node)
-        injection.body_last = injection.pre
+        injection.body_last = [self._to_reassignment(s) for s in injection.pre]
         return injection
 
     def visit_DoWhile(self, node: jast.DoWhile):
         injection = self.visit_condition(node)
-        injection.body_last = injection.pre
-        injection.pre = []
+        if injection.pre:
+            # do { ... } while (cond): the temp is used by the trailing `while`,
+            # so declare it before the loop and (re)assign it inside the body.
+            var_assign = injection.pre[0]
+            injection.pre = self._bare_declarations(var_assign)
+            injection.body_last = [self._to_reassignment(var_assign)]
         return injection
 
     def visit_For(self, node: jast.For):
         injection = self.visit_condition(node)
-        injection.body_last = injection.pre
+        injection.body_last = [self._to_reassignment(s) for s in injection.pre]
         return injection
 
 
@@ -718,18 +820,18 @@ class LenEventFactory(DefEventFactory):
         return jast.identifier("addLenEvent")
 
     def get_event_call(self, event: LenEvent):
-        call = super().get_event_call(event)
+        # JLib.addLenEvent(eventID, varID, length), guarded by hasLen.  Build it
+        # from the base call (eventID) rather than the Def call, which would add
+        # the value/var arguments that addLenEvent does not take.
+        call = JavaEventFactory.get_event_call(self, event)
         assert isinstance(call.value, jast.Member)
         assert isinstance(call.value.member, jast.Call)
-        call.value.member.args.append(
-            java_lib_get_id(jast.Name(id=jast.identifier(event.var)))
-        )
-        call.value.member.args.append(
-            java_lib_get_len(jast.Name(id=jast.identifier(event.var)))
-        )
+        var = jast.Name(id=jast.identifier(event.var))
+        call.value.member.args.append(java_lib_get_id(var))
+        call.value.member.args.append(java_lib_get_len(var))
         return jast.If(
             test=java_lib_has_len(jast.Name(id=jast.identifier(event.var))),
-            body=[call],
+            body=jast.Block(body=[call]),
         )
 
     def get_event(self, node: jast.stmt | jast.declaration, var: str):
@@ -855,7 +957,7 @@ class TestUseEventFactory(UseEventFactory, TestEventFactory):
         )
 
 
-class TestAssertEventFactory(JavaEventFactory, TestEventFactory):
+class TestAssertEventFactory(TestEventFactory):
     def get_function(self) -> jast.identifier:
         return jast.identifier("addTestAssertEvent")
 
