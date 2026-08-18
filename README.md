@@ -14,7 +14,11 @@ whether individual lines are part of the execution.
 
 ## Language Support
 
-SFLKit supports currently Python 3 but we plan on releasing further language support.
+SFLKit supports Python 3.
+
+Events are collected either by instrumenting the sources, or without instrumenting
+anything at all, by tracing the program as it runs; see `sflkit.online`. Both
+produce the same events, so every spectrum, predicate and metric applies either way.
 
 ## Installation
 

@@ -2,13 +2,17 @@ import unittest
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from sflkit.analysis.analysis_type import MetaEvent
+from sflkit.analysis.factory import DefUseFactory
 from sflkit.analysis.predicate import Branch
 from sflkit.analysis.spectra import Line
 from sflkit.events.event_file import EventFile
 from sflkit.events.mapping import EventMapping
-from sflkit.features.handler import EventHandler
+from sflkit.features.handler import EventHandler, FeatureBuilder
 from sflkit.features.value import FeatureValue, BinaryFeature, TertiaryFeature
 from sflkit.features.vector import FeatureVector
+from sflkit.model.model import Model
+from sflkit.model.scope import Scope
+from sflkitlib.events.event import DefEvent, UseEvent
 from sflkit.runners.run import TestResult
 from utils import BaseTest
 
@@ -449,3 +453,162 @@ class HandlerTest(BaseTest):
         for feature in self.features.values():
             self.assertEqual(self.failing_vector[feature].value, fail_row[feature.name])
             self.assertEqual(self.passing_vector[feature].value, pass_row[feature.name])
+
+
+class ScopeReleaseTest(unittest.TestCase):
+    """
+    Per-scope analysis state must die with its scope.
+
+    Scope ids are handed out per function call, so anything a factory keeps per
+    scope grows with the number of calls a run makes. The def-use factory used
+    to keep one dict, and every DefEvent in it, for every call ever made: a
+    20,000-call run retained 180,000 events.
+    """
+
+    def setUp(self):
+        self.factory = DefUseFactory()
+        self.run = EventFile("EVENTS", 0, EventMapping())
+
+    def _define(self, scope: Scope, index: int) -> None:
+        event = DefEvent("main.py", 1, 0, "x", index, index, "int")
+        self.factory.get_analysis(event, self.run, scope)
+
+    def test_leaving_a_scope_releases_its_definitions(self):
+        for index in range(100):
+            scope = Scope()
+            self._define(scope, index)
+            self.factory.exit_scope(self.run, scope.id)
+        self.assertEqual(
+            0,
+            len(self.factory.def_stack[self.run]),
+            "definitions of ended scopes are still retained",
+        )
+
+    def test_state_accumulates_while_scopes_are_live(self):
+        scopes = [Scope() for _ in range(10)]
+        for index, scope in enumerate(scopes):
+            self._define(scope, index)
+        self.assertEqual(
+            10,
+            len(self.factory.def_stack[self.run]),
+            "a live scope must keep its definitions",
+        )
+
+    def test_model_reports_scope_exits_to_the_factory(self):
+        model = Model(self.factory)
+        model.prepare(self.run)
+        model.enter_scope(self.run)
+        self._define(model.variables[self.run], 0)
+        self.assertEqual(1, len(self.factory.def_stack[self.run]))
+        model.exit_scope(self.run)
+        self.assertEqual(
+            0,
+            len(self.factory.def_stack[self.run]),
+            "the model must tell factories when a scope ends",
+        )
+
+
+class DefUseResolutionTest(unittest.TestCase):
+    """
+    A use must find its definition through the scope chain.
+
+    Looking only in the innermost scope missed everything a caller defined,
+    which is why a map of every definition ever made was kept as a fallback.
+    That map is keyed by ``id(value)``, so it grew without bound and, because
+    CPython recycles ids, could match a definition of an unrelated object.
+    """
+
+    def setUp(self):
+        self.factory = DefUseFactory()
+        self.run = EventFile("EVENTS", 0, EventMapping())
+
+    def _define(self, scope: Scope, var: str, var_id: int) -> None:
+        self.factory.get_analysis(
+            DefEvent("main.py", 1, 0, var, var_id, var_id, "int"), self.run, scope
+        )
+
+    def _use(self, scope: Scope, var: str, var_id: int):
+        return self.factory.get_analysis(
+            UseEvent("main.py", 2, 1, var, var_id), self.run, scope
+        )
+
+    def test_use_finds_a_definition_from_an_enclosing_scope(self):
+        outer = Scope()
+        self._define(outer, "x", 7)
+        inner = outer.enter()
+        self.assertTrue(
+            self._use(inner, "x", 7), "a use must see the enclosing scope's definition"
+        )
+
+    def test_use_does_not_find_a_definition_from_a_dead_scope(self):
+        outer = Scope()
+        sibling = outer.enter()
+        self._define(sibling, "x", 7)
+        self.factory.exit_scope(self.run, sibling.id)
+        other = outer.enter()
+        self.assertFalse(
+            self._use(other, "x", 7),
+            "a definition from a scope that ended must not resolve",
+        )
+
+    def test_cross_thread_fallback_is_bounded(self):
+        scope = Scope()
+        for index in range(DefUseFactory.CROSS_THREAD_LIMIT + 500):
+            self._define(scope, "x", index)
+        self.assertLessEqual(
+            len(self.factory.id_to_def[self.run]),
+            DefUseFactory.CROSS_THREAD_LIMIT,
+            "the cross-thread map must stay bounded",
+        )
+
+
+class ProcessParallelBuilderTest(BaseTest):
+    """
+    Spreading runs over worker processes must not change what is built.
+
+    Runs are independent, so each worker can build from its share and the
+    parent merges. What must hold is that the merged result is
+    indistinguishable from building everything in one process.
+    """
+
+    EVENTS = "line,branch,def,use,function_enter,function_exit"
+
+    def _event_files(self):
+        _, relevant, irrelevant = self.run_analysis_event_files(
+            self.TEST_SUGGESTIONS,
+            self.EVENTS,
+            "line,branch,def_use,scalar_pair",
+            relevant=[["3", "2", "1"]],
+            irrelevant=[["1", "2", "3"], ["2", "1", "3"], ["3", "1", "2"]],
+        )
+        return relevant + irrelevant
+
+    @staticmethod
+    def _vectors(handler):
+        return {
+            str(vector.run_id): {
+                feature.name: value.value
+                for feature, value in vector.get_features().items()
+            }
+            for vector in handler.builder.get_vectors()
+        }
+
+    def test_vectors_match_a_single_process(self):
+        event_files = self._event_files()
+        serial = EventHandler(workers=1)
+        serial.handle_files(event_files)
+        parallel = EventHandler(workers=1, processes=2)
+        parallel.handle_files(event_files)
+        self.assertTrue(self._vectors(serial), "no vectors were built")
+        self.assertEqual(self._vectors(serial), self._vectors(parallel))
+
+    def test_feature_set_matches_a_single_process(self):
+        event_files = self._event_files()
+        serial = EventHandler(workers=1)
+        serial.handle_files(event_files)
+        parallel = EventHandler(workers=1, processes=3)
+        parallel.handle_files(event_files)
+        self.assertEqual(
+            {feature.name for feature in serial.builder.all_features},
+            {feature.name for feature in parallel.builder.all_features},
+        )
