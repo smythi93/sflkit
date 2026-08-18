@@ -1,7 +1,27 @@
 from abc import ABC
 from typing import Callable, Optional, Dict
 
-import numpy
+
+class _LazyNumpy:
+    """
+    Stands in for :mod:`numpy` until something actually needs it.
+
+    Only the similarity coefficients use numpy, and those run when
+    suspiciousness is scored, not while events are being collected. This module
+    is imported into every traced process, where numpy costs about 12 MB of
+    resident memory, so the import is deferred to first use. The first
+    attribute access replaces this proxy with the real module, so nothing pays
+    for it afterwards.
+    """
+
+    def __getattr__(self, name: str):
+        import numpy
+
+        globals()["numpy"] = numpy
+        return getattr(numpy, name)
+
+
+numpy = _LazyNumpy()
 
 from sflkit.analysis.analysis_type import (
     AnalysisObject,
