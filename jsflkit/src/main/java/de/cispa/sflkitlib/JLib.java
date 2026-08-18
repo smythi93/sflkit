@@ -3,9 +3,11 @@ package de.cispa.sflkitlib;
 import de.cispa.sflkitlib.events.JCodec;
 import de.cispa.sflkitlib.events.JPickle;
 
+import java.io.BufferedOutputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Collection;
 
 public class JLib {
@@ -13,7 +15,29 @@ public class JLib {
                                                         "EVENTS_PATH" : System.getenv(
             "EVENTS_PATH");
 
-    private static FileOutputStream EVENT_TRACE_FILE;
+    private static OutputStream EVENT_TRACE_FILE;
+
+    // Cap the number of events written per execution (EVENTS_MAX env var, 0 or
+    // unset = unlimited).  Loop-heavy code (e.g. numeric kernels) can emit tens
+    // of millions of events for a single test; once every feature has occurred,
+    // the extra repetitions only bloat the trace and slow the run (they even
+    // cause timeouts).  After the cap, events are dropped but the program runs
+    // on normally, so its pass/fail outcome is unchanged.
+    private static final long EVENTS_MAX = parseEventsMax();
+    private static volatile long eventCount = 0;
+
+    private static long parseEventsMax() {
+        String value = System.getenv("EVENTS_MAX");
+        if (value == null || value.trim().isEmpty()) {
+            return Long.MAX_VALUE;
+        }
+        try {
+            long parsed = Long.parseLong(value.trim());
+            return parsed <= 0 ? Long.MAX_VALUE : parsed;
+        } catch (NumberFormatException e) {
+            return Long.MAX_VALUE;
+        }
+    }
 
     // When EVENTS_THREADS is set, every event is prefixed with the id of the
     // writing thread (matching the Python codec's optional thread_id prefix), so
@@ -26,7 +50,8 @@ public class JLib {
 
     static {
         try {
-            EVENT_TRACE_FILE = new FileOutputStream(EVENT_TRACE_FILE_PATH);
+            EVENT_TRACE_FILE = new BufferedOutputStream(
+                    new FileOutputStream(EVENT_TRACE_FILE_PATH), 1 << 16);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -49,7 +74,9 @@ public class JLib {
     public static void reset() {
         dump_events();
         try {
-            EVENT_TRACE_FILE = new FileOutputStream(EVENT_TRACE_FILE_PATH);
+            EVENT_TRACE_FILE = new BufferedOutputStream(
+                    new FileOutputStream(EVENT_TRACE_FILE_PATH), 1 << 16);
+            eventCount = 0;
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -64,8 +91,17 @@ public class JLib {
     }
 
     private static void write(byte[] encodedEvent) {
+        // Lock-free fast path once the cap is reached: loop-heavy code keeps
+        // calling this, so avoid acquiring the lock for every dropped event.
+        if (eventCount >= EVENTS_MAX) {
+            return;
+        }
         try {
             synchronized (LOCK) {
+                if (eventCount >= EVENTS_MAX) {
+                    return;
+                }
+                eventCount++;
                 if (THREAD_SUPPORT) {
                     EVENT_TRACE_FILE.write(
                             JCodec.encodeThreadId((int) Thread.currentThread().getId()));
@@ -104,6 +140,17 @@ public class JLib {
 
     public static void addConditionEvent(int eventID, boolean condition) {
         write(JCodec.encodeConditionEvent(eventID, condition));
+    }
+
+    /**
+     * Records a condition event inline and returns its value, so a loop test
+     * such as {@code while (cond)} can be instrumented as
+     * {@code while (evalCondition(id, (cond)))} without hoisting the condition
+     * into the body (which would break on {@code continue}/{@code break}).
+     */
+    public static boolean evalCondition(int eventID, boolean condition) {
+        write(JCodec.encodeConditionEvent(eventID, condition));
+        return condition;
     }
 
     public static void addLoopBeginEvent(int eventID) {
@@ -173,48 +220,48 @@ public class JLib {
         return 0;
     }
 
-    public static boolean hasLen(Collection<?> ignored) {
-        return true;
+    public static boolean hasLen(Collection<?> object) {
+        return object != null;
     }
 
-    public static boolean hasLen(Object[] ignored) {
-        return true;
+    public static boolean hasLen(Object[] object) {
+        return object != null;
     }
 
-    public static boolean hasLen(byte[] ignored) {
-        return true;
+    public static boolean hasLen(byte[] object) {
+        return object != null;
     }
 
-    public static boolean hasLen(short[] ignored) {
-        return true;
+    public static boolean hasLen(short[] object) {
+        return object != null;
     }
 
-    public static boolean hasLen(int[] ignored) {
-        return true;
+    public static boolean hasLen(int[] object) {
+        return object != null;
     }
 
-    public static boolean hasLen(long[] ignored) {
-        return true;
+    public static boolean hasLen(long[] object) {
+        return object != null;
     }
 
-    public static boolean hasLen(float[] ignored) {
-        return true;
+    public static boolean hasLen(float[] object) {
+        return object != null;
     }
 
-    public static boolean hasLen(double[] ignored) {
-        return true;
+    public static boolean hasLen(double[] object) {
+        return object != null;
     }
 
-    public static boolean hasLen(char[] ignored) {
-        return true;
+    public static boolean hasLen(char[] object) {
+        return object != null;
     }
 
-    public static boolean hasLen(boolean[] ignored) {
-        return true;
+    public static boolean hasLen(boolean[] object) {
+        return object != null;
     }
 
-    public static boolean hasLen(String ignored) {
-        return true;
+    public static boolean hasLen(String object) {
+        return object != null;
     }
 
     public static boolean hasLen(Object ignored) {

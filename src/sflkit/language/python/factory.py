@@ -1,4 +1,5 @@
 import ast
+import copy
 import typing
 from ast import *
 
@@ -15,6 +16,7 @@ from sflkitlib.events.event import (
     LoopEndEvent,
     UseEvent,
     ConditionEvent,
+    ConditionValueEvent,
     LenEvent,
     TestStartEvent,
     TestEndEvent,
@@ -26,7 +28,12 @@ from sflkitlib.events.event import (
 
 from sflkit.language.meta import MetaVisitor, Injection, IDGenerator, TmpGenerator
 
-python_lib = "sflkitlib.lib"
+python_lib_module = "sflkitlib.lib"
+# Dunder-shaped so namespace-cleanup idioms that keep only dunders and own
+# submodules (astropy/__init__.py) do not delete the tracer binding; a plain
+# name is deleted and the next probe raises NameError, killing the import.
+# Also one attribute lookup fewer per probe.
+python_lib = "__sflkitlib__"
 
 
 def get_call(function, *args) -> Expr:
@@ -772,19 +779,13 @@ class UseEventFactory(PythonEventFactory):
             body=[self._get_wrapped_property(event)],
             handlers=[
                 ExceptHandler(
-                    type=Tuple(
-                        elts=[
-                            Name(
-                                id="AttributeError",
-                            ),
-                            Name(
-                                id="TypeError",
-                            ),
-                            Name(
-                                id="NameError",
-                            ),
-                        ],
-                    ),
+                    # Any exception: evaluating a probe's own arguments runs
+                    # subject code (len() on a lazy proxy, attribute access via
+                    # __getattribute__) which can raise anything. Django's
+                    # settings raise ImproperlyConfigured when touched before
+                    # configuration, and a narrow guard let that abort the
+                    # import of the package under test.
+                    type=Name(id="Exception"),
                     name=None,
                     body=[Pass()],
                 ),
@@ -810,11 +811,28 @@ class UseEventFactory(PythonEventFactory):
         )
         return call
 
+    @staticmethod
+    def _get_type_of(class_: str) -> Call:
+        """
+        Build ``type(<class_>)``.
+
+        Deliberately ``type(x)`` and not ``x.__class__``: the two agree for
+        ordinary objects, but ``__class__`` is a normal attribute lookup and can
+        itself be a property. Django's lazy objects define
+        ``__class__ = property(new_method_proxy(...))``, so reading it re-enters
+        the proxy machinery this guard is meant to stay out of, recursing until
+        the stack is exhausted. ``type()`` reads the type slot directly and
+        cannot be proxied -- django's own source makes the same point: "We have
+        to use type(self), not self.__class__, because the latter is proxied."
+        """
+        return Call(func=Name(id="type"), args=[Name(id=class_)], keywords=[])
+
     def _get_wrapped_property(self, event: UseEvent):
         body = self._get_std_call(event)
         attributes = event.var.split(".")
         for i in range(len(attributes) - 1):
             class_ = ".".join(attributes[: -1 - i])
+            attribute = attributes[-1 - i]
             body = If(
                 test=BoolOp(
                     op=Or(),
@@ -826,9 +844,9 @@ class UseEventFactory(PythonEventFactory):
                                     id="hasattr",
                                 ),
                                 args=[
-                                    Name(id=class_ + ".__class__"),
+                                    self._get_type_of(class_),
                                     Constant(
-                                        value=attributes[-1 - i],
+                                        value=attribute,
                                     ),
                                 ],
                                 keywords=[],
@@ -841,8 +859,10 @@ class UseEventFactory(PythonEventFactory):
                                     id="isinstance",
                                 ),
                                 args=[
-                                    Name(
-                                        id=class_ + ".__class__." + attributes[-1 - i]
+                                    Attribute(
+                                        value=self._get_type_of(class_),
+                                        attr=attribute,
+                                        ctx=Load(),
                                     ),
                                     Name(
                                         id="property",
@@ -979,6 +999,89 @@ class ConditionEventFactory(PythonEventFactory):
         return self.visit_condition(node)
 
 
+class ConditionValueEventFactory(PythonEventFactory):
+    """Emit a branch-distance companion event for single-comparison conditions.
+
+    For an ``if``/``while`` whose test is a lone comparison ``lhs <op> rhs`` with
+    side-effect-free operands, inject a call that reports the operands to the
+    runtime, which computes the branch distance. The original test is left
+    untouched (the plain :class:`ConditionEventFactory` still records its
+    boolean), so this is purely additive; compound tests, non-comparison tests,
+    and tests with side-effecting operands are skipped and fall back to the
+    boolean condition event plus approach-level guidance.
+    """
+
+    _OPS = {
+        ast.Lt: "<",
+        ast.LtE: "<=",
+        ast.Gt: ">",
+        ast.GtE: ">=",
+        ast.Eq: "==",
+        ast.NotEq: "!=",
+    }
+
+    def get_function(self):
+        return "add_condition_value_event"
+
+    @staticmethod
+    def _is_pure(node: AST) -> bool:
+        # Operands we can safely re-evaluate: no calls, subscripts, or operators
+        # that could have side effects.
+        if isinstance(node, Constant):
+            return True
+        if isinstance(node, Name):
+            return True
+        if isinstance(node, Attribute):
+            return ConditionValueEventFactory._is_pure(node.value)
+        if isinstance(node, UnaryOp) and isinstance(node.op, (UAdd, USub)):
+            return ConditionValueEventFactory._is_pure(node.operand)
+        return False
+
+    def _capturable(self, test: AST):
+        if not isinstance(test, Compare) or len(test.ops) != 1:
+            return None
+        op = self._OPS.get(type(test.ops[0]))
+        if op is None:
+            return None
+        lhs, rhs = test.left, test.comparators[0]
+        if not (self._is_pure(lhs) and self._is_pure(rhs)):
+            return None
+        return op, lhs, rhs
+
+    def _get_event_call(self, event: ConditionValueEvent, op: str, lhs, rhs):
+        # sflkitlib.lib.add_condition_value_event(event_id, lhs, rhs, "op")
+        call = get_call(self.get_function(), event.event_id)
+        assert isinstance(call.value, Call)
+        call.value.args.append(copy.deepcopy(lhs))
+        call.value.args.append(copy.deepcopy(rhs))
+        call.value.args.append(Constant(value=op))
+        return call
+
+    def visit_condition(self, node: typing.Union[If, While]) -> Injection:
+        capturable = self._capturable(node.test)
+        if capturable is None:
+            return Injection()
+        op, lhs, rhs = capturable
+        event = ConditionValueEvent(
+            self.file,
+            node.lineno,
+            self.event_id_generator.get_next_id(),
+            ast.unparse(node.test),
+            op,
+        )
+        return Injection(
+            pre=[self._get_event_call(event, op, lhs, rhs)], events=[event]
+        )
+
+    def visit_If(self, node: If) -> Injection:
+        return self.visit_condition(node)
+
+    def visit_While(self, node: While) -> Injection:
+        injection = self.visit_condition(node)
+        injection.body_last = injection.pre
+        return injection
+
+
 class LenEventFactory(DefEventFactory):
     def get_function(self):
         return "add_len_event"
@@ -1009,19 +1112,13 @@ class LenEventFactory(DefEventFactory):
             body=[call],
             handlers=[
                 ExceptHandler(
-                    type=Tuple(
-                        elts=[
-                            Name(
-                                id="AttributeError",
-                            ),
-                            Name(
-                                id="TypeError",
-                            ),
-                            Name(
-                                id="NameError",
-                            ),
-                        ],
-                    ),
+                    # Any exception: evaluating a probe's own arguments runs
+                    # subject code (len() on a lazy proxy, attribute access via
+                    # __getattribute__) which can raise anything. Django's
+                    # settings raise ImproperlyConfigured when touched before
+                    # configuration, and a narrow guard let that abort the
+                    # import of the package under test.
+                    type=Name(id="Exception"),
                     name=None,
                     body=[Pass()],
                 )
