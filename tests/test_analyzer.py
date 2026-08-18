@@ -160,3 +160,48 @@ class TestAnalyzer(BaseTest):
             self.assertEqual(3, predicate.fail_false)
             self.assertEqual(4, predicate.increase_true)
             self.assertEqual(5, predicate.increase_false)
+
+
+class ProcessParallelAnalyzerTest(BaseTest):
+    """
+    Spreading runs over worker processes must not change the answer.
+
+    Runs are independent until suspiciousness is computed, so each worker can
+    analyze a share of them and the parent merges the per-run state before
+    scoring. What must hold is that the merged result is indistinguishable
+    from analyzing everything in one process.
+    """
+
+    EVENTS = "line,branch,def,use,function_enter,function_exit"
+    PREDICATES = "line,branch,def_use,scalar_pair,function"
+
+    def _analyze(self, processes: int):
+        config, relevant, irrelevant = self.run_analysis_event_files(
+            self.TEST_SUGGESTIONS,
+            self.EVENTS,
+            self.PREDICATES,
+            relevant=[["3", "2", "1"]],
+            irrelevant=[["1", "2", "3"], ["2", "1", "3"], ["3", "1", "2"]],
+        )
+        analyzer = Analyzer(
+            relevant,
+            irrelevant,
+            config.factory,
+            processes=processes,
+        )
+        analyzer.analyze()
+        return {
+            str(analysis): round(analysis.get_metric(), 8)
+            for analysis in analyzer.get_analysis()
+        }
+
+    def test_process_parallel_matches_serial(self):
+        serial = self._analyze(1)
+        parallel = self._analyze(2)
+        self.assertTrue(serial, "the subject produced no analysis")
+        self.assertEqual(serial, parallel)
+
+    def test_more_processes_than_runs_is_harmless(self):
+        serial = self._analyze(1)
+        parallel = self._analyze(16)
+        self.assertEqual(serial, parallel)

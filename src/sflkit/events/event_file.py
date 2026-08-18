@@ -42,9 +42,7 @@ def open_event_stream(path: os.PathLike) -> io.BufferedReader:
                 f"{path} is zstd-compressed but the 'zstandard' package is not "
                 "installed. Run: pip install zstandard"
             ) from e
-        return io.BufferedReader(
-            zstandard.ZstdDecompressor().stream_reader(raw)
-        )
+        return io.BufferedReader(zstandard.ZstdDecompressor().stream_reader(raw))
     return raw
 
 
@@ -64,9 +62,26 @@ class EventFile(object):
         self.thread_support = thread_support
         self._csv_reader = None
         self._file_pointer = None
+        # Event files are the key of every per-run dict in the analysis layer,
+        # so this is hashed millions of times per run. The run id never
+        # changes, so the hash is computed once.
+        self._hash = hash(run_id)
+
+    def __getstate__(self) -> dict:
+        # Event files key the analysis layer's per-run state, so they travel
+        # with any result that crosses a process boundary. An open (or closed)
+        # file handle is not picklable and means nothing in another process,
+        # so it is dropped; reopening is what the context manager is for.
+        state = dict(self.__dict__)
+        state["_file_pointer"] = None
+        state["_csv_reader"] = None
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
 
     def __hash__(self):
-        return hash(self.run_id)
+        return self._hash
 
     def __eq__(self, other):
         if not isinstance(other, EventFile):

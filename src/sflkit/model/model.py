@@ -59,11 +59,24 @@ class Model:
         event: Event,
         event_file: EventFile,
         scope: Scope = None,
-    ) -> Set[AnalysisObject]:
+    ) -> List[AnalysisObject]:
+        """
+        Dispatch one event to the analysis objects it concerns.
+
+        :param event: The event.
+        :param event_file: The run it belongs to.
+        :param scope: Variable scope, where the event type carries one.
+        :returns: The analysis objects that were hit.
+
+        Returns the list as built. It used to return ``set(analysis)``, which
+        hashed every analysis object on every event -- and a ScalarPair hash
+        builds and hashes a six-element tuple -- while every caller in the
+        dispatch below discards the result.
+        """
         analysis = self.factory.handle(event, event_file, scope=scope)
         for a in analysis:
             a.hit(event_file, event, scope=scope)
-        return set(analysis)
+        return analysis
 
     def handle_line_event(self, event: LineEvent, event_file: EventFile):
         self.handle_event(event, event_file)
@@ -142,7 +155,11 @@ class Model:
         self.variables[event_file] = self.variables[event_file].enter()
 
     def exit_scope(self, event_file: EventFile):
-        self.variables[event_file] = self.variables[event_file].exit()
+        scope = self.variables[event_file]
+        # Tell the factories before the scope is dropped, so anything they keep
+        # per scope can go with it.
+        self.factory.exit_scope(event_file, scope.id)
+        self.variables[event_file] = scope.exit()
 
     # noinspection PyUnresolvedReferences
     def get_analysis(self) -> Set[AnalysisObject]:
