@@ -19,8 +19,13 @@ class ParallelModel(Model):
 
     def prepare(self, event_file: EventFile):
         super().prepare(event_file)
-        self.variables_map = dict()
-        self.returns_map = dict()
+        # Keyed by event file, like every other per-run map on the model.
+        # Rebinding the whole dict here left `variables_map[event_file]`
+        # missing, so the first def or use carrying a thread id raised
+        # KeyError, and it also discarded the state of files still being
+        # processed in parallel.
+        self.variables_map[event_file] = dict()
+        self.returns_map[event_file] = dict()
 
     def handle_function_enter_event(
         self, event: FunctionEnterEvent, event_file: EventFile
@@ -92,8 +97,8 @@ class ParallelModel(Model):
         )
 
     def exit_parallel_scope(self, thread_id: int, event_file: EventFile):
-        self.variables_map[event_file][thread_id] = (
-            self.variables_map[event_file]
-            .get(thread_id, self.variables[event_file])
-            .exit()
+        scope = self.variables_map[event_file].get(
+            thread_id, self.variables[event_file]
         )
+        self.factory.exit_scope(event_file, scope.id)
+        self.variables_map[event_file][thread_id] = scope.exit()

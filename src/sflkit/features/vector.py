@@ -17,6 +17,18 @@ class FeatureVector:
         self.features: Dict[Feature, FeatureValue] = dict()
         self._lock = Lock()
 
+    def __getstate__(self) -> dict:
+        # Feature vectors are pickled as part of the FORECAST relevance tree.
+        # A ``threading.Lock`` is not picklable and holds no persistent state,
+        # so drop it here and recreate it on unpickling.
+        state = dict(self.__dict__)
+        state.pop("_lock", None)
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self._lock = Lock()
+
     def get_features_set(self) -> Set[Feature]:
         with self._lock:
             return set(self.features.keys())
@@ -30,10 +42,18 @@ class FeatureVector:
 
     def set_feature(self, feature: Feature, value: FeatureValue):
         with self._lock:
+            # Behaviour-preserving rewrite of
+            # ``self.features[feature] = self.features[feature] or value``.
+            # NOTE this keeps the FIRST value observed for a feature and
+            # discards every later one, because ``or`` is Python's boolean
+            # operator and every FeatureValue member -- including FALSE and
+            # UNDEFINED -- is truthy, so the left operand always wins. That is
+            # the established behaviour (tests/test_features.py asserts it),
+            # not the value-merging ``|`` that FeatureValue.__or__ defines.
+            # Expressed as a plain absence check it is also the cheapest form,
+            # which matters: this runs once per analysis object per event.
             if feature not in self.features:
                 self.features[feature] = value
-            else:
-                self.features[feature] = self.features[feature] or value
 
     def get_features(self) -> Dict[Feature, FeatureValue]:
         with self._lock:

@@ -1,6 +1,6 @@
 import json
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from typing import List, Callable, Set, Dict, Optional, Any, Type
 
 from sflkit.analysis.analysis_type import AnalysisType, AnalysisObject
@@ -26,6 +26,58 @@ from sflkit.model.model import Model, MetaModel
 from sflkit.model.parallel import ParallelModel
 
 
+def analyze_files(
+    factory: AnalysisFactory, event_files: List[EventFile]
+) -> Set[AnalysisObject]:
+    """
+    Analyze a share of the runs, start to finish, in one process.
+
+    Defined at module level so it can be shipped to a worker process, and kept
+    free of shared state so that workers never have to talk to each other: the
+    runs are partitioned, so the per-run state each worker accumulates is
+    disjoint from every other worker's and merges by simple union.
+
+    Suspiciousness is deliberately *not* computed here. It is a property of the
+    whole suite, so it can only be derived once every worker's share has been
+    merged.
+
+    :param factory: A fresh analysis factory.
+    :param event_files: The runs this worker is responsible for.
+    :returns: The analysis objects it built.
+    """
+    model = Model(factory)
+    for event_file in event_files:
+        model.prepare(event_file)
+        with event_file:
+            for event in event_file.load():
+                event.handle(model, event_file)
+        model.follow_up(event_file)
+    return model.get_analysis()
+
+
+def merge_analysis(target: AnalysisObject, source: AnalysisObject) -> None:
+    """
+    Fold a worker's view of one analysis object into the parent's.
+
+    Everything an object accumulates while events are handled is keyed by run,
+    and workers hold disjoint runs, so merging is a dictionary update. Which
+    attributes those are is discovered rather than hard-coded, so a subclass
+    that adds per-run state of its own is merged too instead of silently
+    losing it.
+
+    :param target: The object the parent keeps.
+    :param source: The equal object a worker produced.
+    """
+    for name, value in vars(source).items():
+        if not isinstance(value, dict) or not value:
+            continue
+        if not all(isinstance(key, EventFile) for key in value):
+            continue
+        current = getattr(target, name, None)
+        if isinstance(current, dict):
+            current.update(value)
+
+
 class AnalysisEncoder(json.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, AnalysisObject):
@@ -44,6 +96,7 @@ class Analyzer:
         model_class: Type[Model] = None,
         parallel: bool = False,
         workers: int = 4,
+        processes: int = 1,
     ):
         if (
             relevant_event_files is None
@@ -67,6 +120,10 @@ class Analyzer:
                     model_class = Model
             self.model = model_class(factory)
         self.workers = workers
+        #: Worker processes to spread the runs over. Threads cannot help here:
+        #: analysis is Python-level work and the GIL serializes it, while runs
+        #: are independent until suspiciousness is computed.
+        self.processes = processes
         self.paths: Dict[int, os.PathLike] = dict()
         self.max_suspiciousness = 0
         self.min_suspiciousness = 0
@@ -87,9 +144,49 @@ class Analyzer:
             raise NotImplementedError("Not implemented for meta/loaded analyzer")
         self.model.finalize(self.irrelevant_event_files, self.relevant_event_files)
 
+    def _analyze_with_processes(self, event_files: List[EventFile]):
+        """
+        Analyze *event_files* across worker processes and merge the results.
+
+        :param event_files: Every run to analyze.
+
+        Uses :class:`~concurrent.futures.ProcessPoolExecutor`, so on platforms
+        that start workers with ``spawn`` (macOS, Windows) the calling program
+        must guard its entry point with ``if __name__ == "__main__":``, as with
+        any use of multiprocessing.
+        """
+        chunks: List[List[EventFile]] = [[] for _ in range(self.processes)]
+        # Round-robin rather than contiguous: runs differ wildly in length, and
+        # dealing them out keeps a worker from drawing all the long ones.
+        for index, event_file in enumerate(event_files):
+            chunks[index % self.processes].append(event_file)
+        chunks = [chunk for chunk in chunks if chunk]
+        merged: Dict[AnalysisObject, AnalysisObject] = dict()
+        with ProcessPoolExecutor(max_workers=len(chunks)) as executor:
+            futures = [
+                executor.submit(analyze_files, self.model.factory, chunk)
+                for chunk in chunks
+            ]
+            for future in futures:
+                for analysis in future.result():
+                    known = merged.get(analysis)
+                    if known is None:
+                        merged[analysis] = analysis
+                    else:
+                        merge_analysis(known, analysis)
+        # The factory owns the objects the rest of the analyzer reads back.
+        self.model.factory.adopt(merged.values())
+
     def analyze(self):
         if self.meta:
             raise NotImplementedError("Not implemented for meta/loaded analyzer")
+        if self.processes > 1:
+            event_files = self.relevant_event_files + self.irrelevant_event_files
+            for event_file in event_files:
+                self.paths[event_file.run_id] = event_file.path
+            self._analyze_with_processes(event_files)
+            self._finalize()
+            return
         if self.workers > 1:
             event_files = self.relevant_event_files + self.irrelevant_event_files
             for event_file in event_files:

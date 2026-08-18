@@ -44,8 +44,20 @@ class Runner(abc.ABC):
         timeout=DEFAULT_TIMEOUT,
         is_parallel: bool = False,
         thread_support: bool = False,
+        online: bool = False,
+        mapping_path: Optional[os.PathLike] = None,
+        root: Optional[os.PathLike] = None,
+        online_tree: bool = True,
     ):
         self.timeout = timeout
+        #: Build the analysis artifact inside the test process instead of
+        #: writing a trace for the parent to read back. Needs the event mapping
+        #: and the subject root, because a tracer works from the mapping rather
+        #: than from instrumented sources.
+        self.online = online
+        self.mapping_path = mapping_path
+        self.root = root
+        self.online_tree = online_tree
         self.re_filter = re.compile(re_filter)
         self.passing_tests = set()
         self.failing_tests = set()
@@ -93,6 +105,32 @@ class Runner(abc.ABC):
                 s = s.replace(c, "_")
         return s
 
+    def online_environ(self, output: Path, environ: Environment = None) -> Environment:
+        """
+        Add the settings the in-process collector reads on start-up.
+
+        :param output: Directory artifacts are written to.
+        :param environ: Environment to extend.
+        :returns: The extended environment.
+        :raises ValueError: When the mapping or the root is missing, without
+            which a tracer has nothing to recognize.
+        """
+        # Imported here: the plugin imports this module, so importing it at
+        # module level would close a cycle.
+        from sflkit.online import plugin
+
+        if self.mapping_path is None or self.root is None:
+            raise ValueError("Online collection needs mapping_path and root to be set")
+        environ = dict(environ if environ is not None else os.environ)
+        # Absolute: the collector reads these in the test process, which runs
+        # in the subject's directory rather than in this one.
+        environ[plugin.MAPPING] = str(Path(self.mapping_path).resolve())
+        environ[plugin.ROOT] = str(Path(self.root).resolve())
+        environ[plugin.OUTPUT] = str(Path(output).resolve())
+        environ[plugin.THREADS] = "1" if self.thread_support else "0"
+        environ[plugin.TREE] = "1" if self.online_tree else "0"
+        return environ
+
     def run_tests(
         self,
         directory: Path,
@@ -104,10 +142,18 @@ class Runner(abc.ABC):
         output.mkdir(parents=True, exist_ok=True)
         for test_result in TestResult:
             (output / test_result.get_dir()).mkdir(parents=True, exist_ok=True)
+        if self.online:
+            environ = self.online_environ(output, environ)
         for event_file, test in enumerate(tests):
             test_result = self.run_test(directory, test, environ=environ, python=python)
             self.tests[test_result].add(test)
-            if os.path.exists(directory / "EVENTS_PATH"):
+            if self.online:
+                # The collector already wrote this test's artifact, and it knew
+                # the verdict from the test report rather than from parsing
+                # output, so there is nothing to move.
+                if not (output / test_result.get_dir() / self.safe(test)).exists():
+                    LOGGER.warning(f"No artifact collected for test {test}")
+            elif os.path.exists(directory / "EVENTS_PATH"):
                 shutil.move(
                     directory / "EVENTS_PATH",
                     output / test_result.get_dir() / self.safe(test),
@@ -299,9 +345,28 @@ class PytestRunner(Runner):
         timeout=DEFAULT_TIMEOUT,
         set_python_path: bool = False,
         thread_support: bool = False,
+        online: bool = False,
+        mapping_path: Optional[os.PathLike] = None,
+        root: Optional[os.PathLike] = None,
+        online_tree: bool = True,
     ):
-        super().__init__(re_filter, timeout, thread_support=thread_support)
+        super().__init__(
+            re_filter,
+            timeout,
+            thread_support=thread_support,
+            online=online,
+            mapping_path=mapping_path,
+            root=root,
+            online_tree=online_tree,
+        )
         self.set_python_path = set_python_path
+
+    def pytest_args(self) -> List[str]:
+        """
+        :returns: Extra pytest arguments, loading the collector plugin when
+            events are gathered in-process.
+        """
+        return ["-p", "sflkit.online.plugin"] if self.online else []
 
     @staticmethod
     def use_parallel() -> type[Runner]:
@@ -470,7 +535,7 @@ class PytestRunner(Runner):
     ) -> TestResult:
         try:
             output = subprocess.run(
-                [python, "-m", "pytest", test],
+                [python, "-m", "pytest"] + self.pytest_args() + [test],
                 stdout=subprocess.PIPE,
                 env=environ,
                 cwd=directory,
@@ -491,6 +556,53 @@ class PytestRunner(Runner):
         else:
             LOGGER.debug(output.decode("utf8"))
             return TestResult.UNDEFINED
+
+
+class OnlinePytestRunner(PytestRunner):
+    """
+    Pytest runner that builds each test's artifact inside the test process.
+
+    Same contract as :class:`PytestRunner` -- it fills the same
+    ``passing``/``failing``/``undefined`` directories under the same names --
+    but what lands there is a compact artifact rather than an event trace, and
+    it is produced without a second pass over the events.
+
+    It runs the subject as shipped: a tracer works from the event mapping, so
+    the directory it is pointed at is the original source, not an instrumented
+    copy. Instrumentation is still what produces the mapping.
+    """
+
+    def __init__(
+        self,
+        re_filter: str = r".*",
+        timeout=DEFAULT_TIMEOUT,
+        set_python_path: bool = False,
+        thread_support: bool = False,
+        mapping_path: Optional[os.PathLike] = None,
+        root: Optional[os.PathLike] = None,
+        online_tree: bool = True,
+        **kwargs,
+    ):
+        """
+        :param mapping_path: Event mapping written by instrumentation.
+        :param root: Directory the mapping's file names are relative to, which
+            is also where the tests run.
+        :param online_tree: Build the call tree as well as the feature vector.
+        """
+        super().__init__(
+            re_filter,
+            timeout,
+            set_python_path=set_python_path,
+            thread_support=thread_support,
+            online=True,
+            mapping_path=mapping_path,
+            root=root,
+            online_tree=online_tree,
+        )
+
+    @staticmethod
+    def use_parallel() -> type[Runner]:
+        return OnlinePytestRunner
 
 
 class UnittestRunner(Runner):
