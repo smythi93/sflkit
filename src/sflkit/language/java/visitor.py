@@ -228,53 +228,11 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
     def visit_If(self, node: jast.If) -> jast.JAST:
         return self.__visit_control(node)
 
-    @staticmethod
-    def __for_clause_stmts(clause):
-        """Normalize a for-loop init/update clause to a list of statements."""
-        if clause is None:
-            return []
-        items = clause if isinstance(clause, list) else [clause]
-        stmts = []
-        for item in items:
-            if isinstance(item, jast.stmt):
-                stmts.append(item)
-            else:
-                expr = jast.Expr(value=item)
-                expr.lineno = getattr(item, "lineno", None)
-                expr.end_lineno = getattr(item, "end_lineno", expr.lineno)
-                stmts.append(expr)
-        return stmts
-
     def visit_For(self, node: jast.For) -> jast.JAST:
-        # Desugar ``for (init; test; update) body`` into
-        # ``{ init; while (test) { body; update; } }`` so that variables declared
-        # in the for-init are in scope for every injected event (jast scopes them
-        # to the loop) and for-loops reuse the while-loop instrumentation path.
-        # NOTE: ``update`` runs at the end of the body, which differs from ``for``
-        # only under ``continue`` (a documented limitation).
-        init_stmts = self.__for_clause_stmts(node.init)
-        update_stmts = self.__for_clause_stmts(node.update)
-        if isinstance(node.body, jast.Block):
-            body_stmts = list(node.body.body)
-        elif node.body is not None:
-            body_stmts = [node.body]
-        else:
-            body_stmts = []
-        if node.test is not None:
-            test = node.test
-        else:
-            test = jast.Constant(jast.BoolLiteral(True))
-            test.lineno = node.lineno
-            test.end_lineno = node.end_lineno
-        while_node = jast.While(
-            test=test, body=jast.Block(body=body_stmts + update_stmts)
-        )
-        while_node.lineno = node.lineno
-        while_node.end_lineno = node.end_lineno
-        block = jast.Block(body=init_stmts + [while_node])
-        block.lineno = node.lineno
-        block.end_lineno = node.end_lineno
-        return self.visit(block)
+        # The for-loop is kept intact (no desugaring), so native continue/break,
+        # the update, and labels keep working.  The factories place the clause
+        # events inside the loop body (where the init variable is in scope).
+        return self.__visit_control(node)
 
     def visit_ForEach(self, node: jast.ForEach) -> jast.JAST:
         return self.__visit_control(node)
@@ -284,6 +242,48 @@ class JavaInstrumentation(jast.JNodeTransformer, ASTVisitor):
 
     def visit_DoWhile(self, node: jast.DoWhile) -> jast.JAST:
         return self.__visit_control(node)
+
+    _LOOPS = (jast.While, jast.DoWhile, jast.For, jast.ForEach)
+
+    @staticmethod
+    def __label_loop(label, stmt):
+        """Attach ``label`` to the loop inside a (possibly wrapped) statement.
+
+        Instrumenting a loop can wrap it in a Compound/Block (hoisted condition
+        setup, the for->while desugaring, etc.); the label must end up on the
+        actual loop so that ``continue``/``break`` with that label still resolve.
+        Returns the relabeled statement, or ``None`` if no loop was found.
+        """
+        if isinstance(stmt, JavaInstrumentation._LOOPS):
+            return jast.Labeled(label=label, body=stmt)
+        if isinstance(stmt, (jast.Compound, jast.Block)):
+            for index in range(len(stmt.body) - 1, -1, -1):
+                labeled = JavaInstrumentation.__label_loop(label, stmt.body[index])
+                if labeled is not None:
+                    stmt.body[index] = labeled
+                    return stmt
+        if isinstance(stmt, jast.Try):
+            # LOOP_END wraps the loop in a try/finally
+            labeled = JavaInstrumentation.__label_loop(label, stmt.body)
+            if labeled is not None:
+                stmt.body = labeled
+                return stmt
+        return None
+
+    def visit_Labeled(self, node: jast.Labeled) -> jast.JAST:
+        visited = self.visit(node.body)
+        labeled = self.__label_loop(node.label, visited)
+        if labeled is not None:
+            return labeled
+        # A labeled non-loop statement.  If instrumentation expanded it into a
+        # Compound (e.g. hoisted condition setup before a labeled `if`), wrap it
+        # in a real Block so the label encloses the whole thing; a Compound
+        # unparses inline, which would leave the label on only its first
+        # statement and break `break <label>` / `continue <label>` inside.
+        if isinstance(visited, jast.Compound):
+            visited = jast.Block(body=visited.body)
+        node.body = visited
+        return node
 
     def generic_visit(self, node: jast.JAST) -> jast.JAST:
         injection = self.meta_visitor.visit_start(node)
