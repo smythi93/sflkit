@@ -309,9 +309,23 @@ class ScalarPairFactory(ComparisonFactory):
             if event.type_ in ["int", "float", "bool", "str", "bytes"]:
                 for types in (["int", "float", "bool"], ["str"], ["bytes"]):
                     if event.type_ in types:
+                        # Ordered comparisons are meaningful between numbers but
+                        # not between two unrelated strings: `<` on str is
+                        # lexicographic, so pairs such as
+                        # `unique < request_queue_size` or
+                        # `cache_key < SESSION_CACHE_ALIAS` assert nothing about
+                        # the program while crowding out real causes -- on
+                        # django-15996 SCALAR_PAIR supplied 28 of ~46 feature
+                        # mentions and all of the top 8 ranked diagnoses.
+                        # Equality still distinguishes states, so keep EQ/NE.
+                        comparators = self.comparators
+                        if types[0] in ("str", "bytes"):
+                            comparators = [
+                                c for c in comparators if c in (Comp.EQ, Comp.NE)
+                            ]
                         for variable in variables:
                             if variable.type_ in types:
-                                for comp in self.comparators:
+                                for comp in comparators:
                                     key = (
                                         ScalarPair.analysis_type(),
                                         event.file,
