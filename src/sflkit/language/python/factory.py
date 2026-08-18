@@ -1,4 +1,5 @@
 import ast
+import copy
 import typing
 from ast import *
 
@@ -15,6 +16,7 @@ from sflkitlib.events.event import (
     LoopEndEvent,
     UseEvent,
     ConditionEvent,
+    ConditionValueEvent,
     LenEvent,
     TestStartEvent,
     TestEndEvent,
@@ -995,6 +997,89 @@ class ConditionEventFactory(PythonEventFactory):
 
     def visit_If(self, node: If) -> Injection:
         return self.visit_condition(node)
+
+
+class ConditionValueEventFactory(PythonEventFactory):
+    """Emit a branch-distance companion event for single-comparison conditions.
+
+    For an ``if``/``while`` whose test is a lone comparison ``lhs <op> rhs`` with
+    side-effect-free operands, inject a call that reports the operands to the
+    runtime, which computes the branch distance. The original test is left
+    untouched (the plain :class:`ConditionEventFactory` still records its
+    boolean), so this is purely additive; compound tests, non-comparison tests,
+    and tests with side-effecting operands are skipped and fall back to the
+    boolean condition event plus approach-level guidance.
+    """
+
+    _OPS = {
+        ast.Lt: "<",
+        ast.LtE: "<=",
+        ast.Gt: ">",
+        ast.GtE: ">=",
+        ast.Eq: "==",
+        ast.NotEq: "!=",
+    }
+
+    def get_function(self):
+        return "add_condition_value_event"
+
+    @staticmethod
+    def _is_pure(node: AST) -> bool:
+        # Operands we can safely re-evaluate: no calls, subscripts, or operators
+        # that could have side effects.
+        if isinstance(node, Constant):
+            return True
+        if isinstance(node, Name):
+            return True
+        if isinstance(node, Attribute):
+            return ConditionValueEventFactory._is_pure(node.value)
+        if isinstance(node, UnaryOp) and isinstance(node.op, (UAdd, USub)):
+            return ConditionValueEventFactory._is_pure(node.operand)
+        return False
+
+    def _capturable(self, test: AST):
+        if not isinstance(test, Compare) or len(test.ops) != 1:
+            return None
+        op = self._OPS.get(type(test.ops[0]))
+        if op is None:
+            return None
+        lhs, rhs = test.left, test.comparators[0]
+        if not (self._is_pure(lhs) and self._is_pure(rhs)):
+            return None
+        return op, lhs, rhs
+
+    def _get_event_call(self, event: ConditionValueEvent, op: str, lhs, rhs):
+        # sflkitlib.lib.add_condition_value_event(event_id, lhs, rhs, "op")
+        call = get_call(self.get_function(), event.event_id)
+        assert isinstance(call.value, Call)
+        call.value.args.append(copy.deepcopy(lhs))
+        call.value.args.append(copy.deepcopy(rhs))
+        call.value.args.append(Constant(value=op))
+        return call
+
+    def visit_condition(self, node: typing.Union[If, While]) -> Injection:
+        capturable = self._capturable(node.test)
+        if capturable is None:
+            return Injection()
+        op, lhs, rhs = capturable
+        event = ConditionValueEvent(
+            self.file,
+            node.lineno,
+            self.event_id_generator.get_next_id(),
+            ast.unparse(node.test),
+            op,
+        )
+        return Injection(
+            pre=[self._get_event_call(event, op, lhs, rhs)], events=[event]
+        )
+
+    def visit_If(self, node: If) -> Injection:
+        return self.visit_condition(node)
+
+    def visit_While(self, node: While) -> Injection:
+        injection = self.visit_condition(node)
+        injection.body_last = injection.pre
+        return injection
 
 
 class LenEventFactory(DefEventFactory):
