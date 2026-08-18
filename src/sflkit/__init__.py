@@ -5,7 +5,7 @@ from sflkit.analysis.analyzer import Analyzer
 from sflkit.config import Config, parse_config
 from sflkit.instrumentation.dir_instrumentation import DirInstrumentation
 
-__version__ = "0.5.7"
+__version__ = "1.0.0"
 
 
 def instrument_config(conf: Config):
