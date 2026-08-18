@@ -113,16 +113,22 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def visit_Constant(self, node):
         return self.default_result()
 
+    @staticmethod
+    def _is_type_name(name) -> bool:
+        # By Java convention a type's first letter is uppercase (e.g. System,
+        # Integer).  Ignore leading '$'/'_' as used in generated or internal
+        # class names (e.g. Gson's `$Gson$Types`, `$Gson$Preconditions`).
+        return str(name).lstrip("$_")[:1].isupper()
+
     def visit_Name(self, node: jast.Name):
         if self.subscript:
             return self.default_result()
         name = str(node.id)
-        # Skip type/class references: by Java convention a bare identifier
-        # starting with an uppercase letter is a type (e.g. System, Integer),
-        # not a value, so it must not be passed to JLib.getID(...).  This also
-        # drops static accesses rooted at a type (e.g. System.out), which are
-        # not local data flow and would otherwise not compile.
-        if name[:1].isupper():
+        # Skip type/class references: a bare identifier that names a type is not
+        # a value, so it must not be passed to JLib.getID(...).  This also drops
+        # static accesses rooted at a type (e.g. System.out, $Gson$Types.x),
+        # which are not local data flow and would otherwise not compile.
+        if self._is_type_name(name):
             return self.default_result()
         return OrderedSet([name])
 
@@ -148,16 +154,36 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
             return False
         return False
 
+    @staticmethod
+    def _dotted_name(node):
+        """Full dotted path of a pure ``Name(.Name)*`` chain, else ``None``."""
+        if isinstance(node, jast.Name):
+            return str(node.id)
+        if isinstance(node, jast.Member) and isinstance(node.member, jast.Name):
+            base = JavaVarExtract._dotted_name(node.value)
+            return None if base is None else f"{base}.{node.member.id}"
+        return None
+
     def visit_Member(self, node):
+        if not isinstance(node.member, jast.Name):
+            return self.visit(node.value)
+        # A segment that names a type (e.g. `pkg.Type`, `obj.Type.X`): the whole
+        # qualified reference names a type or a static member, not local data
+        # flow, so it must not be passed to JLib.getID(...).  Drop it (mirrors
+        # the rule in visit_Name).
+        if self._is_type_name(node.member.id):
+            return self.default_result()
         variables = self.visit(node.value)
-        if self.check_Member(node) and isinstance(node.member, jast.Name):
-            return (variables if self.use else {}) | OrderedSet(
-                f"{variable}.{node.member.id}"
-                for variable in variables
-                if variable not in self.current_ignores
-            )
-        else:
-            return variables
+        # Only extend the *full* name of the receiver (e.g. `a.b` -> `a.b.c`),
+        # and only when that receiver is itself a recognized value.  Extending
+        # every sub-prefix would fabricate names like `a.c` (or, for qualified
+        # names, mangle package segments such as `org.commons`).
+        if self.check_Member(node):
+            parent = self._dotted_name(node.value)
+            if parent is not None and parent in variables and parent not in self.current_ignores:
+                extended = OrderedSet([f"{parent}.{node.member.id}"])
+                return (variables | extended) if self.use else extended
+        return variables
 
     def visit_Call(self, node):
         return self.visit(node.args)
@@ -211,6 +237,26 @@ class JavaConditionExtract(jast.JNodeVisitor, ConditionExtract):
 
     def __assign_var(self, var, value):
         return jast.Expr(value=jast.Assign(target=jast.Name(id=var), value=value))
+
+    @staticmethod
+    def contains_assign(node):
+        # whether the expression assigns a variable (e.g. `(x = f()) == 0`)
+        if isinstance(node, jast.Assign):
+            return True
+        if isinstance(node, jast.JAST):
+            for _, value in node:
+                if isinstance(value, list):
+                    if any(
+                        JavaConditionExtract.contains_assign(item)
+                        for item in value
+                        if isinstance(item, jast.JAST)
+                    ):
+                        return True
+                elif isinstance(
+                    value, jast.JAST
+                ) and JavaConditionExtract.contains_assign(value):
+                    return True
+        return False
 
     def visit_BinOp(self, node):
         if not isinstance(node.op, (jast.And, jast.Or)):

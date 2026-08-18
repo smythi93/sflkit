@@ -17,6 +17,18 @@ class FeatureVector:
         self.features: Dict[Feature, FeatureValue] = dict()
         self._lock = Lock()
 
+    def __getstate__(self) -> dict:
+        # Feature vectors are pickled as part of the FORECAST relevance tree.
+        # A ``threading.Lock`` is not picklable and holds no persistent state,
+        # so drop it here and recreate it on unpickling.
+        state = dict(self.__dict__)
+        state.pop("_lock", None)
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self._lock = Lock()
+
     def get_features_set(self) -> Set[Feature]:
         with self._lock:
             return set(self.features.keys())

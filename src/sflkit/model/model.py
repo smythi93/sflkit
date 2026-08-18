@@ -14,6 +14,7 @@ from sflkitlib.events.event import (
     FunctionExitEvent,
     FunctionErrorEvent,
     ConditionEvent,
+    ConditionValueEvent,
     LoopBeginEvent,
     LoopHitEvent,
     LoopEndEvent,
@@ -97,6 +98,14 @@ class Model:
         self.handle_event(event, event_file, self.variables[event_file])
 
     def handle_condition_event(self, event: ConditionEvent, event_file: EventFile):
+        self.handle_event(event, event_file)
+
+    def handle_condition_value_event(
+        self, event: ConditionValueEvent, event_file: EventFile
+    ):
+        # Additive companion event: no analysis subscribes to CONDITION_VALUE, so
+        # this is a no-op for spectra/predicates. GIFT reads the branch distance
+        # straight from the decoded event stream.
         self.handle_event(event, event_file)
 
     def handle_loop_begin_event(self, event: LoopBeginEvent, event_file: EventFile):
