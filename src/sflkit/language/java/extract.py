@@ -42,6 +42,15 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def aggregate_result(self, aggregate, result):
         return aggregate | result
 
+    def generic_visit(self, node):
+        # None (optional/empty child slots) and literal leaves
+        # (CharLiteral/StringLiteral/IntLiteral/...) subclass str/int, so jast's
+        # generic_visit would try to iterate them and fail.  None of these hold
+        # variables.
+        if node is None or isinstance(node, (str, int)):
+            return self.default_result()
+        return super().generic_visit(node)
+
     def visit_list(self, node: List[jast.JAST]):
         return reduce(
             self.aggregate_result, map(self.visit, node), self.default_result()
@@ -59,7 +68,7 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def visit_variabledeclaratorid(self, node: jast.variabledeclaratorid):
         if self.subscript:
             return self.default_result()
-        return OrderedSet(str(node.id))
+        return OrderedSet([str(node.id)])
 
     def visit_Lambda(self, node: jast.Lambda):
         if self.subscript:
@@ -107,7 +116,15 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def visit_Name(self, node: jast.Name):
         if self.subscript:
             return self.default_result()
-        return OrderedSet(str(node.id))
+        name = str(node.id)
+        # Skip type/class references: by Java convention a bare identifier
+        # starting with an uppercase letter is a type (e.g. System, Integer),
+        # not a value, so it must not be passed to JLib.getID(...).  This also
+        # drops static accesses rooted at a type (e.g. System.out), which are
+        # not local data flow and would otherwise not compile.
+        if name[:1].isupper():
+            return self.default_result()
+        return OrderedSet([name])
 
     def visit_ClassExpr(self, node):
         return self.default_result()
@@ -175,7 +192,7 @@ class JavaConditionExtract(jast.JNodeVisitor, ConditionExtract):
             jast.Compound(
                 body=[
                     jast.LocalVariable(
-                        type=jast.Boolean,
+                        type=jast.Boolean(),
                         declarators=[
                             jast.declarator(
                                 id=jast.variabledeclaratorid(id=var),
@@ -192,38 +209,50 @@ class JavaConditionExtract(jast.JNodeVisitor, ConditionExtract):
     def generic_visit(self, node):
         return self.__get_tmp_var(node, jast.unparse(node))
 
-    @staticmethod
-    def __get_if(test, body):
-        return jast.If(
-            test=test,
-            body=body,
-        )
+    def __assign_var(self, var, value):
+        return jast.Expr(value=jast.Assign(target=jast.Name(id=var), value=value))
 
     def visit_BinOp(self, node):
         if not isinstance(node.op, (jast.And, jast.Or)):
             return self.generic_visit(node)
-        _, use_l, assign_l, e_l = self.visit(node.right)
-        _, use_r, assign_r, e_r = self.visit(node.left)
-        if isinstance(node.op, jast.And):
-            assign = jast.Compound(body=[assign_l, self.__get_if(use_l, assign_r)])
-        else:
-            assign = jast.Compound(
-                body=[
-                    assign_l,
-                    self.__get_if(jast.UnaryOp(jast.Not(), use_l), [assign_r]),
-                ]
-            )
-        expression = jast.unparse(node)
-        final_var, final_use, final_assign, e = self.__get_tmp_var(
-            jast.BinOp(left=use_l, op=node.op, right=use_r, lineno=node.lineno),
-            expression,
+        is_and = isinstance(node.op, jast.And)
+        var_l, use_l, assign_l, e_l = self.visit(node.left)
+        var_r, use_r, assign_r, e_r = self.visit(node.right)
+
+        final_var = self.factory.tmp_generator.get_var_name()
+        event = ConditionEvent(
+            self.file,
+            node.lineno,
+            self.factory.event_id_generator.get_next_id(),
+            jast.unparse(node),
+            tmp_var=final_var,
         )
-        return (
-            final_var,
-            final_use,
-            jast.Compound(body=[assign, final_assign]),
-            e_l + e_r + e,
+        # Short-circuit desugaring that keeps the right operand's temporaries in
+        # scope: declare the result once, evaluate the right side (and assign the
+        # result) only on the non-short-circuiting branch.
+        #   &&:  if (left)  { <eval right>; final = right; } else { final = false; }
+        #   ||:  if (!left) { <eval right>; final = right; } else { final = true;  }
+        test = use_l if is_and else jast.UnaryOp(op=jast.Not(), operand=use_l)
+        short_value = jast.Constant(jast.BoolLiteral(not is_and))
+        branch = jast.If(
+            test=test,
+            body=jast.Block(body=[assign_r, self.__assign_var(final_var, use_r)]),
+            orelse=jast.Block(body=[self.__assign_var(final_var, short_value)]),
         )
+        assign = jast.Compound(
+            body=[
+                assign_l,
+                jast.LocalVariable(
+                    type=jast.Boolean(),
+                    declarators=[
+                        jast.declarator(id=jast.variabledeclaratorid(id=final_var))
+                    ],
+                ),
+                branch,
+                self.factory.get_event_call(event),
+            ]
+        )
+        return final_var, jast.Name(id=final_var), assign, e_l + e_r + [event]
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, jast.Not):
