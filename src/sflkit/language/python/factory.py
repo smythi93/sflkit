@@ -26,7 +26,12 @@ from sflkitlib.events.event import (
 
 from sflkit.language.meta import MetaVisitor, Injection, IDGenerator, TmpGenerator
 
-python_lib = "sflkitlib.lib"
+python_lib_module = "sflkitlib.lib"
+# Dunder-shaped so namespace-cleanup idioms that keep only dunders and own
+# submodules (astropy/__init__.py) do not delete the tracer binding; a plain
+# name is deleted and the next probe raises NameError, killing the import.
+# Also one attribute lookup fewer per probe.
+python_lib = "__sflkitlib__"
 
 
 def get_call(function, *args) -> Expr:
@@ -772,19 +777,13 @@ class UseEventFactory(PythonEventFactory):
             body=[self._get_wrapped_property(event)],
             handlers=[
                 ExceptHandler(
-                    type=Tuple(
-                        elts=[
-                            Name(
-                                id="AttributeError",
-                            ),
-                            Name(
-                                id="TypeError",
-                            ),
-                            Name(
-                                id="NameError",
-                            ),
-                        ],
-                    ),
+                    # Any exception: evaluating a probe's own arguments runs
+                    # subject code (len() on a lazy proxy, attribute access via
+                    # __getattribute__) which can raise anything. Django's
+                    # settings raise ImproperlyConfigured when touched before
+                    # configuration, and a narrow guard let that abort the
+                    # import of the package under test.
+                    type=Name(id="Exception"),
                     name=None,
                     body=[Pass()],
                 ),
@@ -810,11 +809,28 @@ class UseEventFactory(PythonEventFactory):
         )
         return call
 
+    @staticmethod
+    def _get_type_of(class_: str) -> Call:
+        """
+        Build ``type(<class_>)``.
+
+        Deliberately ``type(x)`` and not ``x.__class__``: the two agree for
+        ordinary objects, but ``__class__`` is a normal attribute lookup and can
+        itself be a property. Django's lazy objects define
+        ``__class__ = property(new_method_proxy(...))``, so reading it re-enters
+        the proxy machinery this guard is meant to stay out of, recursing until
+        the stack is exhausted. ``type()`` reads the type slot directly and
+        cannot be proxied -- django's own source makes the same point: "We have
+        to use type(self), not self.__class__, because the latter is proxied."
+        """
+        return Call(func=Name(id="type"), args=[Name(id=class_)], keywords=[])
+
     def _get_wrapped_property(self, event: UseEvent):
         body = self._get_std_call(event)
         attributes = event.var.split(".")
         for i in range(len(attributes) - 1):
             class_ = ".".join(attributes[: -1 - i])
+            attribute = attributes[-1 - i]
             body = If(
                 test=BoolOp(
                     op=Or(),
@@ -826,9 +842,9 @@ class UseEventFactory(PythonEventFactory):
                                     id="hasattr",
                                 ),
                                 args=[
-                                    Name(id=class_ + ".__class__"),
+                                    self._get_type_of(class_),
                                     Constant(
-                                        value=attributes[-1 - i],
+                                        value=attribute,
                                     ),
                                 ],
                                 keywords=[],
@@ -841,8 +857,10 @@ class UseEventFactory(PythonEventFactory):
                                     id="isinstance",
                                 ),
                                 args=[
-                                    Name(
-                                        id=class_ + ".__class__." + attributes[-1 - i]
+                                    Attribute(
+                                        value=self._get_type_of(class_),
+                                        attr=attribute,
+                                        ctx=Load(),
                                     ),
                                     Name(
                                         id="property",
@@ -1009,19 +1027,13 @@ class LenEventFactory(DefEventFactory):
             body=[call],
             handlers=[
                 ExceptHandler(
-                    type=Tuple(
-                        elts=[
-                            Name(
-                                id="AttributeError",
-                            ),
-                            Name(
-                                id="TypeError",
-                            ),
-                            Name(
-                                id="NameError",
-                            ),
-                        ],
-                    ),
+                    # Any exception: evaluating a probe's own arguments runs
+                    # subject code (len() on a lazy proxy, attribute access via
+                    # __getattribute__) which can raise anything. Django's
+                    # settings raise ImproperlyConfigured when touched before
+                    # configuration, and a narrow guard let that abort the
+                    # import of the package under test.
+                    type=Name(id="Exception"),
                     name=None,
                     body=[Pass()],
                 )

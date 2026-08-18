@@ -3,7 +3,7 @@ from typing import Any, Union
 
 from sflkit.language.meta import MetaVisitor, Injection
 from sflkit.language.python.extract import PythonIsDoc
-from sflkit.language.python.factory import python_lib
+from sflkit.language.python.factory import python_lib, python_lib_module
 from sflkit.language.visitor import ASTVisitor
 
 
@@ -28,7 +28,7 @@ class PythonInstrumentation(NodeTransformer, ASTVisitor):
             body=doc
             + self.__future__
             + [
-                Import(names=[alias(name=python_lib, asname=None)]),
+                Import(names=[alias(name=python_lib_module, asname=python_lib)]),
                 instrumented_tree,
             ],
             type_ignores=list(),
