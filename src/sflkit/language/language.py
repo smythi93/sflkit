@@ -40,56 +40,105 @@ _PYTHON_FACTORIES = {
 }
 
 
+def _python_parts(visitor):
+    """
+    Build the Python backend's pieces.
+
+    :param visitor: Instrumentation visitor, or ``None`` where there is none.
+    :returns: Everything a :class:`Language` member exposes besides its
+        suffixes.
+    """
+    return (
+        visitor,
+        _PYTHON_FACTORIES,
+        PythonVarExtract(),
+        PythonVarExtract(use=True),
+        PythonConditionExtract(),
+        PythonFunctionFinder,
+        PythonLoopFinder,
+        PythonBranchFinder,
+    )
+
+
+def _no_parts():
+    """:returns: Empty pieces, for a language with no backend."""
+    return (None, dict(), None, None, None, None, None, None)
+
+
+#: Loaders, defined once so that members sharing one stay aliases of each other.
+_PYTHON_LOADER = lambda: _python_parts(PythonInstrumentation)
+_PYTHON2_LOADER = lambda: _python_parts(None)
+
+
 class Language(enum.Enum):
-    def __init__(
-        self,
-        ast_visitor: Type[ASTVisitor],
-        meta_visitors: Dict[EventType, Type[MetaVisitor]],
-        var_extract: VariableExtract,
-        use_extract: VariableExtract,
-        condition_extract: ConditionExtract,
-        function_finder: FunctionFinder,
-        loop_finder: LoopFinder,
-        branch_finder: BranchFinder,
-        suffixes: List[str],
-    ):
-        self.visitor = ast_visitor
-        self.meta_visitors = meta_visitors
-        self.var_extract = var_extract
-        self.use_extract = use_extract
-        self.condition_extract = condition_extract
-        self.function_finder = function_finder
-        self.loop_finder = loop_finder
-        self.branch_finder = branch_finder
+    """
+    A supported language and the backend that instruments it.
+
+    A member's backend is built the first time something asks for it, so
+    importing this module does not drag in every language's dependencies. Only
+    the suffixes are known up front, because that is all the file walker needs
+    to decide whether a language is relevant at all.
+    """
+
+    def __init__(self, loader, suffixes: List[str]):
+        self._loader = loader
+        self._parts = None
         self.suffixes = suffixes
+
+    def _load(self):
+        """:returns: The backend's pieces, built on first use."""
+        if self._parts is None:
+            self._parts = self._loader()
+        return self._parts
+
+    @property
+    def visitor(self) -> Type[ASTVisitor]:
+        """The instrumentation visitor."""
+        return self._load()[0]
+
+    @property
+    def meta_visitors(self) -> Dict[EventType, Type[MetaVisitor]]:
+        """Event factories, keyed by event type."""
+        return self._load()[1]
+
+    @property
+    def var_extract(self) -> VariableExtract:
+        """Extractor for defined variables."""
+        return self._load()[2]
+
+    @property
+    def use_extract(self) -> VariableExtract:
+        """Extractor for used variables."""
+        return self._load()[3]
+
+    @property
+    def condition_extract(self) -> ConditionExtract:
+        """Extractor for conditions."""
+        return self._load()[4]
+
+    @property
+    def function_finder(self) -> FunctionFinder:
+        """Finder locating a function in the source."""
+        return self._load()[5]
+
+    @property
+    def loop_finder(self) -> LoopFinder:
+        """Finder locating a loop in the source."""
+        return self._load()[6]
+
+    @property
+    def branch_finder(self) -> BranchFinder:
+        """Finder locating a branch in the source."""
+        return self._load()[7]
 
     def setup(self):
         AnalysisObject.set_finder(
             self.function_finder, self.loop_finder, self.branch_finder
         )
 
-    PYTHON = (
-        PythonInstrumentation,
-        _PYTHON_FACTORIES,
-        PythonVarExtract(),
-        PythonVarExtract(use=True),
-        PythonConditionExtract(),
-        PythonFunctionFinder,
-        PythonLoopFinder,
-        PythonBranchFinder,
-        ["py"],
-    )  # Equals PYTHON3
+    PYTHON = (_PYTHON_LOADER, ["py"])  # Equals PYTHON3
     PYTHON3 = PYTHON
-    PYTHON2 = (
-        None,
-        _PYTHON_FACTORIES,
-        PythonVarExtract(),
-        PythonVarExtract(use=True),
-        PythonConditionExtract(),
-        PythonFunctionFinder,
-        PythonLoopFinder,
-        PythonBranchFinder,
-        ["py"],
-    )
-    C = (None, dict(), None, None, None, None, None, None, ["c", "h"])
-    JAVA = (None, dict(), None, None, None, None, None, None, ["java"])
+    PYTHON2 = (_PYTHON2_LOADER, ["py"])
+    C = (_no_parts, ["c", "h"])
+    # Not wired on this line: the Java backend arrives with its own release.
+    JAVA = (_no_parts, ["java"])

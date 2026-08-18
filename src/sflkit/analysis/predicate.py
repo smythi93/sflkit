@@ -1,4 +1,5 @@
 import enum
+import operator
 from abc import ABC
 from typing import Tuple, Callable, Optional, List, Type, Any
 
@@ -69,8 +70,11 @@ class Predicate(Spectrum, ABC):
     def get_last_evaluation(
         self, id_: int, thread_id: Optional[int] = None
     ) -> EvaluationResult:
-        if id_ in self.last_evaluation and thread_id in self.last_evaluation[id_]:
-            return self.last_evaluation[id_][thread_id]
+        evaluations = self.last_evaluation.get(id_)
+        if evaluations is not None:
+            evaluation = evaluations.get(thread_id)
+            if evaluation is not None:
+                return evaluation
         return self.default_evaluation()
 
     def finalize(self, passed: list[EventFile], failed: list[EventFile]):
@@ -89,21 +93,29 @@ class Predicate(Spectrum, ABC):
                     self.false_relevant_observed()
 
     def hit(self, id_, event: Event, scope: Scope = None):
-        if id_ not in self.total_hits:
-            self.total_hits[id_] = dict()
-        if event.thread_id not in self.total_hits[id_]:
-            self.total_hits[id_][event.thread_id] = 0
-        if id_ not in self.hits:
-            self.hits[id_] = dict()
-            self.last_evaluation[id_] = dict()
-        if event.thread_id not in self.hits[id_]:
-            self.hits[id_][event.thread_id] = 0
-        self.total_hits[id_][event.thread_id] += 1
-        if self._evaluate_predicate(event, scope):
-            self.hits[id_][event.thread_id] += 1
-            self.last_evaluation[id_][event.thread_id] = EvaluationResult.TRUE
+        # The per-run dicts are fetched once each. Indexing them by run and
+        # then by thread on every access hashed the event file eight times per
+        # hit, which is millions of times over a trace.
+        thread_id = event.thread_id
+        total_hits = self.total_hits.get(id_)
+        if total_hits is None:
+            total_hits = self.total_hits[id_] = dict()
+        hits = self.hits.get(id_)
+        if hits is None:
+            hits = self.hits[id_] = dict()
+            last_evaluation = self.last_evaluation[id_] = dict()
         else:
-            self.last_evaluation[id_][event.thread_id] = EvaluationResult.FALSE
+            last_evaluation = self.last_evaluation[id_]
+        total_hits[thread_id] = total_hits.get(thread_id, 0) + 1
+        if self._evaluate_predicate(event, scope):
+            hits[thread_id] = hits.get(thread_id, 0) + 1
+            last_evaluation[thread_id] = EvaluationResult.TRUE
+        else:
+            # Still records the thread, so a run that only ever evaluated the
+            # predicate to false is distinguishable from one that never
+            # reached it.
+            hits.setdefault(thread_id, 0)
+            last_evaluation[thread_id] = EvaluationResult.FALSE
 
     def get_metric(self, metric: Callable = None, use_weight: bool = False):
         if metric is None:
@@ -290,26 +302,30 @@ class Comp(enum.Enum):
     NE = "!="
 
     def evaluate(self, x, y):
-        if self == Comp.LT:
-            return x < y
-        elif self == Comp.LE:
-            return x <= y
-        elif self == Comp.EQ:
-            return x == y
-        elif self == Comp.GE:
-            return x >= y
-        elif self == Comp.GT:
-            return x > y
-        elif self == Comp.NE:
-            return x != y
-        else:
-            raise ValueError(f"Unknown comparison operator: {self}")
+        # The operator is attached to each member below, so evaluating a
+        # comparison is one C-level call rather than a walk down a chain of
+        # identity tests. This runs once per predicate per event.
+        return self.function(x, y)
 
     def __repr__(self):
         return self.name
 
     def __str__(self):
         return self.name
+
+
+#: The operator each comparison stands for, attached to the member itself so
+#: :meth:`Comp.evaluate` needs neither a lookup nor a branch.
+for _member, _function in (
+    (Comp.LT, operator.lt),
+    (Comp.LE, operator.le),
+    (Comp.EQ, operator.eq),
+    (Comp.GE, operator.ge),
+    (Comp.GT, operator.gt),
+    (Comp.NE, operator.ne),
+):
+    _member.function = _function
+del _member, _function
 
 
 class Comparison(Predicate, ABC):

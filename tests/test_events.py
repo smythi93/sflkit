@@ -80,7 +80,7 @@ class EventTests(BaseTest):
                 branch_i += 1
 
     @staticmethod
-    def _test_events(events):
+    def _test_events(events, environ: dict = None):
         config = Config.create(
             path=os.path.join(BaseTest.TEST_RESOURCES, "test_events"),
             language="python",
@@ -89,7 +89,11 @@ class EventTests(BaseTest):
         )
         instrument_config(config)
 
-        subprocess.run([BaseTest.PYTHON, BaseTest.ACCESS], cwd=BaseTest.TEST_DIR)
+        subprocess.run(
+            [BaseTest.PYTHON, BaseTest.ACCESS],
+            cwd=BaseTest.TEST_DIR,
+            env={**os.environ, **(environ or {})},
+        )
         return event.load(
             os.path.join(BaseTest.TEST_DIR, BaseTest.TEST_PATH),
             EventMapping.load(config).mapping,
@@ -199,7 +203,13 @@ class EventTests(BaseTest):
                 branches_i += 1
 
     def test_loop(self):
-        events = self._test_events("loop_begin,loop_hit,loop_end")
+        # Budgets off: this checks that a loop produces begin/hit/end events,
+        # not that the runtime stops recording hits once it has seen enough.
+        # With the default EVENTS_MAX_LOOP_HITS of 2 the later hits are
+        # deliberately dropped, which is the subject of its own test.
+        events = self._test_events(
+            "loop_begin,loop_hit,loop_end", {"EVENTS_MAX_LOOP_HITS": "0"}
+        )
         self.assertEqual(12, len(events))
         expected_loop = [
             (event.EventType.LOOP_BEGIN, 11),
