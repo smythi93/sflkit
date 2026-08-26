@@ -1,10 +1,93 @@
+import copy
+
 from ast import *
 from typing import Any, Union
 
 from sflkit.language.meta import MetaVisitor, Injection
 from sflkit.language.python.extract import PythonIsDoc
-from sflkit.language.python.factory import python_lib, python_lib_module
+from sflkit.language.python.factory import (
+    python_builtins,
+    python_builtins_module,
+    python_lib,
+    python_lib_module,
+)
 from sflkit.language.visitor import ASTVisitor
+
+
+def _refresh_before_continue(body: list, refresh: list) -> list:
+    """
+    Re-evaluate a ``while`` test before every ``continue`` that belongs to it.
+
+    A ``while`` keeps its test in a temporary so the condition's value can be
+    reported, and the temporary is refreshed at the end of the body. A
+    ``continue`` jumps straight past that refresh, so the loop goes on testing
+    the value the condition had an iteration ago -- which never changes again,
+    making the loop run until something inside it raises. pytest's
+    ``consider_preparse`` is one such loop: it walks ``args`` with a
+    ``continue`` in the common case, so instrumented pytest ran off the end of
+    the list and died before it could run a single test.
+
+    Nested loops are left alone -- their own ``continue`` belongs to them --
+    and so are nested function and class bodies.
+
+    :param body: Statements of the loop body.
+    :param refresh: Statements that recompute the loop's test.
+    :returns: The body with the refresh inserted ahead of each ``continue``.
+    """
+    result = []
+    for statement in body:
+        if isinstance(statement, Continue):
+            result.extend(copy.deepcopy(refresh))
+            result.append(statement)
+            continue
+        if isinstance(
+            statement,
+            (For, AsyncFor, While, FunctionDef, AsyncFunctionDef, ClassDef),
+        ):
+            result.append(statement)
+            continue
+        for field in ("body", "orelse", "finalbody"):
+            nested = getattr(statement, field, None)
+            if isinstance(nested, list):
+                setattr(statement, field, _refresh_before_continue(nested, refresh))
+        for handler in getattr(statement, "handlers", []) or []:
+            handler.body = _refresh_before_continue(handler.body, refresh)
+        result.append(statement)
+    return result
+
+
+class _StarredSubscripts(NodeTransformer):
+    """
+    Rewrite ``x[(a, *b)]`` so it survives being unparsed for an older Python.
+
+    ``ast.unparse`` drops the parentheses and emits ``x[a, *b]``, which is only
+    syntax from Python 3.11 (PEP 646). Instrumentation runs on this
+    interpreter but the rewritten sources run on the subject's, which is
+    routinely 3.8 or 3.9: xarray's ``variable.py`` came back with a
+    ``SyntaxError``, so importing xarray failed and every trace for the
+    instance held nothing but the failed import.
+
+    Building the tuple explicitly says the same thing in syntax every version
+    accepts. ``tuple`` is reached through the tracer's builtins alias because
+    the subject is free to rebind the bare name.
+    """
+
+    def visit_Subscript(self, node: Subscript) -> AST:
+        self.generic_visit(node)
+        index = node.slice
+        if isinstance(index, Tuple) and any(
+            isinstance(element, Starred) for element in index.elts
+        ):
+            node.slice = Call(
+                func=Attribute(
+                    value=Name(id=python_builtins, ctx=Load()),
+                    attr="tuple",
+                    ctx=Load(),
+                ),
+                args=[List(elts=index.elts, ctx=Load())],
+                keywords=[],
+            )
+        return node
 
 
 class PythonInstrumentation(NodeTransformer, ASTVisitor):
@@ -24,11 +107,20 @@ class PythonInstrumentation(NodeTransformer, ASTVisitor):
         else:
             doc = list()
         instrumented_tree = self.visit(ast)
+        instrumented_tree = _StarredSubscripts().visit(instrumented_tree)
         return Module(
             body=doc
             + self.__future__
             + [
                 Import(names=[alias(name=python_lib_module, asname=python_lib)]),
+                # Probe guards catch the builtin exception through this module
+                # rather than by the bare name, which the subject is free to
+                # rebind -- see get_exception_type().
+                Import(
+                    names=[
+                        alias(name=python_builtins_module, asname=python_builtins)
+                    ]
+                ),
                 instrumented_tree,
             ],
             type_ignores=list(),
@@ -42,6 +134,8 @@ class PythonInstrumentation(NodeTransformer, ASTVisitor):
         if injection.body:
             node.body = injection.body + node.body
         if injection.body_last:
+            if isinstance(node, While):
+                node.body = _refresh_before_continue(node.body, injection.body_last)
             node.body += injection.body_last
         if injection.orelse:
             node.orelse = injection.orelse + node.orelse

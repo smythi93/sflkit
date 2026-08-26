@@ -76,7 +76,19 @@ class TmpGenerator:
         self.random = random.randbytes(4).hex()
 
     def get_var_name(self):
-        var = f"sk_tmp_{self.random}_{self._tmp_count}"
+        # Wrapped in double underscores so the name reads as a dunder.
+        #
+        # A temporary can land directly in a class body -- a condition
+        # instrumented at class level assigns to one -- and Python's ``enum``
+        # turns every ordinary name bound in an Enum's body into a member. One
+        # temporary was therefore enough to give ``django.db.models.Choices``
+        # a member, after which ``class IntegerChoices(int, Choices)`` raised
+        # "cannot extend enumeration" and importing django.db.models failed
+        # outright. ``enum`` skips dunder keys when it collects members, so
+        # naming them this way keeps them out. Dunders are also exempt from
+        # the private-name mangling that would otherwise rewrite a temporary
+        # inside a class body into something the probe no longer refers to.
+        var = f"__sk_tmp_{self.random}_{self._tmp_count}__"
         self._tmp_count += 1
         return var
 
