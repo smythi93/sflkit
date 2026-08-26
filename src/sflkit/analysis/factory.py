@@ -452,6 +452,30 @@ class ComparisonFactory(AnalysisFactory, abc.ABC):
 class ScalarPairFactory(ComparisonFactory):
     EVENT_TYPES = frozenset({EventType.DEF})
 
+    #: Whether a definition may be paired with module-level globals.
+    #:
+    #: Left on so existing callers keep the results they had. Turning it off
+    #: pairs a definition only with the variables its function chain holds,
+    #: which is both cheaper and sharper: at a definition in a library test,
+    #: the overwhelming majority of variables in scope are the imported
+    #: module's namespace, and a pair like ``line_no < __version_tuple__``
+    #: relates a local to a constant that no execution of the program can
+    #: change, so it separates no run from any other while still costing a
+    #: predicate evaluation on every definition.
+    PAIR_WITH_GLOBALS = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._analysis_cache: Dict[tuple, List[AnalysisObject]] = dict()
+
+    def __getstate__(self) -> dict:
+        # The cache is a pure memo of what _build_analysis would return, and
+        # it can be large. Rebuilding it in the worker costs less than
+        # shipping it there.
+        state = super().__getstate__()
+        state["_analysis_cache"] = dict()
+        return state
+
     def _pair(self, key, event, comp, var) -> AnalysisObject:
         """
         Return the scalar pair for *key*, creating it on first use.
@@ -476,11 +500,64 @@ class ScalarPairFactory(ComparisonFactory):
                 self.objects[key] = analysis
             return analysis
 
+    #: Pair lists already built, keyed by definition site and the scope
+    #: bindings they were built against. See :meth:`get_analysis`.
+    _CACHE_LIMIT = 200_000
+
     def get_analysis(
         self, event, event_file: EventFile, scope: Scope = None
     ) -> List[AnalysisObject]:
+        """
+        Return the scalar pairs for *event*, reusing an earlier list when the
+        scope still binds the same names to the same types.
+
+        The pairs a definition produces depend on the definition site and on
+        which names of which types are in scope -- never on the values those
+        names hold. So a definition inside a loop produces the very same list
+        on every iteration, yet this used to rebuild it each time: walking a
+        couple of hundred in-scope variables and, for each of the matching
+        ones, allocating and hashing a seven-element key per comparison
+        operator. That is the densest loop in tree building, and on a
+        definition-heavy trace it is the majority of all analysis work.
+
+        Keying on :meth:`Scope.type_signature` makes the check cost the
+        nesting depth instead. The cache is dropped wholesale when it grows
+        past ``_CACHE_LIMIT`` -- scope identities are never reused, so entries
+        for scopes that have exited can never be hit again, and clearing is
+        cheaper than tracking liveness per scope.
+
+        :param event: The event, a definition or otherwise.
+        :param event_file: The run it belongs to.
+        :param scope: The variable scope at the definition.
+        :returns: The pairs, or an empty list for a non-definition.
+        """
+        if event.event_type != EventType.DEF or scope is None:
+            return self._build_analysis(event, event_file, scope=scope)
+        key = (
+            event.file,
+            event.line,
+            event.var,
+            event.type_,
+            scope.type_signature(include_root=self.PAIR_WITH_GLOBALS),
+        )
+        cached = self._analysis_cache.get(key)
+        if cached is not None:
+            return cached
+        analysis = self._build_analysis(event, event_file, scope=scope)
+        if len(self._analysis_cache) >= self._CACHE_LIMIT:
+            self._analysis_cache.clear()
+        self._analysis_cache[key] = analysis
+        return analysis
+
+    def _build_analysis(
+        self, event, event_file: EventFile, scope: Scope = None
+    ) -> List[AnalysisObject]:
         if event.event_type == EventType.DEF:
-            variables = scope.get_all_vars()
+            variables = (
+                scope.get_all_vars()
+                if self.PAIR_WITH_GLOBALS
+                else scope.get_local_vars()
+            )
             objects = list()
             if event.type_ in ["int", "float", "bool", "str", "bytes"]:
                 for types in (["int", "float", "bool"], ["str"], ["bytes"]):

@@ -1,5 +1,6 @@
 import atexit
 import os
+import subprocess
 from pathlib import Path
 
 from sflkitlib.events import EventType
@@ -261,3 +262,253 @@ class TestLib(BaseTest):
     def test_get_type(self):
         x = 10
         self.assertEqual(type(x), self.lib.get_type(x))
+
+
+class TestShadowedBuiltins(BaseTest):
+    def test_instrumented_subject_survives_shadowed_builtins(self):
+        """
+        Instrumenting a subject that rebinds the builtins probes rely on must
+        leave the subject runnable.
+
+        The probes and their guards name builtins, and any scope they are
+        injected into is free to bind those names to something else. When that
+        happened the failure was not a wrong trace but no trace: the import of
+        the package under test died, the test ran against uninstrumented code,
+        and the run still exited zero.
+        """
+        config = Config.create(
+            path=os.path.join(BaseTest.TEST_RESOURCES, "test_shadowed_builtins"),
+            language="python",
+            events=",".join(e.name for e in EventType.events()),
+            working=BaseTest.TEST_DIR,
+        )
+        instrument_config(config)
+        output = subprocess.run(
+            [BaseTest.PYTHON, BaseTest.ACCESS],
+            cwd=BaseTest.TEST_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        self.assertEqual(
+            0,
+            output.returncode,
+            f"the instrumented subject did not run:\n{output.stdout}",
+        )
+        self.assertIn("2", output.stdout)
+        self.assertIn("True", output.stdout)
+
+
+class TestWhileWithContinue(BaseTest):
+    def setUp(self):
+        # Loop ids come from a counter on the factory class that instrumenting
+        # never resets, and other tests assert on the ids they get. Instrumenting
+        # a subject with loops here would shift theirs, so put the counter back.
+        super().setUp()
+        from sflkit.language.python.factory import LoopEventFactory
+
+        self._loop_id = LoopEventFactory.loop_id
+        self._loops = dict(LoopEventFactory.loops)
+
+    def tearDown(self):
+        from sflkit.language.python.factory import LoopEventFactory
+
+        LoopEventFactory.loop_id = self._loop_id
+        LoopEventFactory.loops = self._loops
+        super().tearDown()
+
+    def test_while_condition_is_refreshed_before_continue(self):
+        """
+        A ``continue`` must not strand the loop on a stale condition.
+
+        The test of an instrumented ``while`` lives in a temporary so its value
+        can be reported, refreshed at the end of the body -- which a
+        ``continue`` jumps straight past. The loop then re-tests a value that
+        can no longer change, and runs until something in the body raises.
+        """
+        config = Config.create(
+            path=os.path.join(BaseTest.TEST_RESOURCES, "test_while_continue"),
+            language="python",
+            events=",".join(e.name for e in EventType.events()),
+            working=BaseTest.TEST_DIR,
+        )
+        instrument_config(config)
+        output = subprocess.run(
+            [BaseTest.PYTHON, BaseTest.ACCESS],
+            cwd=BaseTest.TEST_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=60,
+        )
+        self.assertEqual(
+            0,
+            output.returncode,
+            f"the instrumented loop did not terminate cleanly:\n{output.stdout}",
+        )
+        self.assertIn("['-pfoo', '-pbar']", output.stdout)
+        self.assertIn("9", output.stdout)
+
+
+class TestPropertyReentry(BaseTest):
+    def setUp(self):
+        super().setUp()
+        from sflkit.language.python.factory import LoopEventFactory
+
+        self._loop_id = LoopEventFactory.loop_id
+        self._loops = dict(LoopEventFactory.loops)
+
+    def tearDown(self):
+        from sflkit.language.python.factory import LoopEventFactory
+
+        LoopEventFactory.loop_id = self._loop_id
+        LoopEventFactory.loops = self._loops
+        super().tearDown()
+
+    def test_probes_do_not_re_enter_a_property(self):
+        """
+        No probe may read an attribute that is a property.
+
+        Reading it runs the property, and a probe inside that property re-enters
+        it. The guard has to be on every probe that reports a variable, not just
+        some: definition probes were fixed first and the length probe next to
+        them still recursed, which aborts the interpreter rather than raising,
+        so the probe's own ``try`` never sees it.
+        """
+        config = Config.create(
+            path=os.path.join(BaseTest.TEST_RESOURCES, "test_property_reentry"),
+            language="python",
+            events=",".join(e.name for e in EventType.events()),
+            working=BaseTest.TEST_DIR,
+        )
+        instrument_config(config)
+        output = subprocess.run(
+            [BaseTest.PYTHON, BaseTest.ACCESS],
+            cwd=BaseTest.TEST_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=60,
+        )
+        self.assertEqual(
+            0,
+            output.returncode,
+            f"the instrumented subject did not survive its own probes:\n{output.stdout}",
+        )
+        self.assertIn("''", output.stdout)
+        self.assertIn("0", output.stdout)
+
+
+class TestStarredSubscript(BaseTest):
+    def test_instrumented_source_keeps_pre_3_11_syntax(self):
+        """
+        The regenerated module must parse on the interpreter that runs it.
+
+        Instrumentation happens on this interpreter; the subject's runs on its
+        own, routinely older. ``x[(a, *b)]`` unparsed to ``x[a, *b]`` -- PEP 646
+        syntax -- so the subject failed to import and every trace held nothing
+        but that failure.
+        """
+        config = Config.create(
+            path=os.path.join(BaseTest.TEST_RESOURCES, "test_starred_subscript"),
+            language="python",
+            events=",".join(e.name for e in EventType.events()),
+            working=BaseTest.TEST_DIR,
+        )
+        instrument_config(config)
+        instrumented = os.path.join(BaseTest.TEST_DIR, BaseTest.ACCESS)
+        with open(instrumented) as handle:
+            source = handle.read()
+        # Ask the tree, not the text: the rewritten form contains the same
+        # characters inside a call -- tuple([..., *indexer]) -- and only a
+        # subscript whose slice is a starred tuple is the syntax at issue.
+        import ast as _ast
+
+        offenders = [
+            node
+            for node in _ast.walk(_ast.parse(source))
+            if isinstance(node, _ast.Subscript)
+            and isinstance(node.slice, _ast.Tuple)
+            and any(isinstance(e, _ast.Starred) for e in node.slice.elts)
+        ]
+        self.assertEqual(
+            [],
+            offenders,
+            "unparsing produced a subscript that needs Python 3.11 or newer",
+        )
+        output = subprocess.run(
+            [BaseTest.PYTHON, BaseTest.ACCESS],
+            cwd=BaseTest.TEST_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=60,
+        )
+        self.assertEqual(0, output.returncode, output.stdout)
+        self.assertIn("stored", output.stdout)
+
+
+class TestGetattrProxy(BaseTest):
+    def setUp(self):
+        super().setUp()
+        from sflkit.language.python.factory import LoopEventFactory
+
+        self._loop_id = LoopEventFactory.loop_id
+        self._loops = dict(LoopEventFactory.loops)
+
+    def tearDown(self):
+        from sflkit.language.python.factory import LoopEventFactory
+
+        LoopEventFactory.loop_id = self._loop_id
+        LoopEventFactory.loops = self._loops
+        super().tearDown()
+
+    def test_probes_do_not_re_enter_a_delegating_proxy(self):
+        """
+        No probe may read an attribute off a type that defines ``__getattr__``.
+
+        A delegating proxy answers for names it does not carry by reading
+        something else on itself, so one probe's read re-enters the proxy
+        through another attribute. Nothing crashes: each probe's own ``try``
+        swallows the resulting ``RecursionError`` and the run continues, but
+        every level of the cycle emits its events. sphinx's
+        ``_TranslationProxy`` filled nine traces with 37 million events apiece
+        that covered eight files and reached the code under test in none.
+
+        Guarding only against properties missed it -- the attribute a proxy is
+        asked for is one its type does not define, so there is no property to
+        find and the old guard let the read through.
+        """
+        events_path = os.path.join(BaseTest.TEST_DIR, "EVENTS")
+        config = Config.create(
+            path=os.path.join(BaseTest.TEST_RESOURCES, "test_getattr_proxy_bound"),
+            language="python",
+            events=",".join(e.name for e in EventType.events()),
+            working=BaseTest.TEST_DIR,
+        )
+        instrument_config(config)
+        output = subprocess.run(
+            [BaseTest.PYTHON, BaseTest.ACCESS],
+            cwd=BaseTest.TEST_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=120,
+            env=dict(os.environ, EVENTS_PATH=events_path),
+        )
+        self.assertEqual(
+            0,
+            output.returncode,
+            f"the instrumented subject did not survive its own probes:\n{output.stdout}",
+        )
+        # The proxy has to still resolve to what it resolved to uninstrumented.
+        self.assertIn("HELLO", output.stdout)
+        self.assertIn("hello", output.stdout)
+        # The symptom was volume, not failure: this subject wrote a gigabyte
+        # before the guard and tens of kilobytes after it.
+        size = os.path.getsize(events_path) if os.path.exists(events_path) else 0
+        self.assertLess(
+            size,
+            5_000_000,
+            "the probes are still re-entering the proxy: the trace exploded",
+        )
