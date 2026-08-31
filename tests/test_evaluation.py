@@ -2,7 +2,7 @@ import random
 from typing import Optional
 
 from sflkit.analysis.suggestion import Suggestion, Location
-from sflkit.evaluation import Rank, Scenario
+from sflkit.evaluation import Average, Rank, Scenario
 from utils import BaseTest
 
 
@@ -164,3 +164,109 @@ class TestEvaluation(BaseTest):
     def test_wasted_effort(self):
         wasted_effort = self.get_wasted_effort()
         self.assertAlmostEqual((2 + 9 + 10 + 11) / 4, wasted_effort, delta=self.DELTA)
+
+
+class TestRankInternals(BaseTest):
+    """Locks in the parts of Rank that the fast paths rely on."""
+
+    def setUp(self):
+        random.seed(0)
+        self.suggestions = [
+            Suggestion([Location("a.py", 1), Location("a.py", 2)], 0.5),
+            Suggestion([Location("a.py", 2), Location("a.py", 3)], 0.9),
+            Suggestion([Location("a.py", 4)], 0.5),
+            Suggestion([], 0.7),
+            Suggestion([Location("b.py", 1)], 0.1),
+        ]
+
+    def test_repeated_top_n_does_not_drift(self):
+        # n=1 leaves two candidates, so this goes through the sampling branch;
+        # from the same seed the answer must not move between calls.
+        rank = Rank(self.suggestions)
+        faulty = {Location("a.py", 2)}
+        results = []
+        for _ in range(3):
+            random.seed(0)
+            results.append(rank.top_n(faulty, 1, repeat=1000))
+        self.assertEqual(results[0], results[1])
+        self.assertEqual(results[1], results[2])
+        self.assertAlmostEqual(0.5, results[0], delta=0.05)
+
+    def test_pool_keeps_first_seen_order_and_drops_duplicates(self):
+        rank = Rank(self.suggestions)
+        # a.py:2 is in the most suspicious suggestion and in a later one; it may
+        # only be counted once, at the position it was first seen.
+        self.assertEqual(
+            [Location("a.py", 2), Location("a.py", 3), Location("a.py", 1)],
+            rank._pool(3),
+        )
+        self.assertEqual(rank._pool(3), rank._pool(3))
+
+    def test_metric_is_applied_for_every_line_of_every_suggestion(self):
+        # The metric may be stateful (see Average), so the number and the order
+        # of the calls is part of the behaviour.
+        calls = []
+
+        def metric(suspiciousness, current):
+            calls.append((suspiciousness, current))
+            return max(suspiciousness, current)
+
+        Rank(self.suggestions, metric=metric)
+        # once per (suggestion, line) while folding, once per location while ranking
+        self.assertEqual(6 + 5, len(calls))
+        self.assertEqual((0.9, float("-inf")), calls[0])
+
+    def test_average_metric_reaches_every_location(self):
+        average = Average()
+        Rank(self.suggestions, metric=average.average)
+        self.assertEqual(6 + 5, average.number_of_locations)
+
+    def test_scenarios_agree_with_the_unsampled_scores(self):
+        rank = Rank(self.suggestions, total_number_of_locations=10)
+        faulty = {Location("a.py", 3), Location("b.py", 1)}
+        # a.py:3 shares rank 1 with a.py:2, b.py:1 is alone at rank 5
+        self.assertEqual(1.0, rank.get_rank(faulty, Scenario.BEST_CASE))
+        self.assertEqual(5, rank.get_rank(faulty, Scenario.WORST_CASE))
+        self.assertEqual(1.0, rank.get_rank(faulty, Scenario.AVG_CASE))
+        self.assertAlmostEqual(3.0, rank.get_rank(faulty), delta=self.DELTA)
+        self.assertEqual(2, rank.wasted_effort(faulty, Scenario.BEST_CASE))
+        self.assertEqual(5, rank.wasted_effort(faulty, Scenario.WORST_CASE))
+        self.assertAlmostEqual(3.5, rank.wasted_effort(faulty), delta=self.DELTA)
+
+
+class TestSuggestionOrdering(BaseTest):
+    def test_suggestions_compare_by_suspiciousness(self):
+        low = Suggestion([Location("a.py", 1)], 0.25)
+        high = Suggestion([Location("a.py", 2)], 0.75)
+        self.assertLess(low, high)
+        self.assertGreater(high, low)
+        self.assertLessEqual(low, high)
+        self.assertGreaterEqual(high, low)
+        self.assertEqual([high, low], sorted([low, high], reverse=True))
+
+    def test_suggestions_still_compare_against_plain_numbers(self):
+        suggestion = Suggestion([Location("a.py", 1)], 0.5)
+        self.assertTrue(suggestion < 0.75)
+        self.assertTrue(suggestion > 0.25)
+        self.assertTrue(suggestion <= 0.5)
+        self.assertTrue(suggestion >= 0.5)
+
+    def test_locations_hash_consistently_with_equality(self):
+        a = Location("a.py", 1)
+        b = Location("a.py", 1)
+        c = Location("a.py", 2)
+        self.assertEqual(a, b)
+        self.assertEqual(hash(a), hash(b))
+        self.assertEqual(hash(("a.py", 1)), hash(a))
+        self.assertNotEqual(a, c)
+        self.assertNotEqual(a, "a.py:1")
+        self.assertEqual(1, len({a, b}))
+
+    def test_locations_survive_a_round_trip(self):
+        import copy
+        import pickle
+
+        location = Location("a.py", 7)
+        for clone in (copy.deepcopy(location), pickle.loads(pickle.dumps(location))):
+            self.assertEqual(location, clone)
+            self.assertEqual(hash(location), hash(clone))

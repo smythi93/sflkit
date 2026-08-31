@@ -1,6 +1,7 @@
 import json
 import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from operator import itemgetter
 from typing import List, Callable, Set, Dict, Optional, Any, Type
 
 from sflkit.analysis.analysis_type import AnalysisType, AnalysisObject
@@ -24,6 +25,8 @@ from sflkit.analysis.suggestion import Suggestion
 from sflkit.events.event_file import EventFile
 from sflkit.model.model import Model, MetaModel
 from sflkit.model.parallel import ParallelModel
+
+_key_of = itemgetter(0)
 
 
 def analyze_files(
@@ -252,11 +255,15 @@ class Analyzer:
             ),
             analysis,
         ):
-            suspiciousness.append(suggestion.suspiciousness)
-            if suggestion.suspiciousness not in suggestions:
-                suggestions[suggestion.suspiciousness] = set(suggestion.lines)
+            value = suggestion.suspiciousness
+            suspiciousness.append(value)
+            lines = suggestions.get(value)
+            if lines is None:
+                suggestions[value] = set(suggestion.lines)
             else:
-                suggestions[suggestion.suspiciousness] |= set(suggestion.lines)
+                # Union with a set, not update with the list: the two insert in a
+                # different order, and that decides the order of Suggestion.lines.
+                lines |= set(suggestion.lines)
 
         if suspiciousness:
             self.max_suspiciousness = max(suspiciousness)
@@ -266,13 +273,12 @@ class Analyzer:
                 len(suspiciousness) // 2
             ]
 
-        return sorted(
-            [
-                Suggestion(list(lines), suspiciousness)
-                for suspiciousness, lines in suggestions.items()
-            ],
-            reverse=True,
-        )[:]
+        # Sorting on the key skips Suggestion's rich comparisons; the order is
+        # the same, because that is the only thing a suggestion compares.
+        return [
+            Suggestion(list(lines), value)
+            for value, lines in sorted(suggestions.items(), key=_key_of, reverse=True)
+        ]
 
     def get_coverage_per_run(
         self, type_: AnalysisType = None

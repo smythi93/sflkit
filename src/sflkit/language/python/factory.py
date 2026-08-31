@@ -35,6 +35,82 @@ python_lib_module = "sflkitlib.lib"
 # Also one attribute lookup fewer per probe.
 python_lib = "__sflkitlib__"
 
+python_builtins_module = "builtins"
+# The guards around probes have to name the exception type they catch, and a
+# bare ``Exception`` is whatever that name means where the probe was injected.
+# pytest's ``_WithException`` class body binds ``Exception = None``, so a probe
+# guard inside it became ``except None`` -- "catching classes that do not
+# inherit from BaseException is not allowed" -- and importing _pytest died.
+# Reaching the type through the builtins module instead makes the guard mean
+# the same thing wherever it lands. Dunder-shaped for the same reasons as
+# ``python_lib``.
+python_builtins = "__sflkit_builtins__"
+
+
+def get_exception_type() -> Attribute:
+    """
+    The exception type a probe guard catches, immune to shadowing.
+
+    :returns: An AST node for ``__sflkit_builtins__.Exception``.
+    """
+    return Attribute(
+        value=Name(id=python_builtins),
+        attr="Exception",
+        ctx=Load(),
+    )
+
+
+#: Types whose ``len()`` is a plain size lookup. Deliberately exact types and
+#: not ``isinstance``: astropy's ``HDUList`` subclasses ``list`` but loads its
+#: elements from the file on demand, so measuring one advances the file and the
+#: next read finds nothing -- the subject then wrote a FITS file, read it back
+#: empty, and failed a test it passes uninstrumented. A probe may observe a
+#: program; it may not move it.
+_SIZED_BUILTINS = (
+    "str",
+    "bytes",
+    "bytearray",
+    "list",
+    "tuple",
+    "dict",
+    "set",
+    "frozenset",
+)
+
+
+def get_builtin(name: str) -> Attribute:
+    """
+    Reach a builtin through the tracer's own alias.
+
+    :param name: The builtin's name.
+    :returns: An AST node for ``__sflkit_builtins__.<name>``.
+    """
+    return Attribute(value=Name(id=python_builtins), attr=name, ctx=Load())
+
+
+def guard_sized_builtin(body, var: str) -> If:
+    """
+    Only measure *var* when its exact type has a side-effect-free ``len()``.
+
+    :param body: The probe statement to guard.
+    :param var: The name the probe measures.
+    :returns: The statement, wrapped in a type check.
+    """
+    return If(
+        test=Compare(
+            left=Call(func=get_builtin("type"), args=[Name(id=var)], keywords=[]),
+            ops=[In()],
+            comparators=[
+                Tuple(
+                    elts=[get_builtin(name) for name in _SIZED_BUILTINS],
+                    ctx=Load(),
+                )
+            ],
+        ),
+        body=[body],
+        orelse=[],
+    )
+
 
 def get_call(function, *args) -> Expr:
     return Expr(
@@ -57,6 +133,121 @@ def get_call(function, *args) -> Expr:
 
 
 class PythonEventFactory(MetaVisitor, NodeVisitor):
+    @staticmethod
+    def _get_type_of(class_: str) -> Call:
+        """
+        Build ``type(<class_>)``.
+
+        Deliberately ``type(x)`` and not ``x.__class__``: the two agree for
+        ordinary objects, but ``__class__`` is a normal attribute lookup and can
+        itself be a property. Django's lazy objects define
+        ``__class__ = property(new_method_proxy(...))``, so reading it re-enters
+        the proxy machinery this guard is meant to stay out of, recursing until
+        the stack is exhausted. ``type()`` reads the type slot directly and
+        cannot be proxied -- django's own source makes the same point: "We have
+        to use type(self), not self.__class__, because the latter is proxied."
+        """
+        return Call(func=get_builtin("type"), args=[Name(id=class_)], keywords=[])
+
+    def _guard_attribute_access(self, body, var: str):
+        """
+        Skip a probe whose own arguments would re-enter the subject's code.
+
+        Reading ``self.x`` to report it is an ordinary attribute access, and an
+        ordinary attribute access can run arbitrary code. Two shapes do:
+
+        A ``property`` runs its getter, and when the probe sits inside that very
+        getter the read re-enters it. astropy's ``Card.comment`` is one: its
+        getter assigns ``self.comment``, so the definition probe read the
+        attribute it was reporting and recursed until the stack ran out, taking
+        the test with it.
+
+        A ``__getattr__`` runs for every name the type does not already carry,
+        and delegating proxies answer it by reading something else on
+        themselves. sphinx's ``_TranslationProxy`` keeps ``_func``/``_args`` in
+        ``__slots__``, resolves ``data`` through a property that calls the
+        function, and forwards everything else to ``getattr(self.data, name)``,
+        so a probe reading one attribute re-enters the proxy through the other.
+        The cycle never raised out of the run: each probe's own ``try`` swallows
+        the ``RecursionError``, execution continues, and the next probe starts
+        the cycle again -- while every level emits its events. Nine sphinx
+        instances traced 37 million events across eight files and reached the
+        code under test in none of them.
+
+        Checking for a property is not enough to catch the second shape. The
+        attribute a proxy is asked for is usually one its type does not define
+        at all, so ``hasattr(type(x), attr)`` is false and there is no property
+        to find -- the guard passed and the probe read it anyway.
+
+        ``hasattr``, ``isinstance``, ``property`` and ``type`` are reached
+        through the tracer's builtins alias for the same reason the exception
+        type is: the guard has to mean the same thing wherever it is injected,
+        and the subject is free to rebind any of those names.
+
+        :param body: The probe statement to guard.
+        :param var: The (possibly dotted) name the probe reads.
+        :returns: The statement, wrapped in a check per attribute step.
+        """
+        attributes = var.split(".")
+        for i in range(len(attributes) - 1):
+            class_ = ".".join(attributes[: -1 - i])
+            attribute = attributes[-1 - i]
+            not_a_property = BoolOp(
+                op=Or(),
+                values=[
+                    UnaryOp(
+                        op=Not(),
+                        operand=Call(
+                            func=get_builtin("hasattr"),
+                            args=[
+                                self._get_type_of(class_),
+                                Constant(
+                                    value=attribute,
+                                ),
+                            ],
+                            keywords=[],
+                        ),
+                    ),
+                    UnaryOp(
+                        op=Not(),
+                        operand=Call(
+                            func=get_builtin("isinstance"),
+                            args=[
+                                Attribute(
+                                    value=self._get_type_of(class_),
+                                    attr=attribute,
+                                    ctx=Load(),
+                                ),
+                                get_builtin("property"),
+                            ],
+                            keywords=[],
+                        ),
+                    ),
+                ],
+            )
+            does_not_delegate = UnaryOp(
+                op=Not(),
+                operand=Call(
+                    func=get_builtin("hasattr"),
+                    args=[
+                        self._get_type_of(class_),
+                        Constant(
+                            value="__getattr__",
+                        ),
+                    ],
+                    keywords=[],
+                ),
+            )
+            body = If(
+                test=BoolOp(
+                    op=And(),
+                    values=[not_a_property, does_not_delegate],
+                ),
+                body=[body],
+                orelse=[],
+            )
+        return body
+
     def __init__(
         self,
         language,
@@ -284,7 +475,26 @@ class DefEventFactory(PythonEventFactory):
                 keywords=[],
             )
         )
-        return call
+        if "." not in event.var:
+            return call
+        # A definition of an attribute has to read that attribute back to
+        # report its identity, value and type. When the attribute is a property
+        # and the definition sits inside the property itself, that read re-runs
+        # the property and the probe recurses. Guard it the way use events are
+        # guarded, and catch whatever the read still raises -- a definition
+        # probe used to be the one probe with no guard at all.
+        return Try(
+            body=[self._guard_attribute_access(call, event.var)],
+            handlers=[
+                ExceptHandler(
+                    type=get_exception_type(),
+                    name=None,
+                    body=[Pass()],
+                ),
+            ],
+            orelse=[],
+            finalbody=[],
+        )
 
     def visit_function(
         self, node: typing.Union[FunctionDef, AsyncFunctionDef]
@@ -776,7 +986,7 @@ class UseEventFactory(PythonEventFactory):
 
     def _get_try_wrapper(self, event: UseEvent):
         return Try(
-            body=[self._get_wrapped_property(event)],
+            body=[self._guard_attribute_access(self._get_std_call(event), event.var)],
             handlers=[
                 ExceptHandler(
                     # Any exception: evaluating a probe's own arguments runs
@@ -785,7 +995,7 @@ class UseEventFactory(PythonEventFactory):
                     # settings raise ImproperlyConfigured when touched before
                     # configuration, and a narrow guard let that abort the
                     # import of the package under test.
-                    type=Name(id="Exception"),
+                    type=get_exception_type(),
                     name=None,
                     body=[Pass()],
                 ),
@@ -810,73 +1020,6 @@ class UseEventFactory(PythonEventFactory):
             )
         )
         return call
-
-    @staticmethod
-    def _get_type_of(class_: str) -> Call:
-        """
-        Build ``type(<class_>)``.
-
-        Deliberately ``type(x)`` and not ``x.__class__``: the two agree for
-        ordinary objects, but ``__class__`` is a normal attribute lookup and can
-        itself be a property. Django's lazy objects define
-        ``__class__ = property(new_method_proxy(...))``, so reading it re-enters
-        the proxy machinery this guard is meant to stay out of, recursing until
-        the stack is exhausted. ``type()`` reads the type slot directly and
-        cannot be proxied -- django's own source makes the same point: "We have
-        to use type(self), not self.__class__, because the latter is proxied."
-        """
-        return Call(func=Name(id="type"), args=[Name(id=class_)], keywords=[])
-
-    def _get_wrapped_property(self, event: UseEvent):
-        body = self._get_std_call(event)
-        attributes = event.var.split(".")
-        for i in range(len(attributes) - 1):
-            class_ = ".".join(attributes[: -1 - i])
-            attribute = attributes[-1 - i]
-            body = If(
-                test=BoolOp(
-                    op=Or(),
-                    values=[
-                        UnaryOp(
-                            op=Not(),
-                            operand=Call(
-                                func=Name(
-                                    id="hasattr",
-                                ),
-                                args=[
-                                    self._get_type_of(class_),
-                                    Constant(
-                                        value=attribute,
-                                    ),
-                                ],
-                                keywords=[],
-                            ),
-                        ),
-                        UnaryOp(
-                            op=Not(),
-                            operand=Call(
-                                func=Name(
-                                    id="isinstance",
-                                ),
-                                args=[
-                                    Attribute(
-                                        value=self._get_type_of(class_),
-                                        attr=attribute,
-                                        ctx=Load(),
-                                    ),
-                                    Name(
-                                        id="property",
-                                    ),
-                                ],
-                                keywords=[],
-                            ),
-                        ),
-                    ],
-                ),
-                body=[body],
-                orelse=[],
-            )
-        return body
 
     def get_event_call(self, event: UseEvent):
         return self._get_try_wrapper(event)
@@ -1109,7 +1252,18 @@ class LenEventFactory(DefEventFactory):
             )
         )
         return Try(
-            body=[call],
+            # Guarded as well as caught. Reading a property to measure it
+            # re-runs the property, and when the probe sits inside that very
+            # property the read recurses; astropy's Card.comment assigns
+            # itself in its own getter, so the length probe re-entered until
+            # the C stack died -- which aborts the interpreter outright,
+            # before Python's recursion counter can turn it into the
+            # RecursionError this handler would have caught.
+            body=[
+                guard_sized_builtin(
+                    self._guard_attribute_access(call, event.var), event.var
+                )
+            ],
             handlers=[
                 ExceptHandler(
                     # Any exception: evaluating a probe's own arguments runs
@@ -1118,7 +1272,7 @@ class LenEventFactory(DefEventFactory):
                     # settings raise ImproperlyConfigured when touched before
                     # configuration, and a narrow guard let that abort the
                     # import of the package under test.
-                    type=Name(id="Exception"),
+                    type=get_exception_type(),
                     name=None,
                     body=[Pass()],
                 )
@@ -1341,7 +1495,20 @@ class TestDefEventFactory(DefEventFactory):
                 keywords=[],
             )
         )
-        return call
+        if "." not in event.var:
+            return call
+        return Try(
+            body=[self._guard_attribute_access(call, event.var)],
+            handlers=[
+                ExceptHandler(
+                    type=get_exception_type(),
+                    name=None,
+                    body=[Pass()],
+                ),
+            ],
+            orelse=[],
+            finalbody=[],
+        )
 
     def visit(self, node):
         if self.ignore_inner and (
