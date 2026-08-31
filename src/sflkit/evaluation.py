@@ -1,8 +1,12 @@
 import enum
 import random
+from operator import attrgetter, itemgetter
 from typing import List, Dict, Callable, Set, Optional
 
 from sflkit.analysis.suggestion import Suggestion, Location
+
+_suspiciousness_of = attrgetter("suspiciousness")
+_key_of = itemgetter(0)
 
 
 class Average:
@@ -29,55 +33,80 @@ class Rank:
         default_suspiciousness: float = float("-inf"),
         total_number_of_locations: Optional[int] = None,
     ):
-        self.suggestions = sorted(suggestions, reverse=True)
-        self.suspiciousness: Dict[Location, float] = dict()
-        for i, suggestion in enumerate(self.suggestions):
-            lines = suggestion.lines
-            for line in lines:
-                self.suspiciousness[line] = metric(
-                    suggestion.suspiciousness,
-                    self.suspiciousness.get(line, default_suspiciousness),
+        # Sorting on the suspiciousness directly instead of on the suggestions
+        # yields the same order, because that is the only thing a suggestion
+        # compares, and it keeps the rich comparisons out of the sort.
+        self.suggestions = sorted(suggestions, key=_suspiciousness_of, reverse=True)
+
+        suspiciousness: Dict[Location, float] = dict()
+        current = suspiciousness.get
+        for suggestion in self.suggestions:
+            value = suggestion.suspiciousness
+            for line in suggestion.lines:
+                suspiciousness[line] = metric(
+                    value, current(line, default_suspiciousness)
                 )
-        suggestions = dict()
-        for suggestion in self.suspiciousness:
-            if self.suspiciousness[suggestion] not in suggestions:
-                suggestions[self.suspiciousness[suggestion]] = set()
-            suggestions[self.suspiciousness[suggestion]].add(suggestion)
-        self.suggestions_normalized = sorted(
-            [
-                Suggestion(list(lines), suspiciousness)
-                for suspiciousness, lines in suggestions.items()
-            ],
-            reverse=True,
-        )
+        self.suspiciousness = suspiciousness
+
+        groups: Dict[float, Set[Location]] = dict()
+        for line, value in suspiciousness.items():
+            lines = groups.get(value)
+            if lines is None:
+                groups[value] = {line}
+            else:
+                lines.add(line)
+        self.suggestions_normalized = [
+            Suggestion(list(lines), value)
+            for value, lines in sorted(groups.items(), key=_key_of, reverse=True)
+        ]
 
         self.ranks: Dict[float, List[Location]] = dict()
         self.locations: Dict[Location, float] = dict()
         self.effort: Dict[Location, int] = dict()
+        locations = self.locations
+        effort = self.effort
         current_rank = 1
         for suggestion in self.suggestions_normalized:
             lines = suggestion.lines
-            if len(lines) == 0:
+            size = len(lines)
+            if size == 0:
                 continue
-            elif len(lines) == 1:
+            elif size == 1:
                 rank = current_rank
                 current_rank += 1
             else:
-                rank = (len(lines)) / 2 + (current_rank - 1)
-                current_rank += len(lines)
+                rank = size / 2 + (current_rank - 1)
+                current_rank += size
             self.ranks[rank] = lines
+            value = suggestion.suspiciousness
+            spent = current_rank - 1
             for line in lines:
-                self.suspiciousness[line] = metric(
-                    suggestion.suspiciousness,
-                    self.suspiciousness.get(line, default_suspiciousness),
+                suspiciousness[line] = metric(
+                    value, current(line, default_suspiciousness)
                 )
-                self.locations[line] = rank
-                self.effort[line] = current_rank - 1
+                locations[line] = rank
+                effort[line] = spent
 
         self.number_of_locations = total_number_of_locations or len(self.locations)
         self.default_rank = (self.number_of_locations - len(self.locations)) / 2 + (
             current_rank - 1
         )
+
+    def _pool(self, n: int) -> List[Location]:
+        """The locations a top-n draws from: the most suspicious ones first, each
+        one only at the position where it was first seen."""
+        pool = list()
+        seen = set()
+        for suggestion in self.suggestions:
+            if len(pool) >= n:
+                break
+            for line in suggestion.lines:
+                # A set for the membership test, a list for the order: the same
+                # locations in the same order as testing against the list itself.
+                if line not in seen:
+                    seen.add(line)
+                    pool.append(line)
+        return pool
 
     def top_n(
         self,
@@ -86,22 +115,38 @@ class Rank:
         scenario: Optional[Scenario] = None,
         repeat: int = 1000,
     ) -> float:
-        top_n_locations = list()
-        for suggestion in self.suggestions:
-            if len(top_n_locations) >= n:
-                break
-            for line in suggestion.lines:
-                if line not in top_n_locations:
-                    top_n_locations.append(line)
+        top_n_locations = self._pool(n)
         if len(top_n_locations) <= n:
             return self._top_n(faulty, top_n_locations, scenario)
         else:
+            # Only the number of faulty locations in a draw decides the score, so
+            # the pool is reduced to that flag up front. Drawing from the flags
+            # consumes the random stream exactly like drawing from the locations
+            # does, since random.sample looks at nothing but the population size.
+            flags = [1 if line in faulty else 0 for line in top_n_locations]
+            number_of_faulty = len(faulty)
+            sample = random.sample
+            score = self._score
             sum_ = 0
             for _ in range(repeat):
-                sum_ += self._top_n(
-                    faulty, random.sample(top_n_locations, k=n), scenario
-                )
+                sum_ += score(sum(sample(flags, k=n)), number_of_faulty, n, scenario)
             return sum_ / repeat
+
+    @staticmethod
+    def _score(
+        found: int,
+        number_of_faulty: int,
+        number_of_locations: int,
+        scenario: Optional[Scenario] = None,
+    ) -> float:
+        if scenario == Scenario.BEST_CASE:
+            return 1 if found > 0 else 0
+        elif scenario == Scenario.WORST_CASE:
+            return found / number_of_faulty
+        elif scenario == Scenario.AVG_CASE:
+            return min(found / (number_of_faulty / 2), 1)
+        else:
+            return found / number_of_locations
 
     @staticmethod
     def _top_n(
@@ -109,36 +154,37 @@ class Rank:
         top_n_locations: List[Location],
         scenario: Optional[Scenario] = None,
     ) -> float:
-        found = len(faulty.intersection(top_n_locations))
+        return Rank._score(
+            len(faulty.intersection(top_n_locations)),
+            len(faulty),
+            len(top_n_locations),
+            scenario,
+        )
+
+    @staticmethod
+    def _aggregate(
+        values: List[float], size: int, scenario: Optional[Scenario] = None
+    ) -> float:
         if scenario == Scenario.BEST_CASE:
-            return 1 if found > 0 else 0
+            return min(values)
         elif scenario == Scenario.WORST_CASE:
-            return found / len(faulty)
+            return max(values)
         elif scenario == Scenario.AVG_CASE:
-            return min(found / (len(faulty) / 2), 1)
+            values.sort()
+            return values[max(size // 2 - 1, 0)]
         else:
-            return found / len(top_n_locations)
+            return sum(values) / size
 
     def get_rank(
         self, faulty: Set[Location], scenario: Optional[Scenario] = None
     ) -> float:
-        if scenario == Scenario.BEST_CASE:
-            rank = min(
-                self.locations.get(location, self.default_rank) for location in faulty
-            )
-        elif scenario == Scenario.WORST_CASE:
-            rank = max(
-                self.locations.get(location, self.default_rank) for location in faulty
-            )
-        elif scenario == Scenario.AVG_CASE:
-            rank = sorted(
-                [self.locations.get(location, self.default_rank) for location in faulty]
-            )[max(len(faulty) // 2 - 1, 0)]
-        else:
-            rank = sum(
-                self.locations.get(location, self.default_rank) for location in faulty
-            ) / len(faulty)
-        return rank
+        rank_of = self.locations.get
+        default_rank = self.default_rank
+        return self._aggregate(
+            [rank_of(location, default_rank) for location in faulty],
+            len(faulty),
+            scenario,
+        )
 
     def exam(self, faulty: Set[Location], scenario: Optional[Scenario] = None) -> float:
         return self.get_rank(faulty, scenario) / self.number_of_locations
@@ -146,27 +192,10 @@ class Rank:
     def wasted_effort(
         self, faulty: Set[Location], scenario: Optional[Scenario] = None
     ) -> int:
-        if scenario == Scenario.BEST_CASE:
-            return min(
-                self.effort.get(location, self.number_of_locations)
-                for location in faulty
-            )
-        elif scenario == Scenario.WORST_CASE:
-            return max(
-                self.effort.get(location, self.number_of_locations)
-                for location in faulty
-            )
-        elif scenario == Scenario.AVG_CASE:
-            return sorted(
-                [
-                    self.effort.get(location, self.number_of_locations)
-                    for location in faulty
-                ]
-            )[max(len(faulty) // 2 - 1, 0)]
-        else:
-            return sum(
-                [
-                    self.effort.get(location, self.number_of_locations)
-                    for location in faulty
-                ]
-            ) / len(faulty)
+        effort_of = self.effort.get
+        default_effort = self.number_of_locations
+        return self._aggregate(
+            [effort_of(location, default_effort) for location in faulty],
+            len(faulty),
+            scenario,
+        )
