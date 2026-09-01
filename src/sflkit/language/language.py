@@ -60,6 +60,59 @@ def _python_parts(visitor):
     )
 
 
+def _java_parts():
+    """
+    Build the Java backend's pieces, importing it on the way.
+
+    The import lives here rather than at module scope because it pulls in
+    ``jast``, which costs about 7 MB of resident memory. This module is
+    imported by anything that touches a config, including the collector that
+    runs inside the program under test, and a Python subject never needs the
+    Java backend.
+
+    :returns: Everything a :class:`Language` member exposes besides its
+        suffixes.
+    """
+    import sflkit.language.java.factory as java_factory
+    from sflkit.language.java.extract import JavaVarExtract, JavaConditionExtract
+    from sflkit.language.java.finder import (
+        JavaFunctionFinder,
+        JavaLoopFinder,
+        JavaBranchFinder,
+    )
+    from sflkit.language.java.visitor import JavaInstrumentation
+
+    return (
+        JavaInstrumentation,
+        {
+            EventType.LINE: java_factory.LineEventFactory,
+            EventType.BRANCH: java_factory.BranchEventFactory,
+            EventType.DEF: java_factory.DefEventFactory,
+            EventType.USE: java_factory.UseEventFactory,
+            EventType.LOOP_BEGIN: java_factory.LoopBeginEventFactory,
+            EventType.LOOP_HIT: java_factory.LoopHitEventFactory,
+            EventType.LOOP_END: java_factory.LoopEndEventFactory,
+            EventType.FUNCTION_ENTER: java_factory.FunctionEnterEventFactory,
+            EventType.FUNCTION_EXIT: java_factory.FunctionExitEventFactory,
+            EventType.FUNCTION_ERROR: java_factory.FunctionErrorEventFactory,
+            EventType.CONDITION: java_factory.ConditionEventFactory,
+            EventType.LEN: java_factory.LenEventFactory,
+            EventType.TEST_START: java_factory.TestStartEventFactory,
+            EventType.TEST_END: java_factory.TestEndEventFactory,
+            EventType.TEST_LINE: java_factory.TestLineEventFactory,
+            EventType.TEST_DEF: java_factory.TestDefEventFactory,
+            EventType.TEST_USE: java_factory.TestUseEventFactory,
+            EventType.TEST_ASSERT: java_factory.TestAssertEventFactory,
+        },
+        JavaVarExtract(),
+        JavaVarExtract(use=True),
+        JavaConditionExtract(),
+        JavaFunctionFinder,
+        JavaLoopFinder,
+        JavaBranchFinder,
+    )
+
+
 def _no_parts():
     """:returns: Empty pieces, for a language with no backend."""
     return (None, dict(), None, None, None, None, None, None)
@@ -140,5 +193,4 @@ class Language(enum.Enum):
     PYTHON3 = PYTHON
     PYTHON2 = (_PYTHON2_LOADER, ["py"])
     C = (_no_parts, ["c", "h"])
-    # Not wired on this line: the Java backend arrives with its own release.
-    JAVA = (_no_parts, ["java"])
+    JAVA = (_java_parts, ["java"])
