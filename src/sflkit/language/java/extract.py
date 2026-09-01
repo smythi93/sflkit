@@ -42,6 +42,15 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def aggregate_result(self, aggregate, result):
         return aggregate | result
 
+    def generic_visit(self, node):
+        # None (optional/empty child slots) and literal leaves
+        # (CharLiteral/StringLiteral/IntLiteral/...) subclass str/int, so jast's
+        # generic_visit would try to iterate them and fail.  None of these hold
+        # variables.
+        if node is None or isinstance(node, (str, int)):
+            return self.default_result()
+        return super().generic_visit(node)
+
     def visit_list(self, node: List[jast.JAST]):
         return reduce(
             self.aggregate_result, map(self.visit, node), self.default_result()
@@ -59,7 +68,7 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def visit_variabledeclaratorid(self, node: jast.variabledeclaratorid):
         if self.subscript:
             return self.default_result()
-        return OrderedSet(str(node.id))
+        return OrderedSet([str(node.id)])
 
     def visit_Lambda(self, node: jast.Lambda):
         if self.subscript:
@@ -104,10 +113,24 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
     def visit_Constant(self, node):
         return self.default_result()
 
+    @staticmethod
+    def _is_type_name(name) -> bool:
+        # By Java convention a type's first letter is uppercase (e.g. System,
+        # Integer).  Ignore leading '$'/'_' as used in generated or internal
+        # class names (e.g. Gson's `$Gson$Types`, `$Gson$Preconditions`).
+        return str(name).lstrip("$_")[:1].isupper()
+
     def visit_Name(self, node: jast.Name):
         if self.subscript:
             return self.default_result()
-        return OrderedSet(str(node.id))
+        name = str(node.id)
+        # Skip type/class references: a bare identifier that names a type is not
+        # a value, so it must not be passed to JLib.getID(...).  This also drops
+        # static accesses rooted at a type (e.g. System.out, $Gson$Types.x),
+        # which are not local data flow and would otherwise not compile.
+        if self._is_type_name(name):
+            return self.default_result()
+        return OrderedSet([name])
 
     def visit_ClassExpr(self, node):
         return self.default_result()
@@ -131,16 +154,36 @@ class JavaVarExtract(jast.JNodeVisitor, VariableExtract):
             return False
         return False
 
+    @staticmethod
+    def _dotted_name(node):
+        """Full dotted path of a pure ``Name(.Name)*`` chain, else ``None``."""
+        if isinstance(node, jast.Name):
+            return str(node.id)
+        if isinstance(node, jast.Member) and isinstance(node.member, jast.Name):
+            base = JavaVarExtract._dotted_name(node.value)
+            return None if base is None else f"{base}.{node.member.id}"
+        return None
+
     def visit_Member(self, node):
+        if not isinstance(node.member, jast.Name):
+            return self.visit(node.value)
+        # A segment that names a type (e.g. `pkg.Type`, `obj.Type.X`): the whole
+        # qualified reference names a type or a static member, not local data
+        # flow, so it must not be passed to JLib.getID(...).  Drop it (mirrors
+        # the rule in visit_Name).
+        if self._is_type_name(node.member.id):
+            return self.default_result()
         variables = self.visit(node.value)
-        if self.check_Member(node) and isinstance(node.member, jast.Name):
-            return (variables if self.use else {}) | OrderedSet(
-                f"{variable}.{node.member.id}"
-                for variable in variables
-                if variable not in self.current_ignores
-            )
-        else:
-            return variables
+        # Only extend the *full* name of the receiver (e.g. `a.b` -> `a.b.c`),
+        # and only when that receiver is itself a recognized value.  Extending
+        # every sub-prefix would fabricate names like `a.c` (or, for qualified
+        # names, mangle package segments such as `org.commons`).
+        if self.check_Member(node):
+            parent = self._dotted_name(node.value)
+            if parent is not None and parent in variables and parent not in self.current_ignores:
+                extended = OrderedSet([f"{parent}.{node.member.id}"])
+                return (variables | extended) if self.use else extended
+        return variables
 
     def visit_Call(self, node):
         return self.visit(node.args)
@@ -175,7 +218,7 @@ class JavaConditionExtract(jast.JNodeVisitor, ConditionExtract):
             jast.Compound(
                 body=[
                     jast.LocalVariable(
-                        type=jast.Boolean,
+                        type=jast.Boolean(),
                         declarators=[
                             jast.declarator(
                                 id=jast.variabledeclaratorid(id=var),
@@ -192,38 +235,70 @@ class JavaConditionExtract(jast.JNodeVisitor, ConditionExtract):
     def generic_visit(self, node):
         return self.__get_tmp_var(node, jast.unparse(node))
 
+    def __assign_var(self, var, value):
+        return jast.Expr(value=jast.Assign(target=jast.Name(id=var), value=value))
+
     @staticmethod
-    def __get_if(test, body):
-        return jast.If(
-            test=test,
-            body=body,
-        )
+    def contains_assign(node):
+        # whether the expression assigns a variable (e.g. `(x = f()) == 0`)
+        if isinstance(node, jast.Assign):
+            return True
+        if isinstance(node, jast.JAST):
+            for _, value in node:
+                if isinstance(value, list):
+                    if any(
+                        JavaConditionExtract.contains_assign(item)
+                        for item in value
+                        if isinstance(item, jast.JAST)
+                    ):
+                        return True
+                elif isinstance(
+                    value, jast.JAST
+                ) and JavaConditionExtract.contains_assign(value):
+                    return True
+        return False
 
     def visit_BinOp(self, node):
         if not isinstance(node.op, (jast.And, jast.Or)):
             return self.generic_visit(node)
-        _, use_l, assign_l, e_l = self.visit(node.right)
-        _, use_r, assign_r, e_r = self.visit(node.left)
-        if isinstance(node.op, jast.And):
-            assign = jast.Compound(body=[assign_l, self.__get_if(use_l, assign_r)])
-        else:
-            assign = jast.Compound(
-                body=[
-                    assign_l,
-                    self.__get_if(jast.UnaryOp(jast.Not(), use_l), [assign_r]),
-                ]
-            )
-        expression = jast.unparse(node)
-        final_var, final_use, final_assign, e = self.__get_tmp_var(
-            jast.BinOp(left=use_l, op=node.op, right=use_r, lineno=node.lineno),
-            expression,
+        is_and = isinstance(node.op, jast.And)
+        var_l, use_l, assign_l, e_l = self.visit(node.left)
+        var_r, use_r, assign_r, e_r = self.visit(node.right)
+
+        final_var = self.factory.tmp_generator.get_var_name()
+        event = ConditionEvent(
+            self.file,
+            node.lineno,
+            self.factory.event_id_generator.get_next_id(),
+            jast.unparse(node),
+            tmp_var=final_var,
         )
-        return (
-            final_var,
-            final_use,
-            jast.Compound(body=[assign, final_assign]),
-            e_l + e_r + e,
+        # Short-circuit desugaring that keeps the right operand's temporaries in
+        # scope: declare the result once, evaluate the right side (and assign the
+        # result) only on the non-short-circuiting branch.
+        #   &&:  if (left)  { <eval right>; final = right; } else { final = false; }
+        #   ||:  if (!left) { <eval right>; final = right; } else { final = true;  }
+        test = use_l if is_and else jast.UnaryOp(op=jast.Not(), operand=use_l)
+        short_value = jast.Constant(jast.BoolLiteral(not is_and))
+        branch = jast.If(
+            test=test,
+            body=jast.Block(body=[assign_r, self.__assign_var(final_var, use_r)]),
+            orelse=jast.Block(body=[self.__assign_var(final_var, short_value)]),
         )
+        assign = jast.Compound(
+            body=[
+                assign_l,
+                jast.LocalVariable(
+                    type=jast.Boolean(),
+                    declarators=[
+                        jast.declarator(id=jast.variabledeclaratorid(id=final_var))
+                    ],
+                ),
+                branch,
+                self.factory.get_event_call(event),
+            ]
+        )
+        return final_var, jast.Name(id=final_var), assign, e_l + e_r + [event]
 
     def visit_UnaryOp(self, node):
         if isinstance(node.op, jast.Not):
