@@ -50,6 +50,13 @@ public class JCodec {
         return result;
     }
 
+    public static byte[] encodeThreadId(int threadId) {
+        byte length = getByteLength(threadId);
+        byte[] result = new byte[length + 1];
+        write1(threadId, length, result, 0);
+        return result;
+    }
+
     public static byte[] encodeBaseDefEvent(int eventID, int varID) {
         byte LengthEvent = getByteLength(eventID);
         byte LengthVar = getByteLength(varID);
