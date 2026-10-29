@@ -7,6 +7,7 @@ from sflkit.runners.run import (
     UnittestRunner,
     InputRunner,
     ParallelPytestRunner,
+    OnlinePytestRunner,
 )
 
 
@@ -20,3 +21,5 @@ class RunnerType(enum.Enum):
     INPUT_RUNNER = InputRunner
     PARALLEL_PYTEST_RUNNER = ParallelPytestRunner
     PARALLEL_UNITTEST_RUNNER = UnittestRunner
+    ONLINE_PYTEST_RUNNER = OnlinePytestRunner
+    PARALLEL_ONLINE_PYTEST_RUNNER = OnlinePytestRunner

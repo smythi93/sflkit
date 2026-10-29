@@ -14,7 +14,16 @@ whether individual lines are part of the execution.
 
 ## Language Support
 
-SFLKit supports currently Python 3 but we plan on releasing further language support.
+SFLKit supports Python 3 and Java.
+
+Python is instrumented with the standard `ast` module. Events can also be collected
+without instrumenting anything, by tracing the program as it runs; see
+`sflkit.online`.
+
+Java is instrumented with [jast](https://github.com/smythi93/jast) and traced by the
+`jsflkit` runtime, which produces the same events as the Python side, so every
+spectrum, predicate and metric applies unchanged. A runner for
+[Defects4J](https://github.com/rjust/defects4j) collects traces per test.
 
 ## Installation
 
