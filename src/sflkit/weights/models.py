@@ -51,7 +51,9 @@ class TestTimeModel(ParallelModel):
         self, event, event_file: EventFile, scope: Scope = None
     ) -> Set["AnalysisObject"]:
         analysis = super().handle_event(event, event_file, scope)
-        self.current_analysis[event_file].extend(analysis)
+        # De-duplicated here rather than in the base model, which no longer
+        # pays for a set on every event just for this one caller.
+        self.current_analysis[event_file].extend(set(analysis))
         return analysis
 
     def add(
