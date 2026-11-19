@@ -83,7 +83,7 @@ class TestEvaluation(BaseTest):
 
     def test_top_5_multi(self):
         top_5_multi = self.get_top_n(5, multi=True)
-        self.assertAlmostEqual(0.14285, top_5_multi, delta=0.05)
+        self.assertAlmostEqual(0.2, top_5_multi, delta=self.DELTA)
 
     def test_top_1_avg(self):
         top_1_avg = self.get_top_n(1, scenario=Scenario.AVG_CASE)
@@ -99,7 +99,7 @@ class TestEvaluation(BaseTest):
 
     def test_top_5_avg_multi(self):
         top_5_avg_multi = self.get_top_n(5, scenario=Scenario.AVG_CASE, multi=True)
-        self.assertAlmostEqual(0.35714, top_5_avg_multi, delta=0.005)
+        self.assertAlmostEqual(0.5, top_5_avg_multi, delta=self.DELTA)
 
     def test_top_1_best(self):
         top_1_best = self.get_top_n(1, scenario=Scenario.BEST_CASE)
@@ -115,7 +115,7 @@ class TestEvaluation(BaseTest):
 
     def test_top_5_best_multi(self):
         top_5_best_multi = self.get_top_n(5, scenario=Scenario.BEST_CASE, multi=True)
-        self.assertAlmostEqual(0.71429, top_5_best_multi, delta=0.005)
+        self.assertAlmostEqual(1, top_5_best_multi, delta=self.DELTA)
 
     def test_top_1_worst(self):
         top_1_worst = self.get_top_n(1, scenario=Scenario.WORST_CASE)
@@ -131,7 +131,7 @@ class TestEvaluation(BaseTest):
 
     def test_top_5_worst_multi(self):
         top_5_worst_multi = self.get_top_n(5, scenario=Scenario.WORST_CASE, multi=True)
-        self.assertAlmostEqual(0.17857, top_5_worst_multi, delta=0.005)
+        self.assertAlmostEqual(0.25, top_5_worst_multi, delta=self.DELTA)
 
     def test_exam_avg(self):
         exam_avg = self.get_exam(scenario=Scenario.AVG_CASE)
@@ -192,15 +192,20 @@ class TestRankInternals(BaseTest):
         self.assertEqual(results[1], results[2])
         self.assertAlmostEqual(0.5, results[0], delta=0.05)
 
-    def test_pool_keeps_first_seen_order_and_drops_duplicates(self):
+    def test_top_n_counts_each_location_once_at_its_own_rank(self):
         rank = Rank(self.suggestions)
-        # a.py:2 is in the most suspicious suggestion and in a later one; it may
-        # only be counted once, at the position it was first seen.
+        # a.py:2 appears twice but ranks once, with a.py:3 at 0.9; a.py:1 ties
+        # with a.py:4 at 0.5, so the third position takes either with equal odds.
         self.assertEqual(
-            [Location("a.py", 2), Location("a.py", 3), Location("a.py", 1)],
-            rank._pool(3),
+            1, rank.top_n({Location("a.py", 2)}, 2, Scenario.BEST_CASE, seed=0)
         )
-        self.assertEqual(rank._pool(3), rank._pool(3))
+        self.assertAlmostEqual(
+            0.5,
+            rank.top_n(
+                {Location("a.py", 1)}, 3, Scenario.BEST_CASE, repeat=10000, seed=0
+            ),
+            delta=0.02,
+        )
 
     def test_metric_is_applied_for_every_line_of_every_suggestion(self):
         # The metric may be stateful (see Average), so the number and the order
@@ -270,3 +275,48 @@ class TestSuggestionOrdering(BaseTest):
         for clone in (copy.deepcopy(location), pickle.loads(pickle.dumps(location))):
             self.assertEqual(location, clone)
             self.assertEqual(hash(location), hash(clone))
+
+
+class TestTopNTieBreaking(BaseTest):
+    """Ties are broken only inside the group that the cut-off falls into."""
+
+    def setUp(self):
+        self.fault = Location("a.py", 1)
+        self.tied = [Location("a.py", i) for i in range(2, 1002)]
+
+    def test_fault_ranked_alone_first_is_in_every_top_n(self):
+        rank = Rank([Suggestion([self.fault], 1.0), Suggestion(self.tied, 0.5)])
+        for n in (1, 5, 10):
+            for scenario in (None, Scenario.BEST_CASE, Scenario.WORST_CASE):
+                expected = 1 / n if scenario is None else 1
+                self.assertAlmostEqual(
+                    expected, rank.top_n({self.fault}, n, scenario, seed=0)
+                )
+
+    def test_top_n_is_monotone_in_n(self):
+        rank = Rank(
+            [
+                Suggestion(self.tied[:3], 0.9),
+                Suggestion([self.fault] + self.tied[3:20], 0.5),
+                Suggestion(self.tied[20:], 0.1),
+            ]
+        )
+        values = [
+            rank.top_n({self.fault}, n, Scenario.BEST_CASE, repeat=5000, seed=1)
+            for n in range(1, 30)
+        ]
+        self.assertEqual(values, sorted(values))
+        self.assertEqual(0, values[2])  # the three better locations fill n = 3
+        self.assertEqual(1, values[-1])  # n = 29 covers the whole tied group
+        # n = 8 leaves five of the eighteen tied places
+        self.assertAlmostEqual(5 / 18, values[7], delta=0.02)
+
+    def test_seed_makes_top_n_reproducible_and_leaves_global_state_alone(self):
+        rank = Rank([Suggestion([self.fault] + self.tied, 0.5)])
+        random.seed(123)
+        state = random.getstate()
+        first = rank.top_n({self.fault}, 10, Scenario.BEST_CASE, repeat=2000, seed=7)
+        self.assertEqual(state, random.getstate())
+        second = rank.top_n({self.fault}, 10, Scenario.BEST_CASE, repeat=2000, seed=7)
+        self.assertEqual(first, second)
+        self.assertAlmostEqual(10 / 1001, first, delta=0.005)

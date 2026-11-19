@@ -92,45 +92,59 @@ class Rank:
             current_rank - 1
         )
 
-    def _pool(self, n: int) -> List[Location]:
-        """The locations a top-n draws from: the most suspicious ones first, each
-        one only at the position where it was first seen."""
-        pool = list()
-        seen = set()
-        for suggestion in self.suggestions:
-            if len(pool) >= n:
-                break
-            for line in suggestion.lines:
-                # A set for the membership test, a list for the order: the same
-                # locations in the same order as testing against the list itself.
-                if line not in seen:
-                    seen.add(line)
-                    pool.append(line)
-        return pool
-
     def top_n(
         self,
         faulty: Set[Location],
         n: int,
         scenario: Optional[Scenario] = None,
         repeat: int = 1000,
+        seed: Optional[int] = None,
     ) -> float:
-        top_n_locations = self._pool(n)
-        if len(top_n_locations) <= n:
-            return self._top_n(faulty, top_n_locations, scenario)
-        else:
-            # Only the number of faulty locations in a draw decides the score, so
-            # the pool is reduced to that flag up front. Drawing from the flags
-            # consumes the random stream exactly like drawing from the locations
-            # does, since random.sample looks at nothing but the population size.
-            flags = [1 if line in faulty else 0 for line in top_n_locations]
-            number_of_faulty = len(faulty)
-            sample = random.sample
+        """Score the ``n`` most suspicious locations against ``faulty``.
+
+        Ties are broken at random, but only among equally suspicious locations:
+        a group that lies entirely within the first ``n`` positions is always
+        inspected, a group entirely below them never is, and only the group the
+        cut-off falls into is broken, by drawing the missing number of its
+        members uniformly. The result is averaged over ``repeat`` draws.
+
+        With a ``seed`` the draws come from a private generator, so the result
+        is reproducible and leaves the global random state untouched; without
+        one they come from the ``random`` module, as before.
+        """
+        if n <= 0:
+            return 0.0
+        number_of_faulty = len(faulty)
+        found = 0
+        taken = 0
+        for suggestion in self.suggestions_normalized:
+            lines = suggestion.lines
+            size = len(lines)
+            in_group = sum(1 for line in lines if line in faulty)
+            if taken + size <= n:
+                found += in_group
+                taken += size
+                if taken == n:
+                    break
+                continue
+            # The cut-off falls inside this group: ``needed`` of its ``size``
+            # members fit, and which ones is decided at random.
+            needed = n - taken
+            if in_group == 0 or (scenario == Scenario.BEST_CASE and found > 0):
+                return self._score(found, number_of_faulty, n, scenario)
+            sample = (random if seed is None else random.Random(seed)).sample
+            population = range(size)
             score = self._score
             sum_ = 0
             for _ in range(repeat):
-                sum_ += score(sum(sample(flags, k=n)), number_of_faulty, n, scenario)
+                # Index the group so that its faulty members come first; a draw
+                # then hits as many of them as it holds indices below in_group.
+                hits = sum(1 for i in sample(population, needed) if i < in_group)
+                sum_ += score(found + hits, number_of_faulty, n, scenario)
             return sum_ / repeat
+        if taken == 0:
+            return 0.0
+        return self._score(found, number_of_faulty, taken, scenario)
 
     @staticmethod
     def _score(
@@ -147,19 +161,6 @@ class Rank:
             return min(found / (number_of_faulty / 2), 1)
         else:
             return found / number_of_locations
-
-    @staticmethod
-    def _top_n(
-        faulty: Set[Location],
-        top_n_locations: List[Location],
-        scenario: Optional[Scenario] = None,
-    ) -> float:
-        return Rank._score(
-            len(faulty.intersection(top_n_locations)),
-            len(faulty),
-            len(top_n_locations),
-            scenario,
-        )
 
     @staticmethod
     def _aggregate(
